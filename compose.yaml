@@ -1,0 +1,22 @@
+services:
+  redis-db:
+    image: 'redis:latest'
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-db-data:/data
+
+  redisinsight:
+    image: 'redis/redisinsight:latest'
+    ports:
+      - '5540:5540'
+    depends_on:
+      - redis-db
+    environment:
+      - REDIS_HOSTS=redis-db:6379
+    volumes:
+      - redisinsight-data:/data
+
+volumes:
+  redis-db-data:
+  redisinsight-data:
