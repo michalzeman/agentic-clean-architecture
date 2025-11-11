@@ -16,8 +16,14 @@ The { service name } service follows a modular structure with the following key 
 │       └── { Domain name }DomainEvent.kt   # Domain events
 ├── { service name }-adapter-file/    # File adapter for persistence operations
 │   └── src/main/kotlin/mz/data/platform/job/source/adapter/file/
-│       └── BackedSourceFileRepository.kt # Repository for file-based persistence
+│       └── Redis{ Domain name }Repository.kt # Repository for file-based persistence
+│       └── Redis{ Domain name }.kt           # Spring Data Persistence entity mapped to DB row e.g. @RedisHash
+│       └── { Domain name }Repository.kt      # Spring Data Repository interface e.g. for RedisDB
 ├── { service name }-application/     # Application layer containing integration configurations
+|   |---src/main/mz/data/platform/job/
+|       |--{ Domain name }CommandHandler.kt # application API for the interacting domain aggergate root 
+|       |--{ Domain name }DomainEventListener.kt # Spring event @EventListener for handling @DomainEvents  
+|       |--{ Domain name }Repository.kt # Adapter port interface for accessing into the Persistence e.g. Redis DB  
 ├── { service name }-adapter-redis-stream/ # Redis stream adapter for publishing domain events
 └── { service name }-boot-app/        # Boot application with main entry point
 ```
@@ -121,7 +127,37 @@ Each update method:
 The aggregate interacts with the database through a complete flow:
 
 ### 1. Aggregate State Retrieval
+
+Actions are handled via DomainCommandHandler located in the `{ service name }-application`.
 The aggregate retrieves its state from the database through the repository pattern:
+
+- Domain Command Handler:
+```kotlin
+@Component
+class JobCommandHandler(
+    private val jobRepository: JobRepository,
+    private val lockProvider: LockProvider,
+) {
+    suspend fun handle(command: JobDomainCommand): Job =
+        when (command) {
+            is JobDomainCommand.CreateJob ->
+                lockProvider.withLock(
+                    command.correlationId,
+                ) { jobRepository.upsert(JobAggregate.create(command)) }
+            is JobDomainCommand.UpdateJobStatus ->
+                lockProvider.withLock(command.aggregateId.value) {
+                    jobRepository
+                        .findById(command.aggregateId)
+                        ?.let { JobAggregate(it).update(command) }
+                        ?.let { jobRepository.upsert(it) }
+                        ?: throw IllegalArgumentException("Job with id ${command.aggregateId} not found")
+                }
+// ... more commands
+        }
+}
+```
+
+- interface example:
 
 ```kotlin
 // Repository interface in { service name }-adapter-file module
@@ -131,6 +167,67 @@ interface { Domain name }Repository {
 }
 ```
 
+- implementation example for Job { domain name }:
+```kotlin
+@Component
+internal class RedisJobRepository(
+    private val repository: JobDataRepository,
+) : JobRepository {
+    override suspend fun upsert(jobAggregate: JobAggregate): Job =
+        withContext(Dispatchers.IO) {
+            val job = jobAggregate.toRedisJob()
+            repository.save(job).toJob()
+        }
+
+    override suspend fun findById(aggregateId: AggregateId): Job? =
+        withContext(Dispatchers.IO) {
+            repository
+                .findById(UUID.fromString(aggregateId.value))
+                .map { it.toJob() }
+                .getOrNull()
+        }
+
+    override suspend fun findByJobWorkerId(jobWorkerId: AggregateId): Job? =
+        withContext(Dispatchers.IO) {
+            repository
+                .findByJobWorkerId(jobWorkerId.value)
+                .map { it.toJob() }
+                .getOrNull()
+        }
+}
+```
+
+#### Persistence
+- spring data redis
+- persistence entity for the example of Job domain:
+```kotlin
+@RedisHash("Job")
+internal open class RedisJob(
+    @field:Id val id: UUID = UUID.randomUUID(),
+    val details: JobDetails,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val status: JobStatus,
+    @field:Version val version: Long = 0,
+    @field:Indexed val jobParamId: String?,
+    val jobWorkerVersion: Long?,
+) {
+    @Transient var domainEvents: MutableList<JobDomainEvent> = mutableListOf()
+
+    @DomainEvents
+    open fun domainEvents(): Collection<JobDomainEvent> =
+        if (domainEvents.isEmpty()) {
+            listOf(JobDomainEvent.JobCreated(job = this.toJob(), aggregateId = AggregateId(id.toString())))
+        } else {
+            domainEvents
+        }
+
+    @AfterDomainEventPublication
+    open fun callbackMethod() {
+        domainEvents.clear()
+    }
+}
+```
 
 ### 2. Aggregate State Management
 The `{ Domain name }Aggregate` manages state by:
@@ -156,7 +253,7 @@ This approach ensures reliable message publishing while maintaining loose coupli
 ## Complete Data Flow
 
 ```
-[External Request] → [Application Service] → [{ Domain name }Aggregate]
+[External Request] → [Domain Command Handler] → [{ Domain name }Aggregate]
                             ↓
                    [Repository (Database)] ← [{ Domain name }]
                             ↓

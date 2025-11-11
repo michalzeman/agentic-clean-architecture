@@ -28,7 +28,7 @@
 - **Spring Integration**: Persistent Redis-backed message channels, ServiceActivators, PublishSubscribe for domain events
 
 ## Workflow
-- **Plan first**: Provide step-by-step plan before changes, wait for approval before changing multiple unrelated files
+- **Plan first**: Provide step-by-step plan before changes, **wait for approval before executing the plan**
 - **Verify tests**: Always run tests after changes to verify they pass; avoid infinite retry loops on failures
 
 ## Implementation Guides

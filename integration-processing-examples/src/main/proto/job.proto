@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package mz.integration.messaging.data.domain;
+package mz.shared.domain;
 
 message JobData {
   string status = 1;

@@ -1,5 +1,3 @@
-import org.gradle.internal.configuration.problems.PropertyTrace
-
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -27,4 +25,3 @@ file(rootDir)
     .maxDepth(10) // Adjust depth as needed
     .filter { it.isDirectory && File(it, "build.gradle.kts").exists() }
     .forEach { include(it.relativeTo(rootDir).path.replace(File.separator, ":")) }
-include("shared-kernel:connector-redis-starter")
