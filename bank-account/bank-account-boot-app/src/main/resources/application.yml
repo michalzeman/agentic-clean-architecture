@@ -1,0 +1,18 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    db:
+      enabled: false
+
+spring:
+  application:
+    name: bank-account-service
+
+  data:
+    redis:
+      host: ${REDIS_DB:localhost}
+      port: 6379
+      database: 0
