@@ -37,3 +37,4 @@ Detailed step-by-step guides in `prompts/`:
 - **Redis consumer**: `add-redis-stream-consumer.md` - Inbound stream processing with Spring Integration
 - **Redis producer**: `add-redis-stream-producer.md` - Outbound event publishing patterns
 - **New service**: `generate-new-service-structure.md` - Multi-module service scaffolding
+- **Message Channel**: `add-message-channel-configuration.md` - Redis-backed message channels with serialization options

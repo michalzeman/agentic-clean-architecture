@@ -18,11 +18,11 @@ The { service name } service follows a modular structure with the following key 
 │   └── src/main/kotlin/mz/data/platform/job/source/adapter/file/
 │       └── Redis{ Domain name }Repository.kt # Repository for file-based persistence
 │       └── Redis{ Domain name }.kt           # Spring Data Persistence entity mapped to DB row e.g. @RedisHash
+|       |--{ Domain name }DomainEventListener.kt # Spring event @EventListener for handling @DomainEvents, send events to the MessageChannel
 │       └── { Domain name }Repository.kt      # Spring Data Repository interface e.g. for RedisDB
 ├── { service name }-application/     # Application layer containing integration configurations
 |   |---src/main/mz/data/platform/job/
 |       |--{ Domain name }CommandHandler.kt # application API for the interacting domain aggergate root 
-|       |--{ Domain name }DomainEventListener.kt # Spring event @EventListener for handling @DomainEvents  
 |       |--{ Domain name }Repository.kt # Adapter port interface for accessing into the Persistence e.g. Redis DB  
 ├── { service name }-adapter-redis-stream/ # Redis stream adapter for publishing domain events
 └── { service name }-boot-app/        # Boot application with main entry point
