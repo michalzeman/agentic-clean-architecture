@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":bank-account:bank-account-application"))
     implementation(project(":bank-account:bank-account-adapter-redis"))
     implementation(project(":bank-account:bank-account-adapter-redis-stream"))
+    implementation(project(":bank-account:bank-account-adapter-rest"))
     implementation(project(":shared-kernel:connector-redis-starter"))
 
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")

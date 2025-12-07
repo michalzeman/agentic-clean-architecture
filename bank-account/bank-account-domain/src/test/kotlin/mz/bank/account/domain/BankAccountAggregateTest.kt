@@ -15,7 +15,7 @@ class BankAccountAggregateTest {
         // Given
         val cmd =
             BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-123"),
+                email = Email("test@example.com"),
                 initialBalance = BigDecimal("100.00"),
             )
 
@@ -23,7 +23,8 @@ class BankAccountAggregateTest {
         val aggregate = BankAccountAggregate.create(cmd)
 
         // Then
-        assertThat(aggregate.account.aggregateId).isEqualTo(AggregateId("acc-123"))
+        assertThat(aggregate.account.aggregateId.value).isNotBlank()
+        assertThat(aggregate.account.email).isEqualTo(Email("test@example.com"))
         assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("100.00"))
         assertThat(aggregate.domainEvents).hasSize(1)
         assertThat(aggregate.domainEvents.first()).isInstanceOf(BankAccountEvent.AccountCreated::class.java)
@@ -34,7 +35,7 @@ class BankAccountAggregateTest {
         // Given
         val cmd =
             BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-456"),
+                email = Email("zero@example.com"),
                 initialBalance = BigDecimal.ZERO,
             )
 
@@ -53,7 +54,7 @@ class BankAccountAggregateTest {
         // Given
         val cmd =
             BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-789"),
+                email = Email("negative@example.com"),
                 initialBalance = BigDecimal("-50.00"),
             )
 
@@ -63,21 +64,55 @@ class BankAccountAggregateTest {
             .hasMessageContaining("Initial balance cannot be negative")
     }
 
+    @Test
+    fun `should generate unique aggregate ID when creating account`() {
+        // Given
+        val cmd1 =
+            BankAccountCommand.CreateAccount(
+                email = Email("user1@example.com"),
+                initialBalance = BigDecimal("100.00"),
+            )
+        val cmd2 =
+            BankAccountCommand.CreateAccount(
+                email = Email("user2@example.com"),
+                initialBalance = BigDecimal("200.00"),
+            )
+
+        // When
+        val aggregate1 = BankAccountAggregate.create(cmd1)
+        val aggregate2 = BankAccountAggregate.create(cmd2)
+
+        // Then
+        assertThat(aggregate1.account.aggregateId).isNotEqualTo(aggregate2.account.aggregateId)
+    }
+
+    @Test
+    fun `should include email in AccountCreated event`() {
+        // Given
+        val cmd =
+            BankAccountCommand.CreateAccount(
+                email = Email("event@example.com"),
+                initialBalance = BigDecimal("100.00"),
+            )
+
+        // When
+        val aggregate = BankAccountAggregate.create(cmd)
+
+        // Then
+        val event = aggregate.domainEvents.first() as BankAccountEvent.AccountCreated
+        assertThat(event.email).isEqualTo(Email("event@example.com"))
+        assertThat(event.initialBalance).isEqualByComparingTo(BigDecimal("100.00"))
+    }
+
     // ==================== Deposit Money Tests ====================
 
     @Test
     fun `should deposit positive amount successfully`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-deposit"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val depositCmd =
             BankAccountCommand.DepositMoney(
-                aggregateId = AggregateId("acc-deposit"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("50.00"),
             )
 
@@ -93,16 +128,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to deposit zero amount`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-deposit-zero"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val depositCmd =
             BankAccountCommand.DepositMoney(
-                aggregateId = AggregateId("acc-deposit-zero"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal.ZERO,
             )
 
@@ -115,16 +144,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to deposit negative amount`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-deposit-neg"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val depositCmd =
             BankAccountCommand.DepositMoney(
-                aggregateId = AggregateId("acc-deposit-neg"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("-25.00"),
             )
 
@@ -139,16 +162,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should withdraw money when sufficient balance`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-withdraw"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawMoney(
-                aggregateId = AggregateId("acc-withdraw"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("30.00"),
             )
 
@@ -164,16 +181,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to withdraw more than available balance`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-insufficient"),
-                    initialBalance = BigDecimal("50.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("50.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawMoney(
-                aggregateId = AggregateId("acc-insufficient"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("100.00"),
             )
 
@@ -186,16 +197,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to withdraw zero amount`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-withdraw-zero"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawMoney(
-                aggregateId = AggregateId("acc-withdraw-zero"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal.ZERO,
             )
 
@@ -208,16 +213,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to withdraw negative amount`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-withdraw-neg"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawMoney(
-                aggregateId = AggregateId("acc-withdraw-neg"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("-20.00"),
             )
 
@@ -230,16 +229,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should withdraw exact balance successfully`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-exact"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawMoney(
-                aggregateId = AggregateId("acc-exact"),
+                aggregateId = aggregate.account.aggregateId,
                 amount = BigDecimal("100.00"),
             )
 
@@ -256,16 +249,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should withdraw transfer money with new transaction`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-transfer-src"),
-                    initialBalance = BigDecimal("200.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-src"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-001",
                 amount = BigDecimal("50.00"),
             )
@@ -284,16 +271,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail transfer withdrawal when insufficient balance`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-transfer-insufficient"),
-                    initialBalance = BigDecimal("30.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("30.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-insufficient"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-002",
                 amount = BigDecimal("100.00"),
             )
@@ -307,17 +288,12 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail transfer withdrawal when transaction already opened`() {
         // Given
-        val createCmd =
-            BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-transfer-opened"),
-                initialBalance = BigDecimal("200.00"),
-            )
-        val aggregate = BankAccountAggregate.create(createCmd)
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
 
         // First withdrawal to open transaction
         val firstWithdrawal =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-opened"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-003",
                 amount = BigDecimal("50.00"),
             )
@@ -326,7 +302,7 @@ class BankAccountAggregateTest {
         // Try to withdraw same transaction again
         val secondWithdrawal =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-opened"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-003",
                 amount = BigDecimal("30.00"),
             )
@@ -340,17 +316,12 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail transfer withdrawal when transaction already finished`() {
         // Given
-        val createCmd =
-            BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-transfer-finished"),
-                initialBalance = BigDecimal("200.00"),
-            )
-        val aggregate = BankAccountAggregate.create(createCmd)
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
 
         // Withdraw for transfer
         val withdrawCmd =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-004",
                 amount = BigDecimal("50.00"),
             )
@@ -359,7 +330,7 @@ class BankAccountAggregateTest {
         // Finish transaction
         val finishCmd =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-transfer-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-004",
             )
         val afterFinish = afterWithdraw.finishTransaction(finishCmd)
@@ -367,7 +338,7 @@ class BankAccountAggregateTest {
         // Try to withdraw with finished transaction
         val retryWithdraw =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-transfer-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-004",
                 amount = BigDecimal("30.00"),
             )
@@ -383,16 +354,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should deposit transfer money with new transaction`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-transfer-dst"),
-                    initialBalance = BigDecimal("50.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("50.00"))
         val depositCmd =
             BankAccountCommand.DepositFromTransfer(
-                aggregateId = AggregateId("acc-transfer-dst"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-101",
                 amount = BigDecimal("75.00"),
             )
@@ -411,17 +376,12 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail transfer deposit when transaction already opened`() {
         // Given
-        val createCmd =
-            BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-transfer-dep-opened"),
-                initialBalance = BigDecimal("50.00"),
-            )
-        val aggregate = BankAccountAggregate.create(createCmd)
+        val aggregate = createTestAggregate(BigDecimal("50.00"))
 
         // First deposit to open transaction
         val firstDeposit =
             BankAccountCommand.DepositFromTransfer(
-                aggregateId = AggregateId("acc-transfer-dep-opened"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-102",
                 amount = BigDecimal("75.00"),
             )
@@ -430,7 +390,7 @@ class BankAccountAggregateTest {
         // Try to deposit same transaction again
         val secondDeposit =
             BankAccountCommand.DepositFromTransfer(
-                aggregateId = AggregateId("acc-transfer-dep-opened"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-102",
                 amount = BigDecimal("50.00"),
             )
@@ -444,17 +404,12 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail transfer deposit when transaction already finished`() {
         // Given
-        val createCmd =
-            BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-transfer-dep-finished"),
-                initialBalance = BigDecimal("50.00"),
-            )
-        val aggregate = BankAccountAggregate.create(createCmd)
+        val aggregate = createTestAggregate(BigDecimal("50.00"))
 
         // Deposit for transfer
         val depositCmd =
             BankAccountCommand.DepositFromTransfer(
-                aggregateId = AggregateId("acc-transfer-dep-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-103",
                 amount = BigDecimal("75.00"),
             )
@@ -463,7 +418,7 @@ class BankAccountAggregateTest {
         // Finish transaction
         val finishCmd =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-transfer-dep-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-103",
             )
         val afterFinish = afterDeposit.finishTransaction(finishCmd)
@@ -471,7 +426,7 @@ class BankAccountAggregateTest {
         // Try to deposit with finished transaction
         val retryDeposit =
             BankAccountCommand.DepositFromTransfer(
-                aggregateId = AggregateId("acc-transfer-dep-finished"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-103",
                 amount = BigDecimal("50.00"),
             )
@@ -487,16 +442,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should finish opened transaction successfully`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-finish"),
-                    initialBalance = BigDecimal("200.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-finish"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-201",
                 amount = BigDecimal("50.00"),
             )
@@ -504,7 +453,7 @@ class BankAccountAggregateTest {
 
         val finishCmd =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-finish"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-201",
             )
 
@@ -521,16 +470,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to finish transaction not in opened set`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-finish-not-opened"),
-                    initialBalance = BigDecimal("200.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
         val finishCmd =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-finish-not-opened"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-202",
             )
 
@@ -543,16 +486,10 @@ class BankAccountAggregateTest {
     @Test
     fun `should fail to finish already finished transaction`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-finish-already"),
-                    initialBalance = BigDecimal("200.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
         val withdrawCmd =
             BankAccountCommand.WithdrawForTransfer(
-                aggregateId = AggregateId("acc-finish-already"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-203",
                 amount = BigDecimal("50.00"),
             )
@@ -560,7 +497,7 @@ class BankAccountAggregateTest {
 
         val finishCmd =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-finish-already"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-203",
             )
         val afterFinish = afterWithdraw.finishTransaction(finishCmd)
@@ -568,7 +505,7 @@ class BankAccountAggregateTest {
         // Try to finish again
         val retryFinish =
             BankAccountCommand.FinishTransaction(
-                aggregateId = AggregateId("acc-finish-already"),
+                aggregateId = aggregate.account.aggregateId,
                 transactionId = "txn-203",
             )
 
@@ -587,7 +524,7 @@ class BankAccountAggregateTest {
         val now = Instant.now()
         val events =
             listOf(
-                BankAccountEvent.AccountCreated(aggregateId, now, BigDecimal("100.00")),
+                BankAccountEvent.AccountCreated(aggregateId, now, Email("rebuild@example.com"), BigDecimal("100.00")),
                 BankAccountEvent.MoneyDeposited(aggregateId, now, BigDecimal("50.00")),
                 BankAccountEvent.MoneyWithdrawn(aggregateId, now, BigDecimal("20.00")),
             )
@@ -608,7 +545,7 @@ class BankAccountAggregateTest {
         val now = Instant.now()
         val events =
             listOf(
-                BankAccountEvent.AccountCreated(aggregateId, now, BigDecimal("200.00")),
+                BankAccountEvent.AccountCreated(aggregateId, now, Email("allevents@example.com"), BigDecimal("200.00")),
                 BankAccountEvent.TransferWithdrawalStarted(aggregateId, now, "txn-events-1", BigDecimal("50.00")),
                 BankAccountEvent.TransferDepositStarted(aggregateId, now, "txn-events-2", BigDecimal("30.00")),
                 BankAccountEvent.MoneyDeposited(aggregateId, now, BigDecimal("100.00")),
@@ -633,19 +570,13 @@ class BankAccountAggregateTest {
     @Test
     fun `should maintain non-negative balance invariant`() {
         // Given
-        val aggregate =
-            BankAccountAggregate.create(
-                BankAccountCommand.CreateAccount(
-                    aggregateId = AggregateId("acc-invariant"),
-                    initialBalance = BigDecimal("100.00"),
-                ),
-            )
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
 
         // When
         val result =
             aggregate.withdraw(
                 BankAccountCommand.WithdrawMoney(
-                    aggregateId = AggregateId("acc-invariant"),
+                    aggregateId = aggregate.account.aggregateId,
                     amount = BigDecimal("100.00"),
                 ),
             )
@@ -661,7 +592,7 @@ class BankAccountAggregateTest {
         val now = Instant.now()
         val events =
             listOf(
-                BankAccountEvent.AccountCreated(aggregateId, now, BigDecimal("200.00")),
+                BankAccountEvent.AccountCreated(aggregateId, now, Email("nooverlap@example.com"), BigDecimal("200.00")),
                 BankAccountEvent.TransferWithdrawalStarted(aggregateId, now, "txn-overlap-1", BigDecimal("50.00")),
                 BankAccountEvent.TransactionFinished(aggregateId, now, "txn-overlap-1"),
             )
@@ -680,7 +611,7 @@ class BankAccountAggregateTest {
         // Given
         val cmd =
             BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-initial"),
+                email = Email("initial@example.com"),
                 initialBalance = BigDecimal("250.00"),
             )
 
@@ -688,7 +619,8 @@ class BankAccountAggregateTest {
         val aggregate = BankAccountAggregate.create(cmd)
 
         // Then
-        assertThat(aggregate.account.aggregateId).isEqualTo(AggregateId("acc-initial"))
+        assertThat(aggregate.account.aggregateId.value).isNotBlank()
+        assertThat(aggregate.account.email).isEqualTo(Email("initial@example.com"))
         assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("250.00"))
         assertThat(aggregate.account.openedTransactions).isEmpty()
         assertThat(aggregate.account.finishedTransactions).isEmpty()
@@ -698,19 +630,14 @@ class BankAccountAggregateTest {
     @Test
     fun `should track version increments on each change`() {
         // Given
-        val cmd =
-            BankAccountCommand.CreateAccount(
-                aggregateId = AggregateId("acc-version"),
-                initialBalance = BigDecimal("100.00"),
-            )
-        var aggregate = BankAccountAggregate.create(cmd)
+        var aggregate = createTestAggregate(BigDecimal("100.00"))
         assertThat(aggregate.account.version).isEqualTo(0L)
 
         // When & Then - deposit increases version
         aggregate =
             aggregate.deposit(
                 BankAccountCommand.DepositMoney(
-                    aggregateId = AggregateId("acc-version"),
+                    aggregateId = aggregate.account.aggregateId,
                     amount = BigDecimal("50.00"),
                 ),
             )
@@ -720,10 +647,20 @@ class BankAccountAggregateTest {
         aggregate =
             aggregate.withdraw(
                 BankAccountCommand.WithdrawMoney(
-                    aggregateId = AggregateId("acc-version"),
+                    aggregateId = aggregate.account.aggregateId,
                     amount = BigDecimal("25.00"),
                 ),
             )
         assertThat(aggregate.account.version).isEqualTo(2L)
     }
+
+    // ==================== Helper Methods ====================
+
+    private fun createTestAggregate(initialBalance: BigDecimal): BankAccountAggregate =
+        BankAccountAggregate.create(
+            BankAccountCommand.CreateAccount(
+                email = Email("test@example.com"),
+                initialBalance = initialBalance,
+            ),
+        )
 }

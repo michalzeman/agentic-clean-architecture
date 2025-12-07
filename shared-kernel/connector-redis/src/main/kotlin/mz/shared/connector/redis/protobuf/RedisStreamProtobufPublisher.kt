@@ -1,26 +1,26 @@
-package mz.shared.connector.redis
+package mz.shared.connector.redis.protobuf
 
+import com.google.protobuf.Message
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.withContext
-import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import mz.shared.domain.AGGREGATE_ID
 import mz.shared.domain.LockProvider
 import org.apache.commons.logging.LogFactory
 import org.springframework.data.redis.connection.stream.StringRecord
 import org.springframework.data.redis.core.ReactiveRedisTemplate
-import org.springframework.messaging.Message
 import kotlin.concurrent.withLock
+import org.springframework.messaging.Message as SpringMessage
 
-private val logger = LogFactory.getLog(RedisStreamPublisher::class.java)
+private val logger = LogFactory.getLog(RedisStreamProtobufPublisher::class.java)
 
-class RedisStreamPublisher<V : com.google.protobuf.GeneratedMessage>(
+class RedisStreamProtobufPublisher<V : Message>(
     private val streamKey: String,
     private val reactiveRedisTemplate: ReactiveRedisTemplate<String, *>,
-    private val redisMapRecordJsonSerializer: RedisMapRecordJsonSerializer,
+    private val redisMapRecordProtobufSerializer: RedisMapRecordProtobufSerializer,
     private val lockRegistry: LockProvider? = null,
 ) {
-    suspend fun publish(message: Message<V>): Unit =
+    suspend fun publish(message: SpringMessage<V>): Unit =
         withContext(Dispatchers.IO) {
             lockRegistry?.let { lckRg ->
                 message.headers[AGGREGATE_ID]?.let { lockKey ->
@@ -31,9 +31,9 @@ class RedisStreamPublisher<V : com.google.protobuf.GeneratedMessage>(
             } ?: serializeAndPublish(message)
         }
 
-    private suspend fun serializeAndPublish(message: Message<V>) {
-        val recordToPublish = redisMapRecordJsonSerializer.serialize(message).withStreamKey(streamKey)
-        logger.info("Publishing to the stream: $streamKey message: $recordToPublish")
+    private suspend fun serializeAndPublish(message: SpringMessage<V>) {
+        val recordToPublish = redisMapRecordProtobufSerializer.serialize(message).withStreamKey(streamKey)
+        logger.info("Publishing protobuf message to stream: $streamKey")
         reactiveRedisTemplate
             .opsForStream<String, StringRecord>()
             .add(recordToPublish)

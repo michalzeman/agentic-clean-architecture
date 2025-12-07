@@ -1,0 +1,281 @@
+### Bank Account REST API Tests
+### Base URL for local development
+@baseUrl = http://localhost:8080/api/v1/accounts
+
+
+### ==================== Account Creation ====================
+
+### Create a new bank account with initial balance
+# @name createAccount1
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "email": "alice@example.com",
+  "initialBalance": 1000.00
+}
+
+> {%
+    client.global.set("account1Id", response.body.accountId);
+%}
+
+### Create a second account for transfer testing
+# @name createAccount2
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "initialBalance": 500.00
+}
+
+> {%
+    client.global.set("account2Id", response.body.accountId);
+%}
+
+### Create account with zero balance
+# @name createZeroAccount
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "email": "charlie@example.com",
+  "initialBalance": 0.00
+}
+
+> {%
+    client.global.set("zeroAccountId", response.body.accountId);
+%}
+
+
+### ==================== Account Queries ====================
+
+### Get account by ID (uses accountId from createAccount1 response)
+GET {{baseUrl}}/{{account1Id}}
+Content-Type: application/json
+
+### Get second account by ID
+GET {{baseUrl}}/{{account2Id}}
+Content-Type: application/json
+
+### Get non-existent account (should return 404)
+GET {{baseUrl}}/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+
+### ==================== Deposit Operations ====================
+
+### Deposit money into account1
+POST {{baseUrl}}/{{account1Id}}/deposit
+Content-Type: application/json
+
+{
+  "amount": 250.00
+}
+
+### Deposit small amount into account1
+POST {{baseUrl}}/{{account1Id}}/deposit
+Content-Type: application/json
+
+{
+  "amount": 0.01
+}
+
+### Deposit large amount into account2
+POST {{baseUrl}}/{{account2Id}}/deposit
+Content-Type: application/json
+
+{
+  "amount": 10000.00
+}
+
+
+### ==================== Withdraw Operations ====================
+
+### Withdraw money from account1
+POST {{baseUrl}}/{{account1Id}}/withdraw
+Content-Type: application/json
+
+{
+  "amount": 100.00
+}
+
+### Withdraw small amount from account1
+POST {{baseUrl}}/{{account1Id}}/withdraw
+Content-Type: application/json
+
+{
+  "amount": 0.50
+}
+
+### Attempt to withdraw more than balance (should fail)
+POST {{baseUrl}}/{{account1Id}}/withdraw
+Content-Type: application/json
+
+{
+  "amount": 999999.00
+}
+
+
+### ==================== Transfer Operations ====================
+### Transfer from account1 (source) to account2 (destination)
+
+### Step 1: Withdraw from source account for transfer
+POST {{baseUrl}}/{{account1Id}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "txn-001",
+  "amount": 200.00
+}
+
+### Step 2: Deposit to destination account from transfer
+POST {{baseUrl}}/{{account2Id}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "txn-001",
+  "amount": 200.00
+}
+
+### Step 3: Finish transaction on source account
+POST {{baseUrl}}/{{account1Id}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "txn-001"
+}
+
+### Step 4: Finish transaction on destination account
+POST {{baseUrl}}/{{account2Id}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "txn-001"
+}
+
+### Verify source account after transfer
+GET {{baseUrl}}/{{account1Id}}
+Content-Type: application/json
+
+### Verify destination account after transfer
+GET {{baseUrl}}/{{account2Id}}
+Content-Type: application/json
+
+
+### ==================== Error Cases ====================
+
+### Attempt to finish non-existent transaction (should fail)
+POST {{baseUrl}}/{{account1Id}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "non-existent-txn"
+}
+
+### Attempt to deposit negative amount (should fail)
+POST {{baseUrl}}/{{account1Id}}/deposit
+Content-Type: application/json
+
+{
+  "amount": -100.00
+}
+
+### Attempt to withdraw negative amount (should fail)
+POST {{baseUrl}}/{{account1Id}}/withdraw
+Content-Type: application/json
+
+{
+  "amount": -50.00
+}
+
+### Attempt to create duplicate transaction (should fail after second call)
+POST {{baseUrl}}/{{account1Id}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "duplicate-txn",
+  "amount": 50.00
+}
+
+### Attempt same transaction again (should fail - already opened)
+POST {{baseUrl}}/{{account1Id}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "duplicate-txn",
+  "amount": 50.00
+}
+
+
+### ==================== Full Transfer Flow Test ====================
+
+### Step 1: Create sender account
+# @name createSender
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "email": "sender@example.com",
+  "initialBalance": 5000.00
+}
+
+> {%
+    client.global.set("senderId", response.body.accountId);
+%}
+
+### Step 2: Create receiver account
+# @name createReceiver
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "email": "receiver@example.com",
+  "initialBalance": 1000.00
+}
+
+> {%
+    client.global.set("receiverId", response.body.accountId);
+%}
+
+### Step 3: Execute transfer - withdraw from sender
+POST {{baseUrl}}/{{senderId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "transfer-flow-001",
+  "amount": 750.00
+}
+
+### Step 4: Execute transfer - deposit to receiver
+POST {{baseUrl}}/{{receiverId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "transfer-flow-001",
+  "amount": 750.00
+}
+
+### Step 5: Complete transfer - finish on sender
+POST {{baseUrl}}/{{senderId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "transfer-flow-001"
+}
+
+### Step 6: Complete transfer - finish on receiver
+POST {{baseUrl}}/{{receiverId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "transfer-flow-001"
+}
+
+### Verify: sender should have 4250.00
+GET {{baseUrl}}/{{senderId}}
+Content-Type: application/json
+
+### Verify: receiver should have 1750.00
+GET {{baseUrl}}/{{receiverId}}
+Content-Type: application/json

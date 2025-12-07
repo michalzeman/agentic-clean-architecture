@@ -15,6 +15,7 @@ sealed class BankAccountEvent {
     data class AccountCreated(
         override val aggregateId: AggregateId,
         override val updatedAt: Instant,
+        val email: Email,
         val initialBalance: BigDecimal,
     ) : BankAccountEvent()
 

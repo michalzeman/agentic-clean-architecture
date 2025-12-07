@@ -3,6 +3,7 @@ package mz.bank.account.domain
 import mz.shared.domain.AggregateId
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.UUID
 
 /**
  * BankAccountAggregate is the aggregate root that manages the bank account state and business logic.
@@ -21,6 +22,7 @@ data class BankAccountAggregate(
             when (event) {
                 is BankAccountEvent.AccountCreated -> {
                     account.copy(
+                        email = event.email,
                         amount = event.initialBalance,
                         version = account.version + 1,
                         updatedAt = event.updatedAt,
@@ -176,6 +178,7 @@ data class BankAccountAggregate(
     companion object {
         /**
          * Creates a new bank account with initial balance.
+         * Generates a unique UUID for the aggregate ID.
          */
         fun create(cmd: BankAccountCommand.CreateAccount): BankAccountAggregate {
             require(cmd.initialBalance >= BigDecimal.ZERO) {
@@ -183,9 +186,11 @@ data class BankAccountAggregate(
             }
 
             val now = Instant.now()
+            val aggregateId = AggregateId(UUID.randomUUID().toString())
             val newAccount =
                 BankAccount(
-                    aggregateId = cmd.aggregateId,
+                    aggregateId = aggregateId,
+                    email = cmd.email,
                     amount = cmd.initialBalance,
                     openedTransactions = emptySet(),
                     finishedTransactions = emptySet(),
@@ -196,8 +201,9 @@ data class BankAccountAggregate(
 
             val event =
                 BankAccountEvent.AccountCreated(
-                    aggregateId = cmd.aggregateId,
+                    aggregateId = aggregateId,
                     updatedAt = now,
+                    email = cmd.email,
                     initialBalance = cmd.initialBalance,
                 )
 
@@ -216,11 +222,14 @@ data class BankAccountAggregate(
         ): BankAccountAggregate {
             require(events.isNotEmpty()) { "Events list must not be empty" }
 
+            // Placeholder email - will be overwritten by AccountCreated event
+            val placeholderEmail = Email("placeholder@placeholder.com")
             val initialAggregate =
                 BankAccountAggregate(
                     account =
                         BankAccount(
                             aggregateId = aggregateId,
+                            email = placeholderEmail,
                             amount = BigDecimal.ZERO,
                             openedTransactions = emptySet(),
                             finishedTransactions = emptySet(),

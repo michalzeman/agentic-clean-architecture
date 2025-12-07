@@ -38,7 +38,7 @@ import java.time.Duration
 
 private val logger = LogFactory.getLog(RedisStreamConsumer::class.java)
 
-class RedisStreamConsumer<T, O> internal constructor(
+class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal constructor(
     val channel: MessageChannel,
     val serializer: RedisMapRecordJsonSerializer,
     val type: Class<T>,
@@ -125,7 +125,7 @@ class RedisStreamConsumer<T, O> internal constructor(
     }
 }
 
-class RedisSteamConsumerBuilder<T, O>(
+class RedisSteamConsumerBuilder<T : com.google.protobuf.GeneratedMessage, O>(
     val streamKey: String,
     val channel: MessageChannel,
     val consumerGroup: String,

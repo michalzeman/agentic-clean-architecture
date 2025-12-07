@@ -10,6 +10,7 @@ import java.time.Instant
  */
 data class BankAccount(
     val aggregateId: AggregateId,
+    val email: Email,
     val amount: BigDecimal,
     val openedTransactions: Set<String> = emptySet(),
     val finishedTransactions: Set<String> = emptySet(),

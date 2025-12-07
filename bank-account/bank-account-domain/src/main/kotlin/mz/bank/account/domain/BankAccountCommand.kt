@@ -9,7 +9,7 @@ import java.math.BigDecimal
  */
 sealed class BankAccountCommand {
     data class CreateAccount(
-        val aggregateId: AggregateId,
+        val email: Email,
         val initialBalance: BigDecimal,
     ) : BankAccountCommand()
 

@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package mz.bank.account.contract;
+
+option java_package = "mz.bank.account.contract.proto";
+option java_outer_classname = "BankAccountEventProto";
+option java_multiple_files = true;
+
+// Wrapper message for all bank account events
+message BankAccountEvent {
+  // Event type discriminator using oneof
+  oneof event {
+    AccountCreated account_created = 1;
+    MoneyDeposited money_deposited = 2;
+    MoneyWithdrawn money_withdrawn = 3;
+    TransferWithdrawalStarted transfer_withdrawal_started = 4;
+    TransferDepositStarted transfer_deposit_started = 5;
+    TransactionFinished transaction_finished = 6;
+  }
+}
+
+// Event: Account was created
+message AccountCreated {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string email = 3;
+  // BigDecimal as string to preserve precision
+  string initial_balance = 4;
+}
+
+// Event: Money was deposited
+message MoneyDeposited {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  // BigDecimal as string to preserve precision
+  string amount = 3;
+}
+
+// Event: Money was withdrawn
+message MoneyWithdrawn {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  // BigDecimal as string to preserve precision
+  string amount = 3;
+}
+
+// Event: Transfer withdrawal was started
+message TransferWithdrawalStarted {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string transaction_id = 3;
+  // BigDecimal as string to preserve precision
+  string amount = 4;
+}
+
+// Event: Transfer deposit was started
+message TransferDepositStarted {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string transaction_id = 3;
+  // BigDecimal as string to preserve precision
+  string amount = 4;
+}
+
+// Event: Transaction was finished
+message TransactionFinished {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string transaction_id = 3;
+}

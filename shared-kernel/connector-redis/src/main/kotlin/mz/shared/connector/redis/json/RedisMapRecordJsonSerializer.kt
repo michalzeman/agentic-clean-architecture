@@ -2,6 +2,7 @@ package mz.shared.connector.redis.json
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.protobuf.util.JsonFormat
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.StreamRecords
 import org.springframework.data.redis.connection.stream.StringRecord
@@ -15,19 +16,19 @@ private const val HEADERS = "headers"
 class RedisMapRecordJsonSerializer(
     val objectMapper: ObjectMapper,
 ) {
-    fun <V> serialize(message: Message<V>): StringRecord {
+    fun <V : com.google.protobuf.GeneratedMessage> serialize(message: Message<V>): StringRecord {
         val headers = objectMapper.writeValueAsString(message.headers)
-        val payload = objectMapper.writeValueAsString(message.payload)
+        val payload = JsonFormat.printer().print(message.payload)
         return StreamRecords.string(mutableMapOf(PAYLOAD to payload, HEADERS to headers))
     }
 
-    fun <V> deserialize(
+    fun <V : com.google.protobuf.GeneratedMessage> deserialize(
         record: MapRecord<String, String, String>,
         type: Class<V>,
     ): Message<V> {
         val headers = deserializeHeaders(record)
 
-        val payload = deserializePayload(record, type)!!
+        val payload = deserializePayload(record, type)
 
         return MessageBuilder
             .withPayload<V>(payload)
@@ -35,13 +36,12 @@ class RedisMapRecordJsonSerializer(
             .build()
     }
 
-    private fun <V> deserializePayload(
+    private fun <V : com.google.protobuf.GeneratedMessage> deserializePayload(
         record: MapRecord<String, String, String>,
         type: Class<V>,
     ): V {
         val payloadValue = record.value[PAYLOAD]!!
-        val payload: V = objectMapper.readValue(payloadValue, type)
-        return payload
+        return objectMapper.readValue(payloadValue, type)
     }
 
     private fun deserializeHeaders(record: MapRecord<String, String, String>): Map<String, String> {
