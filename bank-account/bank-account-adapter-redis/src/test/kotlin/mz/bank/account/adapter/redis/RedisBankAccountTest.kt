@@ -1,17 +1,63 @@
 package mz.bank.account.adapter.redis
 
+import kotlinx.coroutines.runBlocking
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountEvent
 import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
 class RedisBankAccountTest {
+    private lateinit var bankAccountDataRepository: BankAccountDataRepository
+    private lateinit var redisBankAccountRepository: RedisBankAccountRepository
+
+    @BeforeEach
+    fun setUp() {
+        bankAccountDataRepository = mock()
+        redisBankAccountRepository = RedisBankAccountRepository(bankAccountDataRepository)
+    }
+
+    // ==================== Repository Tests ====================
+
+    @Test
+    fun `should return true when email exists`(): Unit =
+        runBlocking {
+            // Given
+            val email = Email("existing@example.com")
+            whenever(bankAccountDataRepository.existsByEmail(email.value)).thenReturn(true)
+
+            // When
+            val result = redisBankAccountRepository.existsByEmail(email)
+
+            // Then
+            assertThat(result).isTrue()
+            verify(bankAccountDataRepository).existsByEmail(email.value)
+        }
+
+    @Test
+    fun `should return false when email does not exist`(): Unit =
+        runBlocking {
+            // Given
+            val email = Email("nonexistent@example.com")
+            whenever(bankAccountDataRepository.existsByEmail(email.value)).thenReturn(false)
+
+            // When
+            val result = redisBankAccountRepository.existsByEmail(email)
+
+            // Then
+            assertThat(result).isFalse()
+            verify(bankAccountDataRepository).existsByEmail(email.value)
+        }
+
     // ==================== toBankAccount() Mapping Tests ====================
 
     @Test

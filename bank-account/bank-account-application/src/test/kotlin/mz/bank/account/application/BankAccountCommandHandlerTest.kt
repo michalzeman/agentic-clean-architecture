@@ -20,19 +20,21 @@ import java.time.Instant
 class BankAccountCommandHandlerTest {
     private lateinit var bankAccountRepository: BankAccountRepository
     private lateinit var lockProvider: LockProvider
+    private lateinit var createBankAccountUseCase: CreateBankAccountUseCase
     private lateinit var commandHandler: BankAccountCommandHandler
 
     @BeforeEach
     fun setUp() {
         bankAccountRepository = mock()
         lockProvider = FakeLockProvider()
-        commandHandler = BankAccountCommandHandler(bankAccountRepository, lockProvider)
+        createBankAccountUseCase = CreateBankAccountUseCase(bankAccountRepository)
+        commandHandler = BankAccountCommandHandler(bankAccountRepository, lockProvider, createBankAccountUseCase)
     }
 
     // ==================== CreateAccount Tests ====================
 
     @Test
-    fun `should create account successfully`() =
+    fun `should create account successfully`(): Unit =
         runBlocking {
             // Given
             val command =
@@ -41,6 +43,7 @@ class BankAccountCommandHandlerTest {
                     initialBalance = BigDecimal("100.00"),
                 )
 
+            whenever(bankAccountRepository.existsByEmail(command.email)).thenReturn(false)
             whenever(bankAccountRepository.upsert(any())).thenAnswer { invocation ->
                 val aggregate = invocation.getArgument<mz.bank.account.domain.BankAccountAggregate>(0)
                 aggregate.account
@@ -53,13 +56,32 @@ class BankAccountCommandHandlerTest {
             assertThat(result.aggregateId.value).isNotBlank()
             assertThat(result.email).isEqualTo(Email("test@example.com"))
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("100.00"))
+            verify(bankAccountRepository).existsByEmail(command.email)
             verify(bankAccountRepository).upsert(any())
+        }
+
+    @Test
+    fun `should throw exception when creating account with duplicate email`(): Unit =
+        runBlocking {
+            // Given
+            val command =
+                BankAccountCommand.CreateAccount(
+                    email = Email("duplicate@example.com"),
+                    initialBalance = BigDecimal("100.00"),
+                )
+
+            whenever(bankAccountRepository.existsByEmail(command.email)).thenReturn(true)
+
+            // When & Then
+            assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
+                .isInstanceOf(IllegalStateException::class.java)
+                .hasMessageContaining("Account with email duplicate@example.com already exists")
         }
 
     // ==================== DepositMoney Tests ====================
 
     @Test
-    fun `should deposit money to existing account`() =
+    fun `should deposit money to existing account`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("acc-deposit-test")
@@ -105,7 +127,7 @@ class BankAccountCommandHandlerTest {
     // ==================== WithdrawMoney Tests ====================
 
     @Test
-    fun `should withdraw money from existing account`() =
+    fun `should withdraw money from existing account`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("acc-withdraw-test")
@@ -149,7 +171,7 @@ class BankAccountCommandHandlerTest {
     // ==================== WithdrawForTransfer Tests ====================
 
     @Test
-    fun `should withdraw for transfer successfully`() =
+    fun `should withdraw for transfer successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("acc-transfer-withdraw")
@@ -182,7 +204,7 @@ class BankAccountCommandHandlerTest {
     // ==================== DepositFromTransfer Tests ====================
 
     @Test
-    fun `should deposit from transfer successfully`() =
+    fun `should deposit from transfer successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("acc-transfer-deposit")
@@ -215,7 +237,7 @@ class BankAccountCommandHandlerTest {
     // ==================== FinishTransaction Tests ====================
 
     @Test
-    fun `should finish transaction successfully`() =
+    fun `should finish transaction successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("acc-finish-txn")

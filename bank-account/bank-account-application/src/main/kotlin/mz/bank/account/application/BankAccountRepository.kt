@@ -2,6 +2,7 @@ package mz.bank.account.application
 
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
+import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
 
 /**
@@ -23,4 +24,11 @@ interface BankAccountRepository {
      * @return The persisted BankAccount
      */
     suspend fun upsert(aggregate: BankAccountAggregate): BankAccount
+
+    /**
+     * Checks if a BankAccount with the given email already exists.
+     * @param email The email to check
+     * @return true if an account with this email exists, false otherwise
+     */
+    suspend fun existsByEmail(email: Email): Boolean
 }

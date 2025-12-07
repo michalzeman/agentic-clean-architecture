@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import mz.bank.account.application.BankAccountRepository
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
+import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -29,5 +30,10 @@ internal class RedisBankAccountRepository(
         withContext(Dispatchers.IO) {
             val redisBankAccount = aggregate.toRedisBankAccount()
             repository.save(redisBankAccount).toBankAccount()
+        }
+
+    override suspend fun existsByEmail(email: Email): Boolean =
+        withContext(Dispatchers.IO) {
+            repository.existsByEmail(email.value)
         }
 }

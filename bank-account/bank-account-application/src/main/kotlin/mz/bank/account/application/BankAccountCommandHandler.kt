@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component
 class BankAccountCommandHandler(
     private val bankAccountRepository: BankAccountRepository,
     private val lockProvider: LockProvider,
+    private val createBankAccountUseCase: CreateBankAccountUseCase,
 ) {
     /**
      * Handles a BankAccountCommand and returns the updated BankAccount.
@@ -31,8 +32,7 @@ class BankAccountCommandHandler(
 
     private suspend fun handleCreate(command: BankAccountCommand.CreateAccount): BankAccount =
         lockProvider.withLock(command.email.value) {
-            val aggregate = BankAccountAggregate.create(command)
-            bankAccountRepository.upsert(aggregate)
+            createBankAccountUseCase.execute(command)
         }
 
     private suspend fun handleDeposit(command: BankAccountCommand.DepositMoney): BankAccount =

@@ -11,6 +11,7 @@ import org.springframework.data.annotation.Version
 import org.springframework.data.domain.AfterDomainEventPublication
 import org.springframework.data.domain.DomainEvents
 import org.springframework.data.redis.core.RedisHash
+import org.springframework.data.redis.core.index.Indexed
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -22,7 +23,7 @@ import java.util.UUID
 @RedisHash("BankAccount")
 internal open class RedisBankAccount(
     @field:Id val id: UUID,
-    val email: String,
+    @field:Indexed val email: String,
     val amount: BigDecimal,
     val openedTransactions: Set<String>,
     val finishedTransactions: Set<String>,
