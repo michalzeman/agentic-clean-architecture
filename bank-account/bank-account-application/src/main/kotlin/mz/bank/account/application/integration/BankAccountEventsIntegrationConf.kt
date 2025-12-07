@@ -9,6 +9,7 @@ import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.redis.store.RedisChannelMessageStore
 import org.springframework.messaging.MessageChannel
+import mz.bank.account.contract.proto.BankAccountEvent as ProtoBankAccountEvent
 
 /**
  * Integration configuration for outbound bank account domain events.
@@ -16,7 +17,7 @@ import org.springframework.messaging.MessageChannel
  * Architecture:
  * 1. [bankAccountDomainEventsChannel] - Redis-backed persistent queue for domain events
  * 2. [bankAccountDomainEventsPublishSubscribeChannel] - Fanout channel for multiple consumers
- * 3. [outboundBankAccountRedisStreamChannel] - Redis-backed queue for Redis stream publishing
+ * 3. [outboundBankAccountRedisStreamChannel] - Redis-backed queue for Redis stream publishing (protobuf)
  *
  * Flow: Domain Events → Persistent Queue → PublishSubscribe → Consumer Queues → Redis Stream
  */
@@ -25,6 +26,7 @@ class BankAccountEventsIntegrationConf(
     @param:Value("\${application.identifier}")
     private val applicationIdentifier: String,
     private val jsonRedisChannelMessageStore: RedisChannelMessageStore,
+    private val protoRedisChannelMessageStore: RedisChannelMessageStore,
 ) {
     /**
      * Primary channel for domain events published by BankAccountDomainEventListener.
@@ -66,30 +68,16 @@ class BankAccountEventsIntegrationConf(
             .get()
 
     /**
-     * Redis-backed channel for events to be published to Redis stream.
-     * Subscribed to the PublishSubscribe channel.
+     * Redis-backed channel for protobuf events to be published to Redis stream.
+     * Uses protobuf serialization for efficient storage and transmission.
      */
     @Bean
     fun outboundBankAccountRedisStreamChannel(): MessageChannel =
         MessageChannels
             .queue(
                 "$applicationIdentifier.persistence.outbound-bank-account-redis-stream.channel",
-                jsonRedisChannelMessageStore,
+                protoRedisChannelMessageStore,
                 "$applicationIdentifier.persistence.outbound-bank-account-redis-stream.storage",
-            ).apply { datatype(BankAccountEvent::class.java) }
+            ).apply { datatype(ProtoBankAccountEvent::class.java) }
             .getObject()
-
-    /**
-     * Integration flow connecting PublishSubscribe channel to the Redis stream channel.
-     */
-    @Bean
-    fun outboundBankAccountRedisStreamFlow(
-        bankAccountDomainEventsPublishSubscribeChannel: PublishSubscribeChannel,
-        outboundBankAccountRedisStreamChannel: MessageChannel,
-    ): IntegrationFlow =
-        IntegrationFlow
-            .from(bankAccountDomainEventsPublishSubscribeChannel)
-            .log()
-            .channel(outboundBankAccountRedisStreamChannel)
-            .get()
 }

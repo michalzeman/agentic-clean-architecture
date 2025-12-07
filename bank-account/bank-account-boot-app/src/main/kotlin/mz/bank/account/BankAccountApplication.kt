@@ -35,6 +35,10 @@ class BankAccountApplication {
         RedisChannelMessageStore(redisConnectionFactory).apply {
             setValueSerializer(genericJackson2JsonRedisSerializer)
         }
+
+    @Bean
+    fun protoRedisChannelMessageStore(redisConnectionFactory: LettuceConnectionFactory): RedisChannelMessageStore =
+        RedisChannelMessageStore(redisConnectionFactory) // uses default byte array serialization
 }
 
 fun main(args: Array<String>) {

@@ -10,7 +10,6 @@ import org.apache.commons.logging.LogFactory
 import org.springframework.data.redis.connection.stream.StringRecord
 import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.messaging.Message
-import kotlin.concurrent.withLock
 
 private val logger = LogFactory.getLog(RedisStreamPublisher::class.java)
 

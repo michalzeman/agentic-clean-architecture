@@ -4,6 +4,9 @@ dependencies {
     api(project(":bank-account:bank-account-domain"))
     api(project(":shared-kernel:shared-domain"))
 
+    // Protobuf contract for integration channels
+    implementation(project(":bank-account:bank-account-contract-proto"))
+
     // Spring context for @Component
     implementation("org.springframework:spring-context")
 
