@@ -1,0 +1,29 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    db:
+      enabled: false
+
+spring:
+  application:
+    name: bank-transaction-service
+
+  data:
+    redis:
+      host: ${REDIS_DB:localhost}
+      port: 6379
+      database: 0
+
+server:
+  port: 8081
+
+application:
+  identifier: bank-transaction
+
+adapters:
+  redis:
+    stream:
+      bank-transaction-events-stream: bank-transaction.event.bank-transactions
