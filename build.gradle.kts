@@ -120,7 +120,7 @@ tasks.register("dockerComposeUp") {
     description = "Starts docker-compose services in detached mode and waits for them to start"
 
     doLast {
-        exec {
+        providers.exec {
             commandLine(
                 "sh",
                 "-c",
@@ -139,7 +139,7 @@ tasks.register("tearDownDockerCompose") {
     val allTestTasks = project.subprojects.flatMap { project -> project.tasks.matching { it.name == "systemTest" } }
     mustRunAfter(allTestTasks)
     doLast {
-        exec {
+        providers.exec {
             commandLine(
                 "sh",
                 "-c",
