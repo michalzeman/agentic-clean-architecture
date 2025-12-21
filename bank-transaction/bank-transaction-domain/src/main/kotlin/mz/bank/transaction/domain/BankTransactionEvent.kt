@@ -5,92 +5,92 @@ import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * Domain events for Transaction aggregate.
+ * Domain events for BankTransaction aggregate.
  * These events represent state changes and are used for event sourcing.
  */
-sealed class TransactionEvent {
+sealed class BankTransactionEvent {
     abstract val aggregateId: AggregateId
     abstract val correlationId: String
     abstract val updatedAt: Instant
 
     /**
-     * Transaction was initialized.
+     * BankTransaction was initialized.
      */
-    data class TransactionCreated(
+    data class BankTransactionCreated(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
         val fromAccountId: AggregateId,
         val toAccountId: AggregateId,
         val amount: BigDecimal,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
      * Money was successfully withdrawn from source account.
      */
-    data class TransactionMoneyWithdrawn(
+    data class BankTransactionMoneyWithdrawn(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
      * Money was successfully deposited to destination account.
      */
-    data class TransactionMoneyDeposited(
+    data class BankTransactionMoneyDeposited(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
-     * Transaction completed successfully.
+     * BankTransaction completed successfully.
      */
-    data class TransactionFinished(
+    data class BankTransactionFinished(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
         val fromAccountId: AggregateId,
         val toAccountId: AggregateId,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
-     * Transaction failed and needs rollback.
+     * BankTransaction failed and needs rollback.
      */
-    data class TransactionFailed(
+    data class BankTransactionFailed(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
         val reason: String,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
-     * Transaction was rolled back.
+     * BankTransaction was rolled back.
      */
-    data class TransactionRolledBack(
+    data class BankTransactionRolledBack(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
         val fromAccountId: AggregateId,
         val toAccountId: AggregateId,
         val amount: BigDecimal,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
      * Withdraw phase was rolled back.
      */
-    data class TransactionWithdrawRolledBack(
+    data class BankTransactionWithdrawRolledBack(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 
     /**
      * Deposit phase was rolled back.
      */
-    data class TransactionDepositRolledBack(
+    data class BankTransactionDepositRolledBack(
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
-    ) : TransactionEvent()
+    ) : BankTransactionEvent()
 }

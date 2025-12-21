@@ -1,14 +1,14 @@
 package mz.bank.transaction.adapter.rest
 
-import mz.bank.transaction.domain.Transaction
-import mz.bank.transaction.domain.TransactionStatus
+import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionStatus
 import java.math.BigDecimal
 import java.time.Instant
 
 /**
  * Request to create a new transaction.
  */
-data class CreateTransactionRequest(
+data class CreateBankTransactionRequest(
     val fromAccountId: String,
     val toAccountId: String,
     val amount: BigDecimal,
@@ -31,7 +31,7 @@ data class ValidateDepositRequest(
 /**
  * Request to finish a transaction.
  */
-data class FinishTransactionRequest(
+data class FinishBankTransactionRequest(
     val fromAccountId: String,
     val toAccountId: String,
 )
@@ -39,7 +39,7 @@ data class FinishTransactionRequest(
 /**
  * Request to cancel a transaction.
  */
-data class CancelTransactionRequest(
+data class CancelBankTransactionRequest(
     val fromAccountId: String,
     val toAccountId: String,
     val amount: BigDecimal,
@@ -48,7 +48,7 @@ data class CancelTransactionRequest(
 /**
  * Response containing transaction details.
  */
-data class TransactionResponse(
+data class BankTransactionResponse(
     val transactionId: String,
     val correlationId: String,
     val fromAccountId: String,
@@ -56,7 +56,7 @@ data class TransactionResponse(
     val amount: BigDecimal,
     val moneyWithdrawn: Boolean,
     val moneyDeposited: Boolean,
-    val status: TransactionStatus,
+    val status: BankTransactionStatus,
     val version: Long,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -72,10 +72,10 @@ data class ErrorResponse(
 )
 
 /**
- * Extension function to convert Transaction domain entity to API response.
+ * Extension function to convert BankTransaction domain entity to API response.
  */
-fun Transaction.toResponse(): TransactionResponse =
-    TransactionResponse(
+fun BankTransaction.toResponse(): BankTransactionResponse =
+    BankTransactionResponse(
         transactionId = aggregateId.value,
         correlationId = correlationId,
         fromAccountId = fromAccountId.value,

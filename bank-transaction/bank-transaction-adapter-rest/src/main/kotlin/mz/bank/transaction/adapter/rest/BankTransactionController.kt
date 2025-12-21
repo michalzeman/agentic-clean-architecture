@@ -1,8 +1,8 @@
 package mz.bank.transaction.adapter.rest
 
-import mz.bank.transaction.application.TransactionCommandHandler
-import mz.bank.transaction.application.TransactionRepository
-import mz.bank.transaction.domain.TransactionCommand
+import mz.bank.transaction.application.BankTransactionCommandHandler
+import mz.bank.transaction.application.BankTransactionRepository
+import mz.bank.transaction.domain.BankTransactionCommand
 import mz.shared.domain.AggregateId
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -16,44 +16,44 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 /**
- * REST controller for Transaction operations.
- * Provides endpoints for all Transaction commands.
+ * REST controller for BankTransaction operations.
+ * Provides endpoints for all BankTransaction commands.
  */
 @RestController
 @RequestMapping("/api/v1/transactions")
-class TransactionController(
-    private val commandHandler: TransactionCommandHandler,
-    private val transactionRepository: TransactionRepository,
+class BankTransactionController(
+    private val commandHandler: BankTransactionCommandHandler,
+    private val bankTransactionRepository: BankTransactionRepository,
 ) {
     /**
      * Get transaction by ID.
      */
     @GetMapping("/{transactionId}")
-    suspend fun getTransaction(
+    suspend fun getBankTransaction(
         @PathVariable transactionId: String,
-    ): ResponseEntity<TransactionResponse> {
-        val transaction =
-            transactionRepository.findById(AggregateId(transactionId))
+    ): ResponseEntity<BankTransactionResponse> {
+        val bankTransaction =
+            bankTransactionRepository.findById(AggregateId(transactionId))
                 ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(transaction.toResponse())
+        return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
     /**
      * Create a new transaction.
      */
     @PostMapping
-    suspend fun createTransaction(
-        @RequestBody request: CreateTransactionRequest,
-    ): ResponseEntity<TransactionResponse> {
+    suspend fun createBankTransaction(
+        @RequestBody request: CreateBankTransactionRequest,
+    ): ResponseEntity<BankTransactionResponse> {
         val command =
-            TransactionCommand.CreateTransaction(
+            BankTransactionCommand.CreateBankTransaction(
                 correlationId = UUID.randomUUID().toString(),
                 fromAccountId = AggregateId(request.fromAccountId),
                 toAccountId = AggregateId(request.toAccountId),
                 amount = request.amount,
             )
-        val transaction = commandHandler.handle(command)
-        return ResponseEntity.status(HttpStatus.CREATED).body(transaction.toResponse())
+        val bankTransaction = commandHandler.handle(command)
+        return ResponseEntity.status(HttpStatus.CREATED).body(bankTransaction.toResponse())
     }
 
     /**
@@ -63,14 +63,14 @@ class TransactionController(
     suspend fun validateWithdraw(
         @PathVariable transactionId: String,
         @RequestBody request: ValidateWithdrawRequest,
-    ): ResponseEntity<TransactionResponse> {
+    ): ResponseEntity<BankTransactionResponse> {
         val command =
-            TransactionCommand.ValidateTransactionMoneyWithdraw(
+            BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
                 aggregateId = AggregateId(transactionId),
                 correlationId = request.transactionId,
             )
-        val transaction = commandHandler.handle(command)
-        return ResponseEntity.ok(transaction.toResponse())
+        val bankTransaction = commandHandler.handle(command)
+        return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
     /**
@@ -80,53 +80,53 @@ class TransactionController(
     suspend fun validateDeposit(
         @PathVariable transactionId: String,
         @RequestBody request: ValidateDepositRequest,
-    ): ResponseEntity<TransactionResponse> {
+    ): ResponseEntity<BankTransactionResponse> {
         val command =
-            TransactionCommand.ValidateTransactionMoneyDeposit(
+            BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
                 aggregateId = AggregateId(transactionId),
                 correlationId = request.transactionId,
             )
-        val transaction = commandHandler.handle(command)
-        return ResponseEntity.ok(transaction.toResponse())
+        val bankTransaction = commandHandler.handle(command)
+        return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
     /**
      * Finish a transaction.
      */
     @PostMapping("/{transactionId}/finish")
-    suspend fun finishTransaction(
+    suspend fun finishBankTransaction(
         @PathVariable transactionId: String,
-        @RequestBody request: FinishTransactionRequest,
-    ): ResponseEntity<TransactionResponse> {
+        @RequestBody request: FinishBankTransactionRequest,
+    ): ResponseEntity<BankTransactionResponse> {
         val command =
-            TransactionCommand.FinishTransaction(
+            BankTransactionCommand.FinishBankTransaction(
                 aggregateId = AggregateId(transactionId),
                 correlationId = UUID.randomUUID().toString(),
                 fromAccountId = AggregateId(request.fromAccountId),
                 toAccountId = AggregateId(request.toAccountId),
             )
-        val transaction = commandHandler.handle(command)
-        return ResponseEntity.ok(transaction.toResponse())
+        val bankTransaction = commandHandler.handle(command)
+        return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
     /**
      * Cancel a transaction.
      */
     @PostMapping("/{transactionId}/cancel")
-    suspend fun cancelTransaction(
+    suspend fun cancelBankTransaction(
         @PathVariable transactionId: String,
-        @RequestBody request: CancelTransactionRequest,
-    ): ResponseEntity<TransactionResponse> {
+        @RequestBody request: CancelBankTransactionRequest,
+    ): ResponseEntity<BankTransactionResponse> {
         val command =
-            TransactionCommand.CancelTransaction(
+            BankTransactionCommand.CancelBankTransaction(
                 aggregateId = AggregateId(transactionId),
                 correlationId = UUID.randomUUID().toString(),
                 fromAccountId = AggregateId(request.fromAccountId),
                 toAccountId = AggregateId(request.toAccountId),
                 amount = request.amount,
             )
-        val transaction = commandHandler.handle(command)
-        return ResponseEntity.ok(transaction.toResponse())
+        val bankTransaction = commandHandler.handle(command)
+        return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
     /**

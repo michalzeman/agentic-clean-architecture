@@ -5,95 +5,95 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * TransactionAggregate is the aggregate root that manages the transaction state and business logic.
+ * BankTransactionAggregate is the aggregate root that manages the transaction state and business logic.
  * It processes commands and produces domain events following the Event Sourcing pattern.
  * Implements the saga pattern for distributed transactions across two accounts.
  */
-data class TransactionAggregate(
-    val transaction: Transaction,
-    val domainEvents: List<TransactionEvent> = emptyList(),
+data class BankTransactionAggregate(
+    val bankTransaction: BankTransaction,
+    val domainEvents: List<BankTransactionEvent> = emptyList(),
 ) {
     /**
      * Applies a single event to rebuild state (used for event sourcing replay).
      * Returns a new aggregate with an updated state, no new domain events.
      */
-    fun applyEvent(event: TransactionEvent): TransactionAggregate {
-        val updatedTransaction =
+    fun applyEvent(event: BankTransactionEvent): BankTransactionAggregate {
+        val updatedBankTransaction =
             when (event) {
-                is TransactionEvent.TransactionCreated -> {
-                    transaction.copy(
+                is BankTransactionEvent.BankTransactionCreated -> {
+                    bankTransaction.copy(
                         fromAccountId = event.fromAccountId,
                         toAccountId = event.toAccountId,
                         amount = event.amount,
-                        status = TransactionStatus.CREATED,
-                        version = transaction.version + 1,
+                        status = BankTransactionStatus.CREATED,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionMoneyWithdrawn -> {
-                    transaction.copy(
+                is BankTransactionEvent.BankTransactionMoneyWithdrawn -> {
+                    bankTransaction.copy(
                         moneyWithdrawn = true,
-                        version = transaction.version + 1,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionMoneyDeposited -> {
-                    transaction.copy(
+                is BankTransactionEvent.BankTransactionMoneyDeposited -> {
+                    bankTransaction.copy(
                         moneyDeposited = true,
-                        version = transaction.version + 1,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionFinished -> {
-                    transaction.copy(
-                        status = TransactionStatus.FINISHED,
-                        version = transaction.version + 1,
+                is BankTransactionEvent.BankTransactionFinished -> {
+                    bankTransaction.copy(
+                        status = BankTransactionStatus.FINISHED,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionFailed -> {
-                    transaction.copy(
-                        status = TransactionStatus.FAILED,
-                        version = transaction.version + 1,
+                is BankTransactionEvent.BankTransactionFailed -> {
+                    bankTransaction.copy(
+                        status = BankTransactionStatus.FAILED,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionRolledBack -> {
-                    transaction.copy(
-                        status = TransactionStatus.FAILED,
-                        version = transaction.version + 1,
+                is BankTransactionEvent.BankTransactionRolledBack -> {
+                    bankTransaction.copy(
+                        status = BankTransactionStatus.FAILED,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionWithdrawRolledBack -> {
-                    transaction.copy(
+                is BankTransactionEvent.BankTransactionWithdrawRolledBack -> {
+                    bankTransaction.copy(
                         moneyWithdrawn = false,
-                        version = transaction.version + 1,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
-                is TransactionEvent.TransactionDepositRolledBack -> {
-                    transaction.copy(
+                is BankTransactionEvent.BankTransactionDepositRolledBack -> {
+                    bankTransaction.copy(
                         moneyDeposited = false,
-                        version = transaction.version + 1,
+                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
             }
 
-        return copy(transaction = updatedTransaction)
+        return copy(bankTransaction = updatedBankTransaction)
     }
 
     /**
      * Validates that money was withdrawn from the source account.
      */
-    fun validateMoneyWithdraw(cmd: TransactionCommand.ValidateTransactionMoneyWithdraw): TransactionAggregate {
-        require(transaction.status == TransactionStatus.CREATED) {
-            "Cannot validate withdraw for transaction in status ${transaction.status}"
+    fun validateMoneyWithdraw(cmd: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransactionAggregate {
+        require(bankTransaction.status == BankTransactionStatus.CREATED) {
+            "Cannot validate withdraw for bankTransaction in status ${bankTransaction.status}"
         }
 
         val event =
-            TransactionEvent.TransactionMoneyWithdrawn(
+            BankTransactionEvent.BankTransactionMoneyWithdrawn(
                 aggregateId = cmd.aggregateId,
                 correlationId = cmd.correlationId,
                 updatedAt = Instant.now(),
@@ -105,16 +105,16 @@ data class TransactionAggregate(
     /**
      * Validates that money was deposited to the destination account.
      */
-    fun validateMoneyDeposit(cmd: TransactionCommand.ValidateTransactionMoneyDeposit): TransactionAggregate {
-        require(transaction.status == TransactionStatus.CREATED) {
-            "Cannot validate deposit for transaction in status ${transaction.status}"
+    fun validateMoneyDeposit(cmd: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransactionAggregate {
+        require(bankTransaction.status == BankTransactionStatus.CREATED) {
+            "Cannot validate deposit for bankTransaction in status ${bankTransaction.status}"
         }
-        require(transaction.moneyWithdrawn) {
+        require(bankTransaction.moneyWithdrawn) {
             "Cannot validate deposit before money is withdrawn"
         }
 
         val event =
-            TransactionEvent.TransactionMoneyDeposited(
+            BankTransactionEvent.BankTransactionMoneyDeposited(
                 aggregateId = cmd.aggregateId,
                 correlationId = cmd.correlationId,
                 updatedAt = Instant.now(),
@@ -126,16 +126,16 @@ data class TransactionAggregate(
     /**
      * Completes the transaction after both withdraw and deposit are done.
      */
-    fun finishTransaction(cmd: TransactionCommand.FinishTransaction): TransactionAggregate {
-        require(transaction.status != TransactionStatus.FAILED) {
+    fun finishBankTransaction(cmd: BankTransactionCommand.FinishBankTransaction): BankTransactionAggregate {
+        require(bankTransaction.status != BankTransactionStatus.FAILED) {
             "Cannot finish a failed transaction"
         }
-        require(transaction.moneyWithdrawn && transaction.moneyDeposited) {
+        require(bankTransaction.moneyWithdrawn && bankTransaction.moneyDeposited) {
             "Cannot finish transaction: both withdraw and deposit must be completed"
         }
 
         val event =
-            TransactionEvent.TransactionFinished(
+            BankTransactionEvent.BankTransactionFinished(
                 aggregateId = cmd.aggregateId,
                 correlationId = cmd.correlationId,
                 updatedAt = Instant.now(),
@@ -149,17 +149,17 @@ data class TransactionAggregate(
     /**
      * Cancels and rolls back the transaction.
      */
-    fun cancelTransaction(cmd: TransactionCommand.CancelTransaction): TransactionAggregate {
-        require(transaction.status != TransactionStatus.FINISHED) {
+    fun cancelBankTransaction(cmd: BankTransactionCommand.CancelBankTransaction): BankTransactionAggregate {
+        require(bankTransaction.status != BankTransactionStatus.FINISHED) {
             "Cannot cancel a finished transaction"
         }
 
-        val events = mutableListOf<TransactionEvent>()
+        val events = mutableListOf<BankTransactionEvent>()
 
         // Rollback deposit if it was completed
-        if (transaction.moneyDeposited) {
+        if (bankTransaction.moneyDeposited) {
             events.add(
-                TransactionEvent.TransactionDepositRolledBack(
+                BankTransactionEvent.BankTransactionDepositRolledBack(
                     aggregateId = cmd.aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
@@ -168,9 +168,9 @@ data class TransactionAggregate(
         }
 
         // Rollback withdraw if it was completed
-        if (transaction.moneyWithdrawn) {
+        if (bankTransaction.moneyWithdrawn) {
             events.add(
-                TransactionEvent.TransactionWithdrawRolledBack(
+                BankTransactionEvent.BankTransactionWithdrawRolledBack(
                     aggregateId = cmd.aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
@@ -180,7 +180,7 @@ data class TransactionAggregate(
 
         // Mark transaction as rolled back
         events.add(
-            TransactionEvent.TransactionRolledBack(
+            BankTransactionEvent.BankTransactionRolledBack(
                 aggregateId = cmd.aggregateId,
                 correlationId = cmd.correlationId,
                 updatedAt = Instant.now(),
@@ -204,15 +204,15 @@ data class TransactionAggregate(
          * Creates a new transaction with initial status CREATED.
          * Generates a unique UUID for the aggregate ID.
          */
-        fun create(cmd: TransactionCommand.CreateTransaction): TransactionAggregate {
+        fun create(cmd: BankTransactionCommand.CreateBankTransaction): BankTransactionAggregate {
             require(cmd.amount > java.math.BigDecimal.ZERO) {
-                "Transaction amount must be positive"
+                "BankTransaction amount must be positive"
             }
 
             val now = Instant.now()
             val aggregateId = AggregateId(UUID.randomUUID().toString())
-            val newTransaction =
-                Transaction(
+            val newBankTransaction =
+                BankTransaction(
                     aggregateId = aggregateId,
                     correlationId = cmd.correlationId,
                     fromAccountId = cmd.fromAccountId,
@@ -220,14 +220,14 @@ data class TransactionAggregate(
                     amount = cmd.amount,
                     moneyWithdrawn = false,
                     moneyDeposited = false,
-                    status = TransactionStatus.INITIALIZED,
+                    status = BankTransactionStatus.INITIALIZED,
                     version = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )
 
             val event =
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId = aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = now,
@@ -238,8 +238,8 @@ data class TransactionAggregate(
 
             // Apply event to move to CREATED status
             val aggregate =
-                TransactionAggregate(
-                    transaction = newTransaction,
+                BankTransactionAggregate(
+                    bankTransaction = newBankTransaction,
                     domainEvents = emptyList(),
                 )
 
@@ -252,21 +252,21 @@ data class TransactionAggregate(
         fun fromEvents(
             aggregateId: AggregateId,
             correlationId: String,
-            events: List<TransactionEvent>,
-        ): TransactionAggregate {
+            events: List<BankTransactionEvent>,
+        ): BankTransactionAggregate {
             require(events.isNotEmpty()) { "Events list must not be empty" }
-            require(events.first() is TransactionEvent.TransactionCreated) {
-                "First event must be TransactionCreated"
+            require(events.first() is BankTransactionEvent.BankTransactionCreated) {
+                "First event must be BankTransactionCreated"
             }
 
             // Get initial data from the first event
-            val createdEvent = events.first() as TransactionEvent.TransactionCreated
+            val createdEvent = events.first() as BankTransactionEvent.BankTransactionCreated
 
-            // Create initial aggregate with data from TransactionCreated event
+            // Create initial aggregate with data from BankTransactionCreated event
             val initialAggregate =
-                TransactionAggregate(
-                    transaction =
-                        Transaction(
+                BankTransactionAggregate(
+                    bankTransaction =
+                        BankTransaction(
                             aggregateId = aggregateId,
                             correlationId = correlationId,
                             fromAccountId = createdEvent.fromAccountId,
@@ -274,7 +274,7 @@ data class TransactionAggregate(
                             amount = createdEvent.amount,
                             moneyWithdrawn = false,
                             moneyDeposited = false,
-                            status = TransactionStatus.INITIALIZED,
+                            status = BankTransactionStatus.INITIALIZED,
                             version = 0L,
                             createdAt = createdEvent.updatedAt,
                             updatedAt = createdEvent.updatedAt,

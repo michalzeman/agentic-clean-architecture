@@ -1,9 +1,9 @@
 package mz.bank.transaction.adapter.redis
 
-import mz.bank.transaction.domain.Transaction
-import mz.bank.transaction.domain.TransactionAggregate
-import mz.bank.transaction.domain.TransactionEvent
-import mz.bank.transaction.domain.TransactionStatus
+import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionAggregate
+import mz.bank.transaction.domain.BankTransactionEvent
+import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -15,16 +15,16 @@ import java.time.Instant
 import java.util.UUID
 import java.util.stream.Stream
 
-class RedisTransactionMapperTest {
-    // ==================== toTransaction() Mapping Tests ====================
+class RedisBankTransactionMapperTest {
+    // ==================== toBankTransaction() Mapping Tests ====================
 
     @Test
     fun `should convert RedisTransaction to Transaction correctly`() {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-mapping",
                 fromAccountId = "acc-source",
@@ -32,27 +32,27 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("1000.00"),
                 moneyWithdrawn = true,
                 moneyDeposited = true,
-                status = TransactionStatus.FINISHED.name,
+                status = BankTransactionStatus.FINISHED.name,
                 version = 3L,
                 createdAt = now.minusSeconds(3600),
                 updatedAt = now,
             )
 
         // When
-        val transaction = redisTransaction.toTransaction()
+        val bankTransaction = redisBankTransaction.toBankTransaction()
 
         // Then
-        assertThat(transaction.aggregateId).isEqualTo(AggregateId(id.toString()))
-        assertThat(transaction.correlationId).isEqualTo("corr-mapping")
-        assertThat(transaction.fromAccountId).isEqualTo(AggregateId("acc-source"))
-        assertThat(transaction.toAccountId).isEqualTo(AggregateId("acc-dest"))
-        assertThat(transaction.amount).isEqualByComparingTo(BigDecimal("1000.00"))
-        assertThat(transaction.moneyWithdrawn).isTrue()
-        assertThat(transaction.moneyDeposited).isTrue()
-        assertThat(transaction.status).isEqualTo(TransactionStatus.FINISHED)
-        assertThat(transaction.version).isEqualTo(3L)
-        assertThat(transaction.createdAt).isEqualTo(now.minusSeconds(3600))
-        assertThat(transaction.updatedAt).isEqualTo(now)
+        assertThat(bankTransaction.aggregateId).isEqualTo(AggregateId(id.toString()))
+        assertThat(bankTransaction.correlationId).isEqualTo("corr-mapping")
+        assertThat(bankTransaction.fromAccountId).isEqualTo(AggregateId("acc-source"))
+        assertThat(bankTransaction.toAccountId).isEqualTo(AggregateId("acc-dest"))
+        assertThat(bankTransaction.amount).isEqualByComparingTo(BigDecimal("1000.00"))
+        assertThat(bankTransaction.moneyWithdrawn).isTrue()
+        assertThat(bankTransaction.moneyDeposited).isTrue()
+        assertThat(bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+        assertThat(bankTransaction.version).isEqualTo(3L)
+        assertThat(bankTransaction.createdAt).isEqualTo(now.minusSeconds(3600))
+        assertThat(bankTransaction.updatedAt).isEqualTo(now)
     }
 
     @Test
@@ -60,8 +60,8 @@ class RedisTransactionMapperTest {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-init",
                 fromAccountId = "acc-1",
@@ -69,19 +69,19 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.INITIALIZED.name,
+                status = BankTransactionStatus.INITIALIZED.name,
                 version = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
 
         // When
-        val transaction = redisTransaction.toTransaction()
+        val bankTransaction = redisBankTransaction.toBankTransaction()
 
         // Then
-        assertThat(transaction.status).isEqualTo(TransactionStatus.INITIALIZED)
-        assertThat(transaction.moneyWithdrawn).isFalse()
-        assertThat(transaction.moneyDeposited).isFalse()
+        assertThat(bankTransaction.status).isEqualTo(BankTransactionStatus.INITIALIZED)
+        assertThat(bankTransaction.moneyWithdrawn).isFalse()
+        assertThat(bankTransaction.moneyDeposited).isFalse()
     }
 
     @Test
@@ -89,8 +89,8 @@ class RedisTransactionMapperTest {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-failed",
                 fromAccountId = "acc-1",
@@ -98,29 +98,29 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("200.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.FAILED.name,
+                status = BankTransactionStatus.FAILED.name,
                 version = 5L,
                 createdAt = now,
                 updatedAt = now,
             )
 
         // When
-        val transaction = redisTransaction.toTransaction()
+        val bankTransaction = redisBankTransaction.toBankTransaction()
 
         // Then
-        assertThat(transaction.status).isEqualTo(TransactionStatus.FAILED)
-        assertThat(transaction.version).isEqualTo(5L)
+        assertThat(bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+        assertThat(bankTransaction.version).isEqualTo(5L)
     }
 
-    // ==================== toRedisTransaction() Mapping Tests ====================
+    // ==================== toRedisBankTransaction() Mapping Tests ====================
 
     @Test
     fun `should convert TransactionAggregate to RedisTransaction correctly`() {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-convert",
                 fromAccountId = AggregateId("acc-src"),
@@ -128,14 +128,14 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("2500.00"),
                 moneyWithdrawn = true,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED,
+                status = BankTransactionStatus.CREATED,
                 version = 2L,
                 createdAt = now.minusSeconds(7200),
                 updatedAt = now,
             )
         val domainEvents =
             listOf(
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId = aggregateId,
                     correlationId = "corr-convert",
                     updatedAt = now,
@@ -144,23 +144,23 @@ class RedisTransactionMapperTest {
                     amount = BigDecimal("2500.00"),
                 ),
             )
-        val aggregate = TransactionAggregate(transaction, domainEvents)
+        val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.id).isEqualTo(UUID.fromString(aggregateId.value))
-        assertThat(redisTransaction.correlationId).isEqualTo("corr-convert")
-        assertThat(redisTransaction.fromAccountId).isEqualTo("acc-src")
-        assertThat(redisTransaction.toAccountId).isEqualTo("acc-dst")
-        assertThat(redisTransaction.amount).isEqualByComparingTo(BigDecimal("2500.00"))
-        assertThat(redisTransaction.moneyWithdrawn).isTrue()
-        assertThat(redisTransaction.moneyDeposited).isFalse()
-        assertThat(redisTransaction.status).isEqualTo(TransactionStatus.CREATED.name)
-        assertThat(redisTransaction.version).isEqualTo(2L)
-        assertThat(redisTransaction.createdAt).isEqualTo(now.minusSeconds(7200))
-        assertThat(redisTransaction.updatedAt).isEqualTo(now)
+        assertThat(redisBankTransaction.id).isEqualTo(UUID.fromString(aggregateId.value))
+        assertThat(redisBankTransaction.correlationId).isEqualTo("corr-convert")
+        assertThat(redisBankTransaction.fromAccountId).isEqualTo("acc-src")
+        assertThat(redisBankTransaction.toAccountId).isEqualTo("acc-dst")
+        assertThat(redisBankTransaction.amount).isEqualByComparingTo(BigDecimal("2500.00"))
+        assertThat(redisBankTransaction.moneyWithdrawn).isTrue()
+        assertThat(redisBankTransaction.moneyDeposited).isFalse()
+        assertThat(redisBankTransaction.status).isEqualTo(BankTransactionStatus.CREATED.name)
+        assertThat(redisBankTransaction.version).isEqualTo(2L)
+        assertThat(redisBankTransaction.createdAt).isEqualTo(now.minusSeconds(7200))
+        assertThat(redisBankTransaction.updatedAt).isEqualTo(now)
     }
 
     @Test
@@ -168,8 +168,8 @@ class RedisTransactionMapperTest {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-events-preserve",
                 fromAccountId = AggregateId("acc-1"),
@@ -177,14 +177,14 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("500.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED,
+                status = BankTransactionStatus.CREATED,
                 version = 1L,
                 createdAt = now,
                 updatedAt = now,
             )
         val domainEvents =
             listOf(
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId = aggregateId,
                     correlationId = "corr-events-preserve",
                     updatedAt = now,
@@ -192,21 +192,21 @@ class RedisTransactionMapperTest {
                     toAccountId = AggregateId("acc-2"),
                     amount = BigDecimal("500.00"),
                 ),
-                TransactionEvent.TransactionMoneyWithdrawn(
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
                     aggregateId = aggregateId,
                     correlationId = "corr-events-preserve",
                     updatedAt = now,
                 ),
             )
-        val aggregate = TransactionAggregate(transaction, domainEvents)
+        val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.domainEvents).hasSize(2)
-        assertThat(redisTransaction.domainEvents.first()).isInstanceOf(TransactionEvent.TransactionCreated::class.java)
-        assertThat(redisTransaction.domainEvents.last()).isInstanceOf(TransactionEvent.TransactionMoneyWithdrawn::class.java)
+        assertThat(redisBankTransaction.domainEvents).hasSize(2)
+        assertThat(redisBankTransaction.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionCreated::class.java)
+        assertThat(redisBankTransaction.domainEvents.last()).isInstanceOf(BankTransactionEvent.BankTransactionMoneyWithdrawn::class.java)
     }
 
     @Test
@@ -214,8 +214,8 @@ class RedisTransactionMapperTest {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-no-events",
                 fromAccountId = AggregateId("acc-1"),
@@ -223,18 +223,18 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED,
+                status = BankTransactionStatus.CREATED,
                 version = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
-        val aggregate = TransactionAggregate(transaction, emptyList())
+        val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.domainEvents).isEmpty()
+        assertThat(redisBankTransaction.domainEvents).isEmpty()
     }
 
     // ==================== Round-trip Mapping Tests ====================
@@ -245,7 +245,7 @@ class RedisTransactionMapperTest {
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
         val originalTransaction =
-            Transaction(
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-roundtrip",
                 fromAccountId = AggregateId("acc-rt-source"),
@@ -253,16 +253,16 @@ class RedisTransactionMapperTest {
                 amount = BigDecimal("9999.99"),
                 moneyWithdrawn = true,
                 moneyDeposited = true,
-                status = TransactionStatus.FINISHED,
+                status = BankTransactionStatus.FINISHED,
                 version = 10L,
                 createdAt = now.minusSeconds(5000),
                 updatedAt = now,
             )
-        val aggregate = TransactionAggregate(originalTransaction, emptyList())
+        val aggregate = BankTransactionAggregate(originalTransaction, emptyList())
 
         // When - convert to Redis and back
-        val redisTransaction = aggregate.toRedisTransaction()
-        val convertedBack = redisTransaction.toTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
+        val convertedBack = redisBankTransaction.toBankTransaction()
 
         // Then
         assertThat(convertedBack.aggregateId).isEqualTo(originalTransaction.aggregateId)
@@ -281,15 +281,15 @@ class RedisTransactionMapperTest {
     @ParameterizedTest(name = "status={0}, withdrawn={1}, deposited={2}")
     @MethodSource("statusConversionTestCases")
     fun `should handle status conversions correctly`(
-        status: TransactionStatus,
+        status: BankTransactionStatus,
         withdrawn: Boolean,
         deposited: Boolean,
     ) {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-status-test",
                 fromAccountId = "acc-1",
@@ -304,28 +304,28 @@ class RedisTransactionMapperTest {
             )
 
         // When
-        val transaction = redisTransaction.toTransaction()
+        val bankTransaction = redisBankTransaction.toBankTransaction()
 
         // Then
-        assertThat(transaction.status).isEqualTo(status)
-        assertThat(transaction.moneyWithdrawn).isEqualTo(withdrawn)
-        assertThat(transaction.moneyDeposited).isEqualTo(deposited)
+        assertThat(bankTransaction.status).isEqualTo(status)
+        assertThat(bankTransaction.moneyWithdrawn).isEqualTo(withdrawn)
+        assertThat(bankTransaction.moneyDeposited).isEqualTo(deposited)
     }
 
     companion object {
         @JvmStatic
         fun statusConversionTestCases(): Stream<Arguments> =
             Stream.of(
-                Arguments.of(TransactionStatus.INITIALIZED, false, false),
-                Arguments.of(TransactionStatus.CREATED, false, false),
-                Arguments.of(TransactionStatus.CREATED, true, false),
-                Arguments.of(TransactionStatus.CREATED, false, true),
-                Arguments.of(TransactionStatus.CREATED, true, true),
-                Arguments.of(TransactionStatus.FINISHED, true, true),
-                Arguments.of(TransactionStatus.FAILED, false, false),
-                Arguments.of(TransactionStatus.FAILED, true, false),
-                Arguments.of(TransactionStatus.FAILED, false, true),
-                Arguments.of(TransactionStatus.FAILED, true, true),
+                Arguments.of(BankTransactionStatus.INITIALIZED, false, false),
+                Arguments.of(BankTransactionStatus.CREATED, false, false),
+                Arguments.of(BankTransactionStatus.CREATED, true, false),
+                Arguments.of(BankTransactionStatus.CREATED, false, true),
+                Arguments.of(BankTransactionStatus.CREATED, true, true),
+                Arguments.of(BankTransactionStatus.FINISHED, true, true),
+                Arguments.of(BankTransactionStatus.FAILED, false, false),
+                Arguments.of(BankTransactionStatus.FAILED, true, false),
+                Arguments.of(BankTransactionStatus.FAILED, false, true),
+                Arguments.of(BankTransactionStatus.FAILED, true, true),
             )
     }
 }

@@ -9,7 +9,7 @@
 
 ### ==================== Setup: Create Test Accounts ====================
 
-### Create source account for transactions
+### Create source account for bank transactions
 # @name createSourceAccount
 POST {{accountBaseUrl}}
 Content-Type: application/json
@@ -27,7 +27,7 @@ Content-Type: application/json
     });
 %}
 
-### Create destination account for transactions
+### Create destination account for bank transactions
 # @name createDestAccount
 POST {{accountBaseUrl}}
 Content-Type: application/json
@@ -54,9 +54,9 @@ GET {{accountBaseUrl}}/{{destAccountId}}
 Content-Type: application/json
 
 
-### ==================== Complete Transaction Saga: Success Flow ====================
+### ==================== Complete Bank Transaction Saga: Success Flow ====================
 
-### Step 1: Create a new transaction
+### Step 1: Create a new bank transaction
 # @name createTransaction
 POST {{transactionBaseUrl}}
 Content-Type: application/json
@@ -79,7 +79,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 2: Get transaction details to verify creation
+### Step 2: Get bank transaction details to verify creation
 GET {{transactionBaseUrl}}/{{transactionId}}
 Content-Type: application/json
 
@@ -107,7 +107,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 4: Validate money withdraw in transaction
+### Step 4: Validate money withdraw in bank transaction
 POST {{transactionBaseUrl}}/{{transactionId}}/validate-withdraw
 Content-Type: application/json
 
@@ -141,7 +141,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 6: Validate money deposit in transaction
+### Step 6: Validate money deposit in bank transaction
 POST {{transactionBaseUrl}}/{{transactionId}}/validate-deposit
 Content-Type: application/json
 
@@ -158,7 +158,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 7: Finish transaction
+### Step 7: Finish bank transaction
 POST {{transactionBaseUrl}}/{{transactionId}}/finish
 Content-Type: application/json
 
@@ -176,7 +176,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 8: Finish transaction on source account
+### Step 8: Finish bank transaction on source account
 POST {{accountBaseUrl}}/{{sourceAccountId}}/transfer/finish
 Content-Type: application/json
 
@@ -192,7 +192,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 9: Finish transaction on destination account
+### Step 9: Finish bank transaction on destination account
 POST {{accountBaseUrl}}/{{destAccountId}}/transfer/finish
 Content-Type: application/json
 
@@ -208,7 +208,7 @@ Content-Type: application/json
     });
 %}
 
-### Step 10: Verify final transaction state
+### Step 10: Verify final bank transaction state
 GET {{transactionBaseUrl}}/{{transactionId}}
 Content-Type: application/json
 
@@ -244,7 +244,7 @@ Content-Type: application/json
 %}
 
 
-### ==================== Transaction Cancellation Saga ====================
+### ==================== Bank Transaction Cancellation Saga ====================
 
 ### Setup: Create accounts for cancellation test
 # @name createCancelSourceAccount
@@ -274,7 +274,7 @@ Content-Type: application/json
     client.global.set("cancelDestAccountId", response.body.accountId);
 %}
 
-### Step 1: Create transaction to be cancelled
+### Step 1: Create bank transaction to be cancelled
 # @name createCancelTransaction
 POST {{transactionBaseUrl}}
 Content-Type: application/json
@@ -336,7 +336,7 @@ Content-Type: application/json
   "transactionId": "{{cancelCorrelationId}}"
 }
 
-### Step 6: Cancel the transaction (rollback)
+### Step 6: Cancel the bank transaction (rollback)
 POST {{transactionBaseUrl}}/{{cancelTransactionId}}/cancel
 Content-Type: application/json
 
@@ -355,7 +355,7 @@ Content-Type: application/json
     });
 %}
 
-### Verify cancelled transaction state
+### Verify cancelled bank transaction state
 GET {{transactionBaseUrl}}/{{cancelTransactionId}}
 Content-Type: application/json
 
@@ -370,9 +370,9 @@ Content-Type: application/json
 ### In real scenario, you would need to implement rollback handlers
 
 
-### ==================== Multiple Sequential Transactions ====================
+### ==================== Multiple Sequential Bank Transactions ====================
 
-### Setup: Create accounts for multiple transactions
+### Setup: Create accounts for multiple bank transactions
 # @name createMultiSourceAccount
 POST {{accountBaseUrl}}
 Content-Type: application/json
@@ -401,7 +401,7 @@ Content-Type: application/json
 %}
 
 ### Transaction 1: Transfer 1000
-# @name transaction1
+# @name bankTransaction1
 POST {{transactionBaseUrl}}
 Content-Type: application/json
 
@@ -476,7 +476,7 @@ Content-Type: application/json
 }
 
 ### Transaction 2: Transfer 2500
-# @name transaction2
+# @name bankTransaction2
 POST {{transactionBaseUrl}}
 Content-Type: application/json
 
@@ -550,7 +550,7 @@ Content-Type: application/json
   "transactionId": "{{txn2CorrId}}"
 }
 
-### Verify final balances after multiple transactions
+### Verify final balances after multiple bank transactions
 GET {{accountBaseUrl}}/{{multiSourceAccountId}}
 Content-Type: application/json
 
@@ -659,7 +659,7 @@ Content-Type: application/json
     client.global.set("smallDestId", response.body.accountId);
 %}
 
-### Create small amount transaction
+### Create small amount bank transaction
 POST {{transactionBaseUrl}}
 Content-Type: application/json
 
@@ -672,13 +672,13 @@ Content-Type: application/json
 > {%
     client.global.set("smallTxnId", response.body.transactionId);
     client.global.set("smallCorrId", response.body.correlationId);
-    client.test("Small amount transaction created", function() {
+    client.test("Small amount bank transaction created", function() {
         client.assert(response.status === 201);
         client.assert(response.body.amount === 0.01);
     });
 %}
 
-### Complete small transaction
+### Complete small bank transaction
 POST {{accountBaseUrl}}/{{smallSourceId}}/transfer/withdraw
 Content-Type: application/json
 
@@ -737,7 +737,7 @@ Content-Type: application/json
   "transactionId": "{{smallCorrId}}"
 }
 
-### Verify small transaction completed
+### Verify small bank transaction completed
 GET {{accountBaseUrl}}/{{smallSourceId}}
 Content-Type: application/json
 

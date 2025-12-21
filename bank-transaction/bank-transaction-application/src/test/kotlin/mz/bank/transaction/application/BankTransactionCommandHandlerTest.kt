@@ -1,9 +1,9 @@
 package mz.bank.transaction.application
 
 import kotlinx.coroutines.runBlocking
-import mz.bank.transaction.domain.Transaction
-import mz.bank.transaction.domain.TransactionCommand
-import mz.bank.transaction.domain.TransactionStatus
+import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionCommand
+import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -17,35 +17,35 @@ import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
 
-class TransactionCommandHandlerTest {
-    private lateinit var transactionRepository: TransactionRepository
+class BankTransactionCommandHandlerTest {
+    private lateinit var bankTransactionRepository: BankTransactionRepository
     private lateinit var lockProvider: LockProvider
-    private lateinit var commandHandler: TransactionCommandHandler
+    private lateinit var commandHandler: BankTransactionCommandHandler
 
     @BeforeEach
     fun setUp() {
-        transactionRepository = mock()
+        bankTransactionRepository = mock()
         lockProvider = FakeLockProvider()
-        commandHandler = TransactionCommandHandler(transactionRepository, lockProvider)
+        commandHandler = BankTransactionCommandHandler(bankTransactionRepository, lockProvider)
     }
 
-    // ==================== CreateTransaction Tests ====================
+    // ==================== CreateBankTransaction Tests ====================
 
     @Test
-    fun `should create transaction successfully`(): Unit =
+    fun `should create bankTransaction successfully`(): Unit =
         runBlocking {
             // Given
             val command =
-                TransactionCommand.CreateTransaction(
+                BankTransactionCommand.CreateBankTransaction(
                     correlationId = "corr-001",
                     fromAccountId = AggregateId("acc-001"),
                     toAccountId = AggregateId("acc-002"),
                     amount = BigDecimal("100.00"),
                 )
 
-            whenever(transactionRepository.upsert(any())).thenAnswer { invocation ->
-                val aggregate = invocation.getArgument<mz.bank.transaction.domain.TransactionAggregate>(0)
-                aggregate.transaction
+            whenever(bankTransactionRepository.upsert(any())).thenAnswer { invocation ->
+                val aggregate = invocation.getArgument<mz.bank.transaction.domain.BankTransactionAggregate>(0)
+                aggregate.bankTransaction
             }
 
             // When
@@ -57,16 +57,16 @@ class TransactionCommandHandlerTest {
             assertThat(result.fromAccountId).isEqualTo(AggregateId("acc-001"))
             assertThat(result.toAccountId).isEqualTo(AggregateId("acc-002"))
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("100.00"))
-            assertThat(result.status).isEqualTo(TransactionStatus.CREATED)
-            verify(transactionRepository).upsert(any())
+            assertThat(result.status).isEqualTo(BankTransactionStatus.CREATED)
+            verify(bankTransactionRepository).upsert(any())
         }
 
     @Test
-    fun `should throw exception when creating transaction with zero amount`(): Unit =
+    fun `should throw exception when creating bankTransaction with zero amount`(): Unit =
         runBlocking {
             // Given
             val command =
-                TransactionCommand.CreateTransaction(
+                BankTransactionCommand.CreateBankTransaction(
                     correlationId = "corr-002",
                     fromAccountId = AggregateId("acc-001"),
                     toAccountId = AggregateId("acc-002"),
@@ -79,7 +79,7 @@ class TransactionCommandHandlerTest {
                 .hasMessageContaining("amount must be positive")
         }
 
-    // ==================== ValidateTransactionMoneyWithdraw Tests ====================
+    // ==================== ValidateBankTransactionMoneyWithdraw Tests ====================
 
     @Test
     fun `should validate money withdraw successfully`(): Unit =
@@ -87,33 +87,33 @@ class TransactionCommandHandlerTest {
             // Given
             val aggregateId = AggregateId("txn-001")
             val existingTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                 )
             val command =
-                TransactionCommand.ValidateTransactionMoneyWithdraw(
+                BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
                     aggregateId = aggregateId,
                     correlationId = "corr-003",
                 )
             val expectedTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                     version = 1L,
                 )
 
-            whenever(transactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
-            whenever(transactionRepository.upsert(any())).thenReturn(expectedTransaction)
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
 
             // When
             val result = commandHandler.handle(command)
 
             // Then
             assertThat(result.moneyWithdrawn).isTrue()
-            verify(transactionRepository).findById(aggregateId)
-            verify(transactionRepository).upsert(any())
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
         }
 
     @Test
@@ -122,12 +122,12 @@ class TransactionCommandHandlerTest {
             // Given
             val aggregateId = AggregateId("txn-not-found")
             val command =
-                TransactionCommand.ValidateTransactionMoneyWithdraw(
+                BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
                     aggregateId = aggregateId,
                     correlationId = "corr-004",
                 )
 
-            whenever(transactionRepository.findById(aggregateId)).thenReturn(null)
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(null)
 
             // When & Then
             assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
@@ -135,7 +135,7 @@ class TransactionCommandHandlerTest {
                 .hasMessageContaining("not found")
         }
 
-    // ==================== ValidateTransactionMoneyDeposit Tests ====================
+    // ==================== ValidateBankTransactionMoneyDeposit Tests ====================
 
     @Test
     fun `should validate money deposit successfully`(): Unit =
@@ -143,27 +143,27 @@ class TransactionCommandHandlerTest {
             // Given
             val aggregateId = AggregateId("txn-002")
             val existingTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                 )
             val command =
-                TransactionCommand.ValidateTransactionMoneyDeposit(
+                BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
                     aggregateId = aggregateId,
                     correlationId = "corr-005",
                 )
             val expectedTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
                     moneyDeposited = true,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                     version = 1L,
                 )
 
-            whenever(transactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
-            whenever(transactionRepository.upsert(any())).thenReturn(expectedTransaction)
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
 
             // When
             val result = commandHandler.handle(command)
@@ -171,67 +171,67 @@ class TransactionCommandHandlerTest {
             // Then
             assertThat(result.moneyWithdrawn).isTrue()
             assertThat(result.moneyDeposited).isTrue()
-            verify(transactionRepository).findById(aggregateId)
-            verify(transactionRepository).upsert(any())
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
         }
 
-    // ==================== FinishTransaction Tests ====================
+    // ==================== FinishBankTransaction Tests ====================
 
     @Test
-    fun `should finish transaction successfully`(): Unit =
+    fun `should finish bankTransaction successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("txn-003")
             val existingTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
                     moneyDeposited = true,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                 )
             val command =
-                TransactionCommand.FinishTransaction(
+                BankTransactionCommand.FinishBankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-006",
                     fromAccountId = AggregateId("acc-001"),
                     toAccountId = AggregateId("acc-002"),
                 )
             val expectedTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
                     moneyDeposited = true,
-                    status = TransactionStatus.FINISHED,
+                    status = BankTransactionStatus.FINISHED,
                     version = 1L,
                 )
 
-            whenever(transactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
-            whenever(transactionRepository.upsert(any())).thenReturn(expectedTransaction)
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
 
             // When
             val result = commandHandler.handle(command)
 
             // Then
-            assertThat(result.status).isEqualTo(TransactionStatus.FINISHED)
-            verify(transactionRepository).findById(aggregateId)
-            verify(transactionRepository).upsert(any())
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FINISHED)
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
         }
 
-    // ==================== CancelTransaction Tests ====================
+    // ==================== CancelBankTransaction Tests ====================
 
     @Test
-    fun `should cancel transaction successfully`(): Unit =
+    fun `should cancel bankTransaction successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId("txn-004")
             val existingTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                 )
             val command =
-                TransactionCommand.CancelTransaction(
+                BankTransactionCommand.CancelBankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-007",
                     fromAccountId = AggregateId("acc-001"),
@@ -239,28 +239,28 @@ class TransactionCommandHandlerTest {
                     amount = BigDecimal("100.00"),
                 )
             val expectedTransaction =
-                createTransaction(
+                createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = false,
-                    status = TransactionStatus.FAILED,
+                    status = BankTransactionStatus.FAILED,
                     version = 3L,
                 )
 
-            whenever(transactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
-            whenever(transactionRepository.upsert(any())).thenReturn(expectedTransaction)
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
 
             // When
             val result = commandHandler.handle(command)
 
             // Then
-            assertThat(result.status).isEqualTo(TransactionStatus.FAILED)
-            verify(transactionRepository).findById(aggregateId)
-            verify(transactionRepository).upsert(any())
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
         }
 
     // ==================== Helper Methods ====================
 
-    private fun createTransaction(
+    private fun createBankTransaction(
         aggregateId: AggregateId,
         correlationId: String = "corr-test",
         fromAccountId: AggregateId = AggregateId("acc-001"),
@@ -268,11 +268,11 @@ class TransactionCommandHandlerTest {
         amount: BigDecimal = BigDecimal("100.00"),
         moneyWithdrawn: Boolean = false,
         moneyDeposited: Boolean = false,
-        status: TransactionStatus = TransactionStatus.INITIALIZED,
+        status: BankTransactionStatus = BankTransactionStatus.INITIALIZED,
         version: Long = 0L,
-    ): Transaction {
+    ): BankTransaction {
         val now = Instant.now()
-        return Transaction(
+        return BankTransaction(
             aggregateId = aggregateId,
             correlationId = correlationId,
             fromAccountId = fromAccountId,

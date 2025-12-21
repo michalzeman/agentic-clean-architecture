@@ -3,9 +3,9 @@
 @baseUrl = http://localhost:8081/api/v1/transactions
 
 
-### ==================== Create Transaction ====================
+### ==================== Create Bank Transaction ====================
 
-### Create a transaction
+### Create a bank transaction
 # @name createTransaction
 POST {{baseUrl}}
 Content-Type: application/json
@@ -22,18 +22,18 @@ Content-Type: application/json
 %}
 
 
-### ==================== Get Transaction ====================
+### ==================== Get Bank Transaction ====================
 
-### Get transaction by ID
+### Get bank transaction by ID
 GET {{baseUrl}}/{{transactionId}}
 Content-Type: application/json
 
-### Get non-existent transaction (404)
+### Get non-existent bank transaction (404)
 GET {{baseUrl}}/00000000-0000-0000-0000-000000000000
 Content-Type: application/json
 
 
-### ==================== Transaction Lifecycle ====================
+### ==================== Bank Transaction Lifecycle ====================
 
 ### Step 1: Validate withdraw
 POST {{baseUrl}}/{{transactionId}}/validate-withdraw
@@ -51,7 +51,7 @@ Content-Type: application/json
   "transactionId": "{{correlationId}}"
 }
 
-### Step 3: Finish transaction
+### Step 3: Finish bank transaction
 POST {{baseUrl}}/{{transactionId}}/finish
 Content-Type: application/json
 
@@ -65,9 +65,9 @@ GET {{baseUrl}}/{{transactionId}}
 Content-Type: application/json
 
 
-### ==================== Cancel Transaction ====================
+### ==================== Cancel Bank Transaction ====================
 
-### Create transaction to cancel
+### Create bank transaction to cancel
 # @name createCancelTransaction
 POST {{baseUrl}}
 Content-Type: application/json
@@ -99,7 +99,7 @@ Content-Type: application/json
   "transactionId": "{{cancelCorrId}}"
 }
 
-### Cancel transaction
+### Cancel bank transaction
 POST {{baseUrl}}/{{cancelTxnId}}/cancel
 Content-Type: application/json
 
@@ -170,7 +170,7 @@ Content-Type: application/json
   "transactionId": "{{earlyDepositCorrId}}"
 }
 
-### Finish incomplete transaction (409)
+### Finish incomplete bank transaction (409)
 # @name createIncompleteTxn
 POST {{baseUrl}}
 Content-Type: application/json

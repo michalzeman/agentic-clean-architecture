@@ -1,9 +1,9 @@
 package mz.bank.transaction.adapter.redis
 
-import mz.bank.transaction.domain.Transaction
-import mz.bank.transaction.domain.TransactionAggregate
-import mz.bank.transaction.domain.TransactionEvent
-import mz.bank.transaction.domain.TransactionStatus
+import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionAggregate
+import mz.bank.transaction.domain.BankTransactionEvent
+import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -11,7 +11,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
-class RedisTransactionDomainEventsTest {
+class RedisBankTransactionDomainEventsTest {
     // ==================== Domain Events Collection Tests ====================
 
     @Test
@@ -19,8 +19,8 @@ class RedisTransactionDomainEventsTest {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-domain-events",
                 fromAccountId = "acc-1",
@@ -28,26 +28,26 @@ class RedisTransactionDomainEventsTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED.name,
+                status = BankTransactionStatus.CREATED.name,
                 version = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
         val aggregateId = AggregateId(id.toString())
-        redisTransaction.domainEvents =
+        redisBankTransaction.domainEvents =
             mutableListOf(
-                TransactionEvent.TransactionMoneyWithdrawn(aggregateId, "corr-domain-events", now),
-                TransactionEvent.TransactionMoneyDeposited(aggregateId, "corr-domain-events", now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId, "corr-domain-events", now),
+                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId, "corr-domain-events", now),
             )
 
         // When
-        val events = redisTransaction.domainEvents()
+        val events = redisBankTransaction.domainEvents()
 
         // Then
         assertThat(events).hasSize(2)
         val eventList = events.toList()
-        assertThat(eventList[0]).isInstanceOf(TransactionEvent.TransactionMoneyWithdrawn::class.java)
-        assertThat(eventList[1]).isInstanceOf(TransactionEvent.TransactionMoneyDeposited::class.java)
+        assertThat(eventList[0]).isInstanceOf(BankTransactionEvent.BankTransactionMoneyWithdrawn::class.java)
+        assertThat(eventList[1]).isInstanceOf(BankTransactionEvent.BankTransactionMoneyDeposited::class.java)
     }
 
     @Test
@@ -55,8 +55,8 @@ class RedisTransactionDomainEventsTest {
         // Given
         val id = UUID.randomUUID()
         val now = Instant.now()
-        val redisTransaction =
-            RedisTransaction(
+        val redisBankTransaction =
+            RedisBankTransaction(
                 id = id,
                 correlationId = "corr-clear-events",
                 fromAccountId = "acc-1",
@@ -64,15 +64,15 @@ class RedisTransactionDomainEventsTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED.name,
+                status = BankTransactionStatus.CREATED.name,
                 version = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
         val aggregateId = AggregateId(id.toString())
-        redisTransaction.domainEvents =
+        redisBankTransaction.domainEvents =
             mutableListOf(
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId,
                     "corr-clear-events",
                     now,
@@ -83,10 +83,10 @@ class RedisTransactionDomainEventsTest {
             )
 
         // When
-        redisTransaction.clearDomainEvents()
+        redisBankTransaction.clearDomainEvents()
 
         // Then
-        assertThat(redisTransaction.domainEvents).isEmpty()
+        assertThat(redisBankTransaction.domainEvents).isEmpty()
     }
 
     // ==================== Domain Events Preservation Tests ====================
@@ -96,8 +96,8 @@ class RedisTransactionDomainEventsTest {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-preserve",
                 fromAccountId = AggregateId("acc-1"),
@@ -105,14 +105,14 @@ class RedisTransactionDomainEventsTest {
                 amount = BigDecimal("300.00"),
                 moneyWithdrawn = true,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED,
+                status = BankTransactionStatus.CREATED,
                 version = 1L,
                 createdAt = now,
                 updatedAt = now,
             )
         val domainEvents =
             listOf(
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId = aggregateId,
                     correlationId = "corr-preserve",
                     updatedAt = now,
@@ -120,21 +120,21 @@ class RedisTransactionDomainEventsTest {
                     toAccountId = AggregateId("acc-2"),
                     amount = BigDecimal("300.00"),
                 ),
-                TransactionEvent.TransactionMoneyWithdrawn(
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
                     aggregateId = aggregateId,
                     correlationId = "corr-preserve",
                     updatedAt = now,
                 ),
             )
-        val aggregate = TransactionAggregate(transaction, domainEvents)
+        val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.domainEvents).hasSize(2)
-        assertThat(redisTransaction.domainEvents[0]).isInstanceOf(TransactionEvent.TransactionCreated::class.java)
-        assertThat(redisTransaction.domainEvents[1]).isInstanceOf(TransactionEvent.TransactionMoneyWithdrawn::class.java)
+        assertThat(redisBankTransaction.domainEvents).hasSize(2)
+        assertThat(redisBankTransaction.domainEvents[0]).isInstanceOf(BankTransactionEvent.BankTransactionCreated::class.java)
+        assertThat(redisBankTransaction.domainEvents[1]).isInstanceOf(BankTransactionEvent.BankTransactionMoneyWithdrawn::class.java)
     }
 
     @Test
@@ -142,8 +142,8 @@ class RedisTransactionDomainEventsTest {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-no-events",
                 fromAccountId = AggregateId("acc-1"),
@@ -151,18 +151,18 @@ class RedisTransactionDomainEventsTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
-                status = TransactionStatus.CREATED,
+                status = BankTransactionStatus.CREATED,
                 version = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
-        val aggregate = TransactionAggregate(transaction, emptyList())
+        val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.domainEvents).isEmpty()
+        assertThat(redisBankTransaction.domainEvents).isEmpty()
     }
 
     @Test
@@ -170,8 +170,8 @@ class RedisTransactionDomainEventsTest {
         // Given
         val aggregateId = AggregateId(UUID.randomUUID().toString())
         val now = Instant.now()
-        val transaction =
-            Transaction(
+        val bankTransaction =
+            BankTransaction(
                 aggregateId = aggregateId,
                 correlationId = "corr-multi-events",
                 fromAccountId = AggregateId("acc-1"),
@@ -179,14 +179,14 @@ class RedisTransactionDomainEventsTest {
                 amount = BigDecimal("500.00"),
                 moneyWithdrawn = true,
                 moneyDeposited = true,
-                status = TransactionStatus.FINISHED,
+                status = BankTransactionStatus.FINISHED,
                 version = 3L,
                 createdAt = now,
                 updatedAt = now,
             )
         val domainEvents =
             listOf(
-                TransactionEvent.TransactionCreated(
+                BankTransactionEvent.BankTransactionCreated(
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
@@ -194,17 +194,17 @@ class RedisTransactionDomainEventsTest {
                     toAccountId = AggregateId("acc-2"),
                     amount = BigDecimal("500.00"),
                 ),
-                TransactionEvent.TransactionMoneyWithdrawn(
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
                 ),
-                TransactionEvent.TransactionMoneyDeposited(
+                BankTransactionEvent.BankTransactionMoneyDeposited(
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
                 ),
-                TransactionEvent.TransactionFinished(
+                BankTransactionEvent.BankTransactionFinished(
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
@@ -212,16 +212,16 @@ class RedisTransactionDomainEventsTest {
                     toAccountId = AggregateId("acc-2"),
                 ),
             )
-        val aggregate = TransactionAggregate(transaction, domainEvents)
+        val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
 
         // When
-        val redisTransaction = aggregate.toRedisTransaction()
+        val redisBankTransaction = aggregate.toRedisBankTransaction()
 
         // Then
-        assertThat(redisTransaction.domainEvents).hasSize(4)
-        assertThat(redisTransaction.domainEvents[0]).isInstanceOf(TransactionEvent.TransactionCreated::class.java)
-        assertThat(redisTransaction.domainEvents[1]).isInstanceOf(TransactionEvent.TransactionMoneyWithdrawn::class.java)
-        assertThat(redisTransaction.domainEvents[2]).isInstanceOf(TransactionEvent.TransactionMoneyDeposited::class.java)
-        assertThat(redisTransaction.domainEvents[3]).isInstanceOf(TransactionEvent.TransactionFinished::class.java)
+        assertThat(redisBankTransaction.domainEvents).hasSize(4)
+        assertThat(redisBankTransaction.domainEvents[0]).isInstanceOf(BankTransactionEvent.BankTransactionCreated::class.java)
+        assertThat(redisBankTransaction.domainEvents[1]).isInstanceOf(BankTransactionEvent.BankTransactionMoneyWithdrawn::class.java)
+        assertThat(redisBankTransaction.domainEvents[2]).isInstanceOf(BankTransactionEvent.BankTransactionMoneyDeposited::class.java)
+        assertThat(redisBankTransaction.domainEvents[3]).isInstanceOf(BankTransactionEvent.BankTransactionFinished::class.java)
     }
 }

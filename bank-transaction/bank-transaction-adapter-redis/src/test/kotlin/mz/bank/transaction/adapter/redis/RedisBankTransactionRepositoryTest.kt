@@ -1,10 +1,10 @@
 package mz.bank.transaction.adapter.redis
 
 import kotlinx.coroutines.runBlocking
-import mz.bank.transaction.domain.Transaction
-import mz.bank.transaction.domain.TransactionAggregate
-import mz.bank.transaction.domain.TransactionEvent
-import mz.bank.transaction.domain.TransactionStatus
+import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionAggregate
+import mz.bank.transaction.domain.BankTransactionEvent
+import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -18,27 +18,27 @@ import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
-class RedisTransactionRepositoryTest {
-    private lateinit var transactionDataRepository: TransactionDataRepository
-    private lateinit var redisTransactionRepository: RedisTransactionRepository
+class RedisBankTransactionRepositoryTest {
+    private lateinit var transactionDataRepository: BankTransactionDataRepository
+    private lateinit var redisTransactionRepository: RedisBankTransactionRepository
 
     @BeforeEach
     fun setUp() {
         transactionDataRepository = mock()
-        redisTransactionRepository = RedisTransactionRepository(transactionDataRepository)
+        redisTransactionRepository = RedisBankTransactionRepository(transactionDataRepository)
     }
 
     // ==================== findById Tests ====================
 
     @Test
-    fun `should find transaction by id when it exists`(): Unit =
+    fun `should find bankTransaction by id when it exists`(): Unit =
         runBlocking {
             // Given
             val id = UUID.randomUUID()
             val aggregateId = AggregateId(id.toString())
             val now = Instant.now()
-            val redisTransaction =
-                RedisTransaction(
+            val redisBankTransaction =
+                RedisBankTransaction(
                     id = id,
                     correlationId = "corr-001",
                     fromAccountId = "acc-001",
@@ -46,13 +46,13 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("500.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = false,
-                    status = TransactionStatus.CREATED.name,
+                    status = BankTransactionStatus.CREATED.name,
                     version = 1L,
                     createdAt = now,
                     updatedAt = now,
                 )
 
-            whenever(transactionDataRepository.findById(id)).thenReturn(Optional.of(redisTransaction))
+            whenever(transactionDataRepository.findById(id)).thenReturn(Optional.of(redisBankTransaction))
 
             // When
             val result = redisTransactionRepository.findById(aggregateId)
@@ -64,12 +64,12 @@ class RedisTransactionRepositoryTest {
             assertThat(result?.amount).isEqualByComparingTo(BigDecimal("500.00"))
             assertThat(result?.moneyWithdrawn).isTrue()
             assertThat(result?.moneyDeposited).isFalse()
-            assertThat(result?.status).isEqualTo(TransactionStatus.CREATED)
+            assertThat(result?.status).isEqualTo(BankTransactionStatus.CREATED)
             verify(transactionDataRepository).findById(id)
         }
 
     @Test
-    fun `should return null when transaction does not exist`(): Unit =
+    fun `should return null when bankTransaction does not exist`(): Unit =
         runBlocking {
             // Given
             val id = UUID.randomUUID()
@@ -88,13 +88,13 @@ class RedisTransactionRepositoryTest {
     // ==================== upsert Tests ====================
 
     @Test
-    fun `should upsert transaction aggregate successfully`(): Unit =
+    fun `should upsert bankTransaction aggregate successfully`(): Unit =
         runBlocking {
             // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val now = Instant.now()
-            val transaction =
-                Transaction(
+            val bankTransaction =
+                BankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-upsert",
                     fromAccountId = AggregateId("acc-from"),
@@ -102,15 +102,15 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("750.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                     version = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )
-            val aggregate = TransactionAggregate(transaction, emptyList())
+            val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
 
             val savedRedisTransaction =
-                RedisTransaction(
+                RedisBankTransaction(
                     id = UUID.fromString(aggregateId.value),
                     correlationId = "corr-upsert",
                     fromAccountId = "acc-from",
@@ -118,7 +118,7 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("750.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
-                    status = TransactionStatus.CREATED.name,
+                    status = BankTransactionStatus.CREATED.name,
                     version = 0L,
                     createdAt = now,
                     updatedAt = now,
@@ -133,7 +133,7 @@ class RedisTransactionRepositoryTest {
             assertThat(result.aggregateId).isEqualTo(aggregateId)
             assertThat(result.correlationId).isEqualTo("corr-upsert")
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("750.00"))
-            assertThat(result.status).isEqualTo(TransactionStatus.CREATED)
+            assertThat(result.status).isEqualTo(BankTransactionStatus.CREATED)
             verify(transactionDataRepository).save(any())
         }
 
@@ -143,8 +143,8 @@ class RedisTransactionRepositoryTest {
             // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val now = Instant.now()
-            val transaction =
-                Transaction(
+            val bankTransaction =
+                BankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-events",
                     fromAccountId = AggregateId("acc-from"),
@@ -152,23 +152,23 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("300.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = false,
-                    status = TransactionStatus.CREATED,
+                    status = BankTransactionStatus.CREATED,
                     version = 1L,
                     createdAt = now,
                     updatedAt = now,
                 )
             val domainEvents =
                 listOf(
-                    TransactionEvent.TransactionMoneyWithdrawn(
+                    BankTransactionEvent.BankTransactionMoneyWithdrawn(
                         aggregateId = aggregateId,
                         correlationId = "corr-events",
                         updatedAt = now,
                     ),
                 )
-            val aggregate = TransactionAggregate(transaction, domainEvents)
+            val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
 
             val savedRedisTransaction =
-                RedisTransaction(
+                RedisBankTransaction(
                     id = UUID.fromString(aggregateId.value),
                     correlationId = "corr-events",
                     fromAccountId = "acc-from",
@@ -176,7 +176,7 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("300.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = false,
-                    status = TransactionStatus.CREATED.name,
+                    status = BankTransactionStatus.CREATED.name,
                     version = 1L,
                     createdAt = now,
                     updatedAt = now,
@@ -198,8 +198,8 @@ class RedisTransactionRepositoryTest {
             // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val now = Instant.now()
-            val transaction =
-                Transaction(
+            val bankTransaction =
+                BankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-finished",
                     fromAccountId = AggregateId("acc-from"),
@@ -207,15 +207,15 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("1000.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = true,
-                    status = TransactionStatus.FINISHED,
+                    status = BankTransactionStatus.FINISHED,
                     version = 5L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
                 )
-            val aggregate = TransactionAggregate(transaction, emptyList())
+            val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
 
             val savedRedisTransaction =
-                RedisTransaction(
+                RedisBankTransaction(
                     id = UUID.fromString(aggregateId.value),
                     correlationId = "corr-finished",
                     fromAccountId = "acc-from",
@@ -223,7 +223,7 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("1000.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = true,
-                    status = TransactionStatus.FINISHED.name,
+                    status = BankTransactionStatus.FINISHED.name,
                     version = 5L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
@@ -235,7 +235,7 @@ class RedisTransactionRepositoryTest {
             val result = redisTransactionRepository.upsert(aggregate)
 
             // Then
-            assertThat(result.status).isEqualTo(TransactionStatus.FINISHED)
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FINISHED)
             assertThat(result.moneyWithdrawn).isTrue()
             assertThat(result.moneyDeposited).isTrue()
             assertThat(result.version).isEqualTo(5L)
@@ -248,8 +248,8 @@ class RedisTransactionRepositoryTest {
             // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val now = Instant.now()
-            val transaction =
-                Transaction(
+            val bankTransaction =
+                BankTransaction(
                     aggregateId = aggregateId,
                     correlationId = "corr-failed",
                     fromAccountId = AggregateId("acc-from"),
@@ -257,15 +257,15 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("200.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
-                    status = TransactionStatus.FAILED,
+                    status = BankTransactionStatus.FAILED,
                     version = 2L,
                     createdAt = now.minusSeconds(1800),
                     updatedAt = now,
                 )
-            val aggregate = TransactionAggregate(transaction, emptyList())
+            val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
 
             val savedRedisTransaction =
-                RedisTransaction(
+                RedisBankTransaction(
                     id = UUID.fromString(aggregateId.value),
                     correlationId = "corr-failed",
                     fromAccountId = "acc-from",
@@ -273,7 +273,7 @@ class RedisTransactionRepositoryTest {
                     amount = BigDecimal("200.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
-                    status = TransactionStatus.FAILED.name,
+                    status = BankTransactionStatus.FAILED.name,
                     version = 2L,
                     createdAt = now.minusSeconds(1800),
                     updatedAt = now,
@@ -285,7 +285,7 @@ class RedisTransactionRepositoryTest {
             val result = redisTransactionRepository.upsert(aggregate)
 
             // Then
-            assertThat(result.status).isEqualTo(TransactionStatus.FAILED)
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
             assertThat(result.version).isEqualTo(2L)
             verify(transactionDataRepository).save(any())
         }
