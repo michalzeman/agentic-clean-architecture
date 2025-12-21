@@ -1,0 +1,758 @@
+### Bank Transaction and Account Integration Tests
+### This file tests the complete saga pattern for money transfers
+### between bank accounts coordinated by transactions
+
+### Base URLs for local development
+@accountBaseUrl = http://localhost:8080/api/v1/accounts
+@transactionBaseUrl = http://localhost:8081/api/v1/transactions
+
+
+### ==================== Setup: Create Test Accounts ====================
+
+### Create source account for transactions
+# @name createSourceAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "integration-source@example.com",
+  "initialBalance": 5000.00
+}
+
+> {%
+    client.global.set("sourceAccountId", response.body.accountId);
+    client.test("Source account created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.balance === 5000.00, "Initial balance should be 5000");
+    });
+%}
+
+### Create destination account for transactions
+# @name createDestAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "integration-dest@example.com",
+  "initialBalance": 1000.00
+}
+
+> {%
+    client.global.set("destAccountId", response.body.accountId);
+    client.test("Destination account created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.balance === 1000.00, "Initial balance should be 1000");
+    });
+%}
+
+### Verify source account created
+GET {{accountBaseUrl}}/{{sourceAccountId}}
+Content-Type: application/json
+
+### Verify destination account created
+GET {{accountBaseUrl}}/{{destAccountId}}
+Content-Type: application/json
+
+
+### ==================== Complete Transaction Saga: Success Flow ====================
+
+### Step 1: Create a new transaction
+# @name createTransaction
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{sourceAccountId}}",
+  "toAccountId": "{{destAccountId}}",
+  "amount": 500.00
+}
+
+> {%
+    client.global.set("transactionId", response.body.transactionId);
+    client.global.set("correlationId", response.body.correlationId);
+    client.test("Transaction created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.status === "CREATED", "Transaction status is not CREATED");
+        client.assert(response.body.amount === 500.00, "Amount should be 500");
+        client.assert(response.body.fromAccountId === client.global.get("sourceAccountId"));
+        client.assert(response.body.toAccountId === client.global.get("destAccountId"));
+    });
+%}
+
+### Step 2: Get transaction details to verify creation
+GET {{transactionBaseUrl}}/{{transactionId}}
+Content-Type: application/json
+
+> {%
+    client.test("Transaction retrieved after creation", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "CREATED", "Transaction status is not CREATED");
+    });
+%}
+
+### Step 3: Withdraw money from source account
+POST {{accountBaseUrl}}/{{sourceAccountId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}",
+  "amount": 500.00
+}
+
+> {%
+    client.test("Money withdrawn from source", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balance === 4500.00, "Source balance should be 4500 (5000 - 500)");
+        client.assert(response.body.openedTransactions.includes(client.global.get("correlationId")));
+    });
+%}
+
+### Step 4: Validate money withdraw in transaction
+POST {{transactionBaseUrl}}/{{transactionId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+> {%
+    client.test("Withdraw validated in transaction", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.moneyWithdrawn === true, "Money should be withdrawn");
+        client.assert(response.body.moneyDeposited === false, "Money should not be deposited yet");
+        client.assert(response.body.status === "CREATED", "Status should still be CREATED");
+    });
+%}
+
+### Step 5: Deposit money to destination account
+POST {{accountBaseUrl}}/{{destAccountId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}",
+  "amount": 500.00
+}
+
+> {%
+    client.test("Money deposited to destination", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balance === 1500.00, "Destination balance should be 1500 (1000 + 500)");
+        client.assert(response.body.openedTransactions.includes(client.global.get("correlationId")));
+    });
+%}
+
+### Step 6: Validate money deposit in transaction
+POST {{transactionBaseUrl}}/{{transactionId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+> {%
+    client.test("Deposit validated in transaction", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.moneyWithdrawn === true, "Money should be withdrawn");
+        client.assert(response.body.moneyDeposited === true, "Money should be deposited");
+        client.assert(response.body.status === "CREATED", "Status should still be CREATED");
+    });
+%}
+
+### Step 7: Finish transaction
+POST {{transactionBaseUrl}}/{{transactionId}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{sourceAccountId}}",
+  "toAccountId": "{{destAccountId}}"
+}
+
+> {%
+    client.test("Transaction finished", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FINISHED", "Transaction status should be FINISHED");
+        client.assert(response.body.moneyWithdrawn === true, "Money should be withdrawn");
+        client.assert(response.body.moneyDeposited === true, "Money should be deposited");
+    });
+%}
+
+### Step 8: Finish transaction on source account
+POST {{accountBaseUrl}}/{{sourceAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+> {%
+    client.test("Transaction finished on source account", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(!response.body.openedTransactions.includes(client.global.get("correlationId")));
+        client.assert(response.body.finishedTransactions.includes(client.global.get("correlationId")));
+    });
+%}
+
+### Step 9: Finish transaction on destination account
+POST {{accountBaseUrl}}/{{destAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+> {%
+    client.test("Transaction finished on destination account", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(!response.body.openedTransactions.includes(client.global.get("correlationId")));
+        client.assert(response.body.finishedTransactions.includes(client.global.get("correlationId")));
+    });
+%}
+
+### Step 10: Verify final transaction state
+GET {{transactionBaseUrl}}/{{transactionId}}
+Content-Type: application/json
+
+> {%
+    client.test("Final transaction state verified", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FINISHED", "Transaction should be FINISHED");
+        client.assert(response.body.moneyWithdrawn === true);
+        client.assert(response.body.moneyDeposited === true);
+    });
+%}
+
+### Step 11: Verify final source account balance
+GET {{accountBaseUrl}}/{{sourceAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Final source balance verified", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balance === 4500.00, "Source balance should be 4500");
+    });
+%}
+
+### Step 12: Verify final destination account balance
+GET {{accountBaseUrl}}/{{destAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Final destination balance verified", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balance === 1500.00, "Destination balance should be 1500");
+    });
+%}
+
+
+### ==================== Transaction Cancellation Saga ====================
+
+### Setup: Create accounts for cancellation test
+# @name createCancelSourceAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "cancel-source@example.com",
+  "initialBalance": 3000.00
+}
+
+> {%
+    client.global.set("cancelSourceAccountId", response.body.accountId);
+%}
+
+### Create destination account for cancellation test
+# @name createCancelDestAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "cancel-dest@example.com",
+  "initialBalance": 2000.00
+}
+
+> {%
+    client.global.set("cancelDestAccountId", response.body.accountId);
+%}
+
+### Step 1: Create transaction to be cancelled
+# @name createCancelTransaction
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{cancelSourceAccountId}}",
+  "toAccountId": "{{cancelDestAccountId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.global.set("cancelTransactionId", response.body.transactionId);
+    client.global.set("cancelCorrelationId", response.body.correlationId);
+%}
+
+### Step 2: Withdraw money from source (to be rolled back)
+POST {{accountBaseUrl}}/{{cancelSourceAccountId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrelationId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.test("Money withdrawn for cancellation", function() {
+        client.assert(response.body.balance === 2200.00, "Balance should be 2200");
+    });
+%}
+
+### Step 3: Validate withdraw
+POST {{transactionBaseUrl}}/{{cancelTransactionId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrelationId}}"
+}
+
+### Step 4: Deposit money to destination (to be rolled back)
+POST {{accountBaseUrl}}/{{cancelDestAccountId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrelationId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.test("Money deposited for cancellation", function() {
+        client.assert(response.body.balance === 2800.00, "Balance should be 2800");
+    });
+%}
+
+### Step 5: Validate deposit
+POST {{transactionBaseUrl}}/{{cancelTransactionId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrelationId}}"
+}
+
+### Step 6: Cancel the transaction (rollback)
+POST {{transactionBaseUrl}}/{{cancelTransactionId}}/cancel
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{cancelSourceAccountId}}",
+  "toAccountId": "{{cancelDestAccountId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.test("Transaction cancelled", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FAILED", "Transaction status should be FAILED");
+        client.assert(response.body.moneyWithdrawn === false, "Money should be rolled back");
+        client.assert(response.body.moneyDeposited === false, "Money should be rolled back");
+    });
+%}
+
+### Verify cancelled transaction state
+GET {{transactionBaseUrl}}/{{cancelTransactionId}}
+Content-Type: application/json
+
+> {%
+    client.test("Cancelled transaction state verified", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FAILED", "Transaction should be FAILED");
+    });
+%}
+
+### NOTE: Account rollback would require additional compensating actions
+### In real scenario, you would need to implement rollback handlers
+
+
+### ==================== Multiple Sequential Transactions ====================
+
+### Setup: Create accounts for multiple transactions
+# @name createMultiSourceAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "multi-source@example.com",
+  "initialBalance": 10000.00
+}
+
+> {%
+    client.global.set("multiSourceAccountId", response.body.accountId);
+%}
+
+### Create destination account
+# @name createMultiDestAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "multi-dest@example.com",
+  "initialBalance": 5000.00
+}
+
+> {%
+    client.global.set("multiDestAccountId", response.body.accountId);
+%}
+
+### Transaction 1: Transfer 1000
+# @name transaction1
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{multiSourceAccountId}}",
+  "toAccountId": "{{multiDestAccountId}}",
+  "amount": 1000.00
+}
+
+> {%
+    client.global.set("txn1Id", response.body.transactionId);
+    client.global.set("txn1CorrId", response.body.correlationId);
+%}
+
+### Complete Transaction 1 - Withdraw
+POST {{accountBaseUrl}}/{{multiSourceAccountId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}",
+  "amount": 1000.00
+}
+
+### Complete Transaction 1 - Validate Withdraw
+POST {{transactionBaseUrl}}/{{txn1Id}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}"
+}
+
+### Complete Transaction 1 - Deposit
+POST {{accountBaseUrl}}/{{multiDestAccountId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}",
+  "amount": 1000.00
+}
+
+### Complete Transaction 1 - Validate Deposit
+POST {{transactionBaseUrl}}/{{txn1Id}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}"
+}
+
+### Complete Transaction 1 - Finish
+POST {{transactionBaseUrl}}/{{txn1Id}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{multiSourceAccountId}}",
+  "toAccountId": "{{multiDestAccountId}}"
+}
+
+### Complete Transaction 1 - Finish on Source
+POST {{accountBaseUrl}}/{{multiSourceAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}"
+}
+
+### Complete Transaction 1 - Finish on Dest
+POST {{accountBaseUrl}}/{{multiDestAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn1CorrId}}"
+}
+
+### Transaction 2: Transfer 2500
+# @name transaction2
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{multiSourceAccountId}}",
+  "toAccountId": "{{multiDestAccountId}}",
+  "amount": 2500.00
+}
+
+> {%
+    client.global.set("txn2Id", response.body.transactionId);
+    client.global.set("txn2CorrId", response.body.correlationId);
+%}
+
+### Complete Transaction 2 - Withdraw
+POST {{accountBaseUrl}}/{{multiSourceAccountId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}",
+  "amount": 2500.00
+}
+
+### Complete Transaction 2 - Validate Withdraw
+POST {{transactionBaseUrl}}/{{txn2Id}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}"
+}
+
+### Complete Transaction 2 - Deposit
+POST {{accountBaseUrl}}/{{multiDestAccountId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}",
+  "amount": 2500.00
+}
+
+### Complete Transaction 2 - Validate Deposit
+POST {{transactionBaseUrl}}/{{txn2Id}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}"
+}
+
+### Complete Transaction 2 - Finish
+POST {{transactionBaseUrl}}/{{txn2Id}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{multiSourceAccountId}}",
+  "toAccountId": "{{multiDestAccountId}}"
+}
+
+### Complete Transaction 2 - Finish on Source
+POST {{accountBaseUrl}}/{{multiSourceAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}"
+}
+
+### Complete Transaction 2 - Finish on Dest
+POST {{accountBaseUrl}}/{{multiDestAccountId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{txn2CorrId}}"
+}
+
+### Verify final balances after multiple transactions
+GET {{accountBaseUrl}}/{{multiSourceAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Multi-transaction source balance", function() {
+        client.assert(response.body.balance === 6500.00, "Source should have 6500 (10000 - 1000 - 2500)");
+    });
+%}
+
+### Verify destination balance
+GET {{accountBaseUrl}}/{{multiDestAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Multi-transaction dest balance", function() {
+        client.assert(response.body.balance === 8500.00, "Dest should have 8500 (5000 + 1000 + 2500)");
+    });
+%}
+
+
+### ==================== Error Scenarios ====================
+
+### Try to transfer more than available balance
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "insufficient-funds@example.com",
+  "initialBalance": 100.00
+}
+
+> {%
+    client.global.set("insufficientAccountId", response.body.accountId);
+%}
+
+###
+# @name createOverdraftAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "overdraft-dest@example.com",
+  "initialBalance": 0.00
+}
+
+> {%
+    client.global.set("overdraftDestId", response.body.accountId);
+%}
+
+###
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{insufficientAccountId}}",
+  "toAccountId": "{{overdraftDestId}}",
+  "amount": 50.00
+}
+
+> {%
+    client.global.set("overdraftTxnId", response.body.transactionId);
+    client.global.set("overdraftCorrId", response.body.correlationId);
+%}
+
+### Attempt to withdraw more than balance (should fail)
+POST {{accountBaseUrl}}/{{insufficientAccountId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{overdraftCorrId}}",
+  "amount": 150.00
+}
+
+> {%
+    client.test("Insufficient funds rejected", function() {
+        client.assert(response.status === 409, "Should return 409 (Conflict)");
+    });
+%}
+
+
+### ==================== Edge Cases ====================
+
+### Very small amount transaction (1 cent)
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "small-source@example.com",
+  "initialBalance": 10.00
+}
+
+> {%
+    client.global.set("smallSourceId", response.body.accountId);
+%}
+
+###
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "small-dest@example.com",
+  "initialBalance": 5.00
+}
+
+> {%
+    client.global.set("smallDestId", response.body.accountId);
+%}
+
+### Create small amount transaction
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{smallSourceId}}",
+  "toAccountId": "{{smallDestId}}",
+  "amount": 0.01
+}
+
+> {%
+    client.global.set("smallTxnId", response.body.transactionId);
+    client.global.set("smallCorrId", response.body.correlationId);
+    client.test("Small amount transaction created", function() {
+        client.assert(response.status === 201);
+        client.assert(response.body.amount === 0.01);
+    });
+%}
+
+### Complete small transaction
+POST {{accountBaseUrl}}/{{smallSourceId}}/transfer/withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}",
+  "amount": 0.01
+}
+
+###
+POST {{transactionBaseUrl}}/{{smallTxnId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}"
+}
+
+###
+POST {{accountBaseUrl}}/{{smallDestId}}/transfer/deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}",
+  "amount": 0.01
+}
+
+###
+POST {{transactionBaseUrl}}/{{smallTxnId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}"
+}
+
+###
+POST {{transactionBaseUrl}}/{{smallTxnId}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{smallSourceId}}",
+  "toAccountId": "{{smallDestId}}"
+}
+
+###
+POST {{accountBaseUrl}}/{{smallSourceId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}"
+}
+
+###
+POST {{accountBaseUrl}}/{{smallDestId}}/transfer/finish
+Content-Type: application/json
+
+{
+  "transactionId": "{{smallCorrId}}"
+}
+
+### Verify small transaction completed
+GET {{accountBaseUrl}}/{{smallSourceId}}
+Content-Type: application/json
+
+> {%
+    client.test("Small transaction source balance", function() {
+        client.assert(response.body.balance === 9.99);
+    });
+%}
+
+###
+GET {{accountBaseUrl}}/{{smallDestId}}
+Content-Type: application/json
+
+> {%
+    client.test("Small transaction dest balance", function() {
+        client.assert(response.body.balance === 5.01);
+    });
+%}

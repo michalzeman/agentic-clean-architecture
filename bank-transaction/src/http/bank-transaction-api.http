@@ -1,0 +1,195 @@
+### Bank Transaction REST API Tests
+### Base URL for local development
+@baseUrl = http://localhost:8081/api/v1/transactions
+
+
+### ==================== Create Transaction ====================
+
+### Create a transaction
+# @name createTransaction
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-source-001",
+  "toAccountId": "acc-dest-001",
+  "amount": 500.00
+}
+
+> {%
+    client.global.set("transactionId", response.body.transactionId);
+    client.global.set("correlationId", response.body.correlationId);
+%}
+
+
+### ==================== Get Transaction ====================
+
+### Get transaction by ID
+GET {{baseUrl}}/{{transactionId}}
+Content-Type: application/json
+
+### Get non-existent transaction (404)
+GET {{baseUrl}}/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+
+### ==================== Transaction Lifecycle ====================
+
+### Step 1: Validate withdraw
+POST {{baseUrl}}/{{transactionId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+### Step 2: Validate deposit
+POST {{baseUrl}}/{{transactionId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{correlationId}}"
+}
+
+### Step 3: Finish transaction
+POST {{baseUrl}}/{{transactionId}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-source-001",
+  "toAccountId": "acc-dest-001"
+}
+
+### Verify final state
+GET {{baseUrl}}/{{transactionId}}
+Content-Type: application/json
+
+
+### ==================== Cancel Transaction ====================
+
+### Create transaction to cancel
+# @name createCancelTransaction
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-cancel-source",
+  "toAccountId": "acc-cancel-dest",
+  "amount": 300.00
+}
+
+> {%
+    client.global.set("cancelTxnId", response.body.transactionId);
+    client.global.set("cancelCorrId", response.body.correlationId);
+%}
+
+### Validate withdraw
+POST {{baseUrl}}/{{cancelTxnId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrId}}"
+}
+
+### Validate deposit
+POST {{baseUrl}}/{{cancelTxnId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{cancelCorrId}}"
+}
+
+### Cancel transaction
+POST {{baseUrl}}/{{cancelTxnId}}/cancel
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-cancel-source",
+  "toAccountId": "acc-cancel-dest",
+  "amount": 300.00
+}
+
+### Verify cancelled state
+GET {{baseUrl}}/{{cancelTxnId}}
+Content-Type: application/json
+
+
+### ==================== Error Cases ====================
+
+### Negative amount (400)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-001",
+  "toAccountId": "acc-002",
+  "amount": -100.00
+}
+
+### Zero amount (400)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-001",
+  "toAccountId": "acc-002",
+  "amount": 0.00
+}
+
+### Same accounts (400)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-001",
+  "toAccountId": "acc-001",
+  "amount": 100.00
+}
+
+### Deposit before withdraw (409)
+# @name createEarlyDepositTxn
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-early-001",
+  "toAccountId": "acc-early-002",
+  "amount": 100.00
+}
+
+> {%
+    client.global.set("earlyDepositTxnId", response.body.transactionId);
+    client.global.set("earlyDepositCorrId", response.body.correlationId);
+%}
+
+###
+POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-deposit
+Content-Type: application/json
+
+{
+  "transactionId": "{{earlyDepositCorrId}}"
+}
+
+### Finish incomplete transaction (409)
+# @name createIncompleteTxn
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-incomplete-001",
+  "toAccountId": "acc-incomplete-002",
+  "amount": 150.00
+}
+
+> {%
+    client.global.set("incompleteTxnId", response.body.transactionId);
+%}
+
+###
+POST {{baseUrl}}/{{incompleteTxnId}}/finish
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-incomplete-001",
+  "toAccountId": "acc-incomplete-002"
+}
