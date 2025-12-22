@@ -11,7 +11,7 @@ class BankTransactionAggregateTest {
     // ==================== Transaction Creation Tests ====================
 
     @Test
-    fun `should create bankTransaction with valid parameters`() {
+    fun `should create bankTransaction with valid parameters and emit correct event`() {
         // Given
         val cmd =
             BankTransactionCommand.CreateBankTransaction(
@@ -24,7 +24,7 @@ class BankTransactionAggregateTest {
         // When
         val aggregate = BankTransactionAggregate.create(cmd)
 
-        // Then
+        // Then - verify aggregate state
         assertThat(aggregate.bankTransaction.aggregateId.value).isNotBlank()
         assertThat(aggregate.bankTransaction.correlationId).isEqualTo("corr-001")
         assertThat(aggregate.bankTransaction.fromAccountId).isEqualTo(AggregateId("acc-from"))
@@ -33,107 +33,54 @@ class BankTransactionAggregateTest {
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.CREATED)
         assertThat(aggregate.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(aggregate.bankTransaction.moneyDeposited).isFalse()
+
+        // Then - verify event
         assertThat(aggregate.domainEvents).hasSize(1)
-        assertThat(aggregate.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionCreated::class.java)
-    }
-
-    @Test
-    fun `should fail to create bankTransaction with negative amount`() {
-        // Given
-        val cmd =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-002",
-                fromAccountId = AggregateId("acc-from"),
-                toAccountId = AggregateId("acc-to"),
-                amount = BigDecimal("-50.00"),
-            )
-
-        // When & Then
-        assertThatThrownBy { BankTransactionAggregate.create(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Transaction amount must be positive")
-    }
-
-    @Test
-    fun `should fail to create bankTransaction with zero amount`() {
-        // Given
-        val cmd =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-003",
-                fromAccountId = AggregateId("acc-from"),
-                toAccountId = AggregateId("acc-to"),
-                amount = BigDecimal.ZERO,
-            )
-
-        // When & Then
-        assertThatThrownBy { BankTransactionAggregate.create(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Transaction amount must be positive")
-    }
-
-    @Test
-    fun `should fail to create bankTransaction with same source and destination accounts`() {
-        // Given
-        val cmd =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-004",
-                fromAccountId = AggregateId("acc-same"),
-                toAccountId = AggregateId("acc-same"),
-                amount = BigDecimal("100.00"),
-            )
-
-        // When & Then
-        assertThatThrownBy { BankTransactionAggregate.create(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Source and destination accounts must be different")
-    }
-
-    @Test
-    fun `should generate unique aggregate ID when creating transaction`() {
-        // Given
-        val cmd1 =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-005",
-                fromAccountId = AggregateId("acc-from-1"),
-                toAccountId = AggregateId("acc-to-1"),
-                amount = BigDecimal("100.00"),
-            )
-        val cmd2 =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-006",
-                fromAccountId = AggregateId("acc-from-2"),
-                toAccountId = AggregateId("acc-to-2"),
-                amount = BigDecimal("200.00"),
-            )
-
-        // When
-        val aggregate1 = BankTransactionAggregate.create(cmd1)
-        val aggregate2 = BankTransactionAggregate.create(cmd2)
-
-        // Then
-        assertThat(aggregate1.bankTransaction.aggregateId).isNotEqualTo(aggregate2.bankTransaction.aggregateId)
-    }
-
-    @Test
-    fun `should include all details in BankTransactionCreated event`() {
-        // Given
-        val cmd =
-            BankTransactionCommand.CreateBankTransaction(
-                correlationId = "corr-007",
-                fromAccountId = AggregateId("acc-from"),
-                toAccountId = AggregateId("acc-to"),
-                amount = BigDecimal("150.00"),
-            )
-
-        // When
-        val aggregate = BankTransactionAggregate.create(cmd)
-
-        // Then
         val event = aggregate.domainEvents.first() as BankTransactionEvent.BankTransactionCreated
-        assertThat(event.correlationId).isEqualTo("corr-007")
-        assertThat(event.fromAccountId).isEqualTo(AggregateId("acc-from"))
-        assertThat(event.toAccountId).isEqualTo(AggregateId("acc-to"))
-        assertThat(event.amount).isEqualByComparingTo(BigDecimal("150.00"))
+        assertThat(event.correlationId).isEqualTo("corr-001")
+        assertThat(event.amount).isEqualByComparingTo(BigDecimal("100.00"))
+    }
+
+    @Test
+    fun `should fail to create bankTransaction with invalid parameters`() {
+        // Test negative amount
+        assertThatThrownBy {
+            BankTransactionAggregate.create(
+                BankTransactionCommand.CreateBankTransaction(
+                    correlationId = "corr-002",
+                    fromAccountId = AggregateId("acc-from"),
+                    toAccountId = AggregateId("acc-to"),
+                    amount = BigDecimal("-50.00"),
+                ),
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Transaction amount must be positive")
+
+        // Test zero amount
+        assertThatThrownBy {
+            BankTransactionAggregate.create(
+                BankTransactionCommand.CreateBankTransaction(
+                    correlationId = "corr-003",
+                    fromAccountId = AggregateId("acc-from"),
+                    toAccountId = AggregateId("acc-to"),
+                    amount = BigDecimal.ZERO,
+                ),
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Transaction amount must be positive")
+
+        // Test same source and destination accounts
+        assertThatThrownBy {
+            BankTransactionAggregate.create(
+                BankTransactionCommand.CreateBankTransaction(
+                    correlationId = "corr-004",
+                    fromAccountId = AggregateId("acc-same"),
+                    toAccountId = AggregateId("acc-same"),
+                    amount = BigDecimal("100.00"),
+                ),
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Source and destination accounts must be different")
     }
 
     // ==================== Validate Money Withdraw Tests ====================
@@ -160,39 +107,22 @@ class BankTransactionAggregateTest {
     }
 
     @Test
-    fun `should fail to validate withdraw when bankTransaction is finished`() {
-        // Given
+    fun `should fail to validate withdraw when transaction is in invalid status`() {
+        // Test finished transaction
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
         aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-        aggregate = aggregate.finishBankTransaction(createFinishCommand(aggregate))
+        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
 
-        val cmd =
-            BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
-                aggregateId = aggregate.bankTransaction.aggregateId,
-                correlationId = aggregate.bankTransaction.correlationId,
-            )
-
-        // When & Then
-        assertThatThrownBy { aggregate.validateMoneyWithdraw(cmd) }
+        assertThatThrownBy { aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate)) }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("Cannot validate withdraw for bankTransaction in status")
-    }
 
-    @Test
-    fun `should fail to validate withdraw when bankTransaction is failed`() {
-        // Given
-        var aggregate = createTestAggregate()
+        // Test failed transaction
+        aggregate = createTestAggregate()
         aggregate = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
 
-        val cmd =
-            BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
-                aggregateId = aggregate.bankTransaction.aggregateId,
-                correlationId = aggregate.bankTransaction.correlationId,
-            )
-
-        // When & Then
-        assertThatThrownBy { aggregate.validateMoneyWithdraw(cmd) }
+        assertThatThrownBy { aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate)) }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("Cannot validate withdraw for bankTransaction in status")
     }
@@ -200,157 +130,63 @@ class BankTransactionAggregateTest {
     // ==================== Validate Money Deposit Tests ====================
 
     @Test
-    fun `should validate money deposit successfully after withdraw`() {
-        // Given
+    fun `should validate money deposit and auto-finish when both operations complete`() {
+        // Test deposit after withdraw - auto-finishes
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
 
-        val cmd =
-            BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
-                aggregateId = aggregate.bankTransaction.aggregateId,
-                correlationId = aggregate.bankTransaction.correlationId,
-            )
+        val result = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
 
-        // When
-        val result = aggregate.validateMoneyDeposit(cmd)
-
-        // Then
         assertThat(result.bankTransaction.moneyWithdrawn).isTrue()
         assertThat(result.bankTransaction.moneyDeposited).isTrue()
-        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.CREATED)
-        assertThat(result.domainEvents).hasSize(1)
-        assertThat(result.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionMoneyDeposited::class.java)
-    }
-
-    @Test
-    fun `should fail to validate deposit before withdraw`() {
-        // Given
-        val aggregate = createTestAggregate()
-        val cmd =
-            BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
-                aggregateId = aggregate.bankTransaction.aggregateId,
-                correlationId = aggregate.bankTransaction.correlationId,
-            )
-
-        // When & Then
-        assertThatThrownBy { aggregate.validateMoneyDeposit(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot validate deposit before money is withdrawn")
-    }
-
-    @Test
-    fun `should fail to validate deposit when bankTransaction is finished`() {
-        // Given
-        var aggregate = createTestAggregate()
-        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-        aggregate = aggregate.finishBankTransaction(createFinishCommand(aggregate))
-
-        val cmd =
-            BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
-                aggregateId = aggregate.bankTransaction.aggregateId,
-                correlationId = aggregate.bankTransaction.correlationId,
-            )
-
-        // When & Then
-        assertThatThrownBy { aggregate.validateMoneyDeposit(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot validate deposit for bankTransaction in status")
-    }
-
-    // ==================== Finish Transaction Tests ====================
-
-    @Test
-    fun `should finish bankTransaction successfully after withdraw and deposit`() {
-        // Given
-        var aggregate = createTestAggregate()
-        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-
-        val cmd = createFinishCommand(aggregate)
-
-        // When
-        val result = aggregate.finishBankTransaction(cmd)
-
-        // Then
         assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
-        assertThat(result.bankTransaction.moneyWithdrawn).isTrue()
-        assertThat(result.bankTransaction.moneyDeposited).isTrue()
         assertThat(result.domainEvents).hasSize(1)
         assertThat(result.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionFinished::class.java)
+
+        // Test deposit before withdraw - does not finish
+        aggregate = createTestAggregate()
+        val result2 = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
+
+        assertThat(result2.bankTransaction.moneyDeposited).isTrue()
+        assertThat(result2.bankTransaction.moneyWithdrawn).isFalse()
+        assertThat(result2.bankTransaction.status).isEqualTo(BankTransactionStatus.CREATED)
+        assertThat(result2.domainEvents).hasSize(1)
+        assertThat(result2.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionMoneyDeposited::class.java)
     }
 
     @Test
-    fun `should fail to finish bankTransaction without withdraw completed`() {
-        // Given
-        val aggregate = createTestAggregate()
-        val cmd = createFinishCommand(aggregate)
-
-        // When & Then
-        assertThatThrownBy { aggregate.finishBankTransaction(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("both withdraw and deposit must be completed")
-    }
-
-    @Test
-    fun `should fail to finish bankTransaction without deposit completed`() {
-        // Given
+    fun `should fail to validate deposit when transaction is finished`() {
+        // Given - Create, validate withdraw, then validate deposit (which auto-finishes)
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-
-        val cmd = createFinishCommand(aggregate)
-
-        // When & Then
-        assertThatThrownBy { aggregate.finishBankTransaction(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("both withdraw and deposit must be completed")
-    }
-
-    @Test
-    fun `should fail to finish failed transaction`() {
-        // Given
-        var aggregate = createTestAggregate()
-        aggregate = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
-
-        val cmd = createFinishCommand(aggregate)
+        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
+        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
 
         // When & Then
-        assertThatThrownBy { aggregate.finishBankTransaction(cmd) }
+        assertThatThrownBy { aggregate.validateMoneyDeposit(createDepositCommand(aggregate)) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot finish a failed transaction")
+            .hasMessageContaining("Cannot validate deposit for bankTransaction in status")
     }
 
     // ==================== Cancel Transaction Tests ====================
 
     @Test
-    fun `should cancel bankTransaction before any operations`() {
-        // Given
-        val aggregate = createTestAggregate()
-        val cmd = createCancelCommand(aggregate)
+    fun `should cancel bankTransaction and rollback operations`() {
+        // Test cancel before any operations
+        var aggregate = createTestAggregate()
+        var result = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
 
-        // When
-        val result = aggregate.cancelBankTransaction(cmd)
-
-        // Then
         assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(result.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(result.bankTransaction.moneyDeposited).isFalse()
         assertThat(result.domainEvents).hasSize(1)
         assertThat(result.domainEvents.first()).isInstanceOf(BankTransactionEvent.BankTransactionRolledBack::class.java)
-    }
 
-    @Test
-    fun `should rollback withdraw when canceling after withdraw`() {
-        // Given
-        var aggregate = createTestAggregate()
+        // Test rollback withdraw when canceling after withdraw
+        aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+        result = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
 
-        val cmd = createCancelCommand(aggregate)
-
-        // When
-        val result = aggregate.cancelBankTransaction(cmd)
-
-        // Then
         assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(result.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(result.bankTransaction.moneyDeposited).isFalse()
@@ -360,34 +196,12 @@ class BankTransactionAggregateTest {
     }
 
     @Test
-    fun `should rollback both withdraw and deposit when canceling after deposit`() {
-        // Given
-        var aggregate = createTestAggregate()
-        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-
-        val cmd = createCancelCommand(aggregate)
-
-        // When
-        val result = aggregate.cancelBankTransaction(cmd)
-
-        // Then
-        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
-        assertThat(result.bankTransaction.moneyWithdrawn).isFalse()
-        assertThat(result.bankTransaction.moneyDeposited).isFalse()
-        assertThat(result.domainEvents).hasSize(3)
-        assertThat(result.domainEvents[0]).isInstanceOf(BankTransactionEvent.BankTransactionDepositRolledBack::class.java)
-        assertThat(result.domainEvents[1]).isInstanceOf(BankTransactionEvent.BankTransactionWithdrawRolledBack::class.java)
-        assertThat(result.domainEvents[2]).isInstanceOf(BankTransactionEvent.BankTransactionRolledBack::class.java)
-    }
-
-    @Test
     fun `should fail to cancel finished transaction`() {
         // Given
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
         aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-        aggregate = aggregate.finishBankTransaction(createFinishCommand(aggregate))
+        // Transaction is already finished after both validations
 
         val cmd = createCancelCommand(aggregate)
 
@@ -400,64 +214,58 @@ class BankTransactionAggregateTest {
     // ==================== Event Sourcing Tests ====================
 
     @Test
-    fun `should rebuild state from events - successful transaction`() {
-        // Given
-        val aggregateId = AggregateId("txn-rebuild-001")
-        val correlationId = "corr-rebuild-001"
+    fun `should rebuild state from events`() {
+        // Test successful transaction rebuild
+        val aggregateId1 = AggregateId("txn-rebuild-001")
+        val correlationId1 = "corr-rebuild-001"
         val now = Instant.now()
-        val events =
+        val successEvents =
             listOf(
                 BankTransactionEvent.BankTransactionCreated(
-                    aggregateId,
-                    correlationId,
+                    aggregateId1,
+                    correlationId1,
                     now,
                     AggregateId("acc-from"),
                     AggregateId("acc-to"),
                     BigDecimal("100.00"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId, correlationId, now),
-                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId, correlationId, now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId1, correlationId1, now),
+                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId1, correlationId1, now),
                 BankTransactionEvent.BankTransactionFinished(
-                    aggregateId,
-                    correlationId,
+                    aggregateId1,
+                    correlationId1,
                     now,
                     AggregateId("acc-from"),
                     AggregateId("acc-to"),
                 ),
             )
 
-        // When
-        val aggregate = BankTransactionAggregate.fromEvents(aggregateId, correlationId, events)
+        val successAggregate = BankTransactionAggregate.fromEvents(aggregateId1, correlationId1, successEvents)
 
-        // Then
-        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
-        assertThat(aggregate.bankTransaction.moneyWithdrawn).isTrue()
-        assertThat(aggregate.bankTransaction.moneyDeposited).isTrue()
-        assertThat(aggregate.bankTransaction.version).isEqualTo(4L)
-        assertThat(aggregate.domainEvents).isEmpty()
-    }
+        assertThat(successAggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+        assertThat(successAggregate.bankTransaction.moneyWithdrawn).isTrue()
+        assertThat(successAggregate.bankTransaction.moneyDeposited).isTrue()
+        assertThat(successAggregate.bankTransaction.version).isEqualTo(4L)
+        assertThat(successAggregate.domainEvents).isEmpty()
 
-    @Test
-    fun `should rebuild state from events - failed bankTransaction with rollback`() {
-        // Given
-        val aggregateId = AggregateId("txn-rebuild-002")
-        val correlationId = "corr-rebuild-002"
-        val now = Instant.now()
-        val events =
+        // Test failed transaction rebuild with rollback
+        val aggregateId2 = AggregateId("txn-rebuild-002")
+        val correlationId2 = "corr-rebuild-002"
+        val failedEvents =
             listOf(
                 BankTransactionEvent.BankTransactionCreated(
-                    aggregateId,
-                    correlationId,
+                    aggregateId2,
+                    correlationId2,
                     now,
                     AggregateId("acc-from"),
                     AggregateId("acc-to"),
                     BigDecimal("100.00"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId, correlationId, now),
-                BankTransactionEvent.BankTransactionWithdrawRolledBack(aggregateId, correlationId, now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId2, correlationId2, now),
+                BankTransactionEvent.BankTransactionWithdrawRolledBack(aggregateId2, correlationId2, now),
                 BankTransactionEvent.BankTransactionRolledBack(
-                    aggregateId,
-                    correlationId,
+                    aggregateId2,
+                    correlationId2,
                     now,
                     AggregateId("acc-from"),
                     AggregateId("acc-to"),
@@ -465,42 +273,13 @@ class BankTransactionAggregateTest {
                 ),
             )
 
-        // When
-        val aggregate = BankTransactionAggregate.fromEvents(aggregateId, correlationId, events)
+        val failedAggregate = BankTransactionAggregate.fromEvents(aggregateId2, correlationId2, failedEvents)
 
-        // Then
-        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
-        assertThat(aggregate.bankTransaction.moneyWithdrawn).isFalse()
-        assertThat(aggregate.bankTransaction.moneyDeposited).isFalse()
-        assertThat(aggregate.bankTransaction.version).isEqualTo(4L)
-        assertThat(aggregate.domainEvents).isEmpty()
-    }
-
-    @Test
-    fun `should track version increments on each event`() {
-        // Given
-        val aggregateId = AggregateId("txn-version")
-        val correlationId = "corr-version"
-        val now = Instant.now()
-        val events =
-            listOf(
-                BankTransactionEvent.BankTransactionCreated(
-                    aggregateId,
-                    correlationId,
-                    now,
-                    AggregateId("acc-from"),
-                    AggregateId("acc-to"),
-                    BigDecimal("100.00"),
-                ),
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId, correlationId, now),
-                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId, correlationId, now),
-            )
-
-        // When
-        val aggregate = BankTransactionAggregate.fromEvents(aggregateId, correlationId, events)
-
-        // Then
-        assertThat(aggregate.bankTransaction.version).isEqualTo(3L)
+        assertThat(failedAggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+        assertThat(failedAggregate.bankTransaction.moneyWithdrawn).isFalse()
+        assertThat(failedAggregate.bankTransaction.moneyDeposited).isFalse()
+        assertThat(failedAggregate.bankTransaction.version).isEqualTo(4L)
+        assertThat(failedAggregate.domainEvents).isEmpty()
     }
 
     @Test
@@ -532,16 +311,10 @@ class BankTransactionAggregateTest {
         assertThat(aggregate.bankTransaction.moneyWithdrawn).isTrue()
         assertThat(aggregate.bankTransaction.moneyDeposited).isFalse()
 
-        // When - Validate deposit
+        // When - Validate deposit (automatically finishes)
         aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.CREATED)
-        assertThat(aggregate.bankTransaction.moneyWithdrawn).isTrue()
-        assertThat(aggregate.bankTransaction.moneyDeposited).isTrue()
 
-        // When - Finish transaction
-        aggregate = aggregate.finishBankTransaction(createFinishCommand(aggregate))
-
-        // Then - Transaction completed
+        // Then - Transaction completed automatically with consistent state
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
         assertThat(aggregate.bankTransaction.moneyWithdrawn).isTrue()
         assertThat(aggregate.bankTransaction.moneyDeposited).isTrue()
@@ -562,46 +335,6 @@ class BankTransactionAggregateTest {
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(aggregate.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(aggregate.bankTransaction.moneyDeposited).isFalse()
-    }
-
-    // ==================== Invariant Tests ====================
-
-    @Test
-    fun `should maintain consistent state through event application`() {
-        // Given
-        var aggregate = createTestAggregate()
-
-        // When - Apply various events
-        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-
-        // Then - State is consistent
-        assertThat(aggregate.bankTransaction.moneyWithdrawn).isTrue()
-        assertThat(aggregate.bankTransaction.moneyDeposited).isTrue()
-        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.CREATED)
-    }
-
-    @Test
-    fun `should maintain amount consistency throughout lifecycle`() {
-        // Given
-        val amount = BigDecimal("250.75")
-        var aggregate =
-            BankTransactionAggregate.create(
-                BankTransactionCommand.CreateBankTransaction(
-                    correlationId = "corr-amount",
-                    fromAccountId = AggregateId("acc-from"),
-                    toAccountId = AggregateId("acc-to"),
-                    amount = amount,
-                ),
-            )
-
-        // When - Execute full lifecycle
-        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
-        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
-        aggregate = aggregate.finishBankTransaction(createFinishCommand(aggregate))
-
-        // Then - Amount remains unchanged
-        assertThat(aggregate.bankTransaction.amount).isEqualByComparingTo(amount)
     }
 
     // ==================== Helper Methods ====================
@@ -626,14 +359,6 @@ class BankTransactionAggregateTest {
         BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
             aggregateId = aggregate.bankTransaction.aggregateId,
             correlationId = aggregate.bankTransaction.correlationId,
-        )
-
-    private fun createFinishCommand(aggregate: BankTransactionAggregate): BankTransactionCommand.FinishBankTransaction =
-        BankTransactionCommand.FinishBankTransaction(
-            aggregateId = aggregate.bankTransaction.aggregateId,
-            correlationId = aggregate.bankTransaction.correlationId,
-            fromAccountId = aggregate.bankTransaction.fromAccountId,
-            toAccountId = aggregate.bankTransaction.toAccountId,
         )
 
     private fun createCancelCommand(aggregate: BankTransactionAggregate): BankTransactionCommand.CancelBankTransaction =

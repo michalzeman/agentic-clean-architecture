@@ -46,6 +46,8 @@ data class BankTransactionAggregate(
                 }
                 is BankTransactionEvent.BankTransactionFinished -> {
                     bankTransaction.copy(
+                        moneyWithdrawn = true,
+                        moneyDeposited = true,
                         status = BankTransactionStatus.FINISHED,
                         version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
@@ -88,16 +90,26 @@ data class BankTransactionAggregate(
      * Validates that money was withdrawn from the source account.
      */
     fun validateMoneyWithdraw(cmd: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransactionAggregate {
-        require(bankTransaction.status == BankTransactionStatus.CREATED) {
+        require(bankTransaction.status != BankTransactionStatus.FINISHED && bankTransaction.status != BankTransactionStatus.FAILED) {
             "Cannot validate withdraw for bankTransaction in status ${bankTransaction.status}"
         }
 
         val event =
-            BankTransactionEvent.BankTransactionMoneyWithdrawn(
-                aggregateId = cmd.aggregateId,
-                correlationId = cmd.correlationId,
-                updatedAt = Instant.now(),
-            )
+            if (bankTransaction.moneyDeposited) {
+                BankTransactionEvent.BankTransactionFinished(
+                    aggregateId = cmd.aggregateId,
+                    correlationId = cmd.correlationId,
+                    updatedAt = Instant.now(),
+                    fromAccountId = bankTransaction.fromAccountId,
+                    toAccountId = bankTransaction.toAccountId,
+                )
+            } else {
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
+                    aggregateId = cmd.aggregateId,
+                    correlationId = cmd.correlationId,
+                    updatedAt = Instant.now(),
+                )
+            }
 
         return applyEvent(event).copy(domainEvents = listOf(event))
     }
@@ -106,19 +118,26 @@ data class BankTransactionAggregate(
      * Validates that money was deposited to the destination account.
      */
     fun validateMoneyDeposit(cmd: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransactionAggregate {
-        require(bankTransaction.status == BankTransactionStatus.CREATED) {
+        require(bankTransaction.status != BankTransactionStatus.FINISHED && bankTransaction.status != BankTransactionStatus.FAILED) {
             "Cannot validate deposit for bankTransaction in status ${bankTransaction.status}"
-        }
-        require(bankTransaction.moneyWithdrawn) {
-            "Cannot validate deposit before money is withdrawn"
         }
 
         val event =
-            BankTransactionEvent.BankTransactionMoneyDeposited(
-                aggregateId = cmd.aggregateId,
-                correlationId = cmd.correlationId,
-                updatedAt = Instant.now(),
-            )
+            if (bankTransaction.moneyWithdrawn) {
+                BankTransactionEvent.BankTransactionFinished(
+                    aggregateId = cmd.aggregateId,
+                    correlationId = cmd.correlationId,
+                    updatedAt = Instant.now(),
+                    fromAccountId = bankTransaction.fromAccountId,
+                    toAccountId = bankTransaction.toAccountId,
+                )
+            } else {
+                BankTransactionEvent.BankTransactionMoneyDeposited(
+                    aggregateId = cmd.aggregateId,
+                    correlationId = cmd.correlationId,
+                    updatedAt = Instant.now(),
+                )
+            }
 
         return applyEvent(event).copy(domainEvents = listOf(event))
     }

@@ -43,7 +43,7 @@ Content-Type: application/json
   "transactionId": "{{correlationId}}"
 }
 
-### Step 2: Validate deposit
+### Step 2: Validate deposit (auto-finishes the transaction)
 POST {{baseUrl}}/{{transactionId}}/validate-deposit
 Content-Type: application/json
 
@@ -51,16 +51,7 @@ Content-Type: application/json
   "transactionId": "{{correlationId}}"
 }
 
-### Step 3: Finish bank transaction
-POST {{baseUrl}}/{{transactionId}}/finish
-Content-Type: application/json
-
-{
-  "fromAccountId": "acc-source-001",
-  "toAccountId": "acc-dest-001"
-}
-
-### Verify final state
+### Verify final state (should be FINISHED)
 GET {{baseUrl}}/{{transactionId}}
 Content-Type: application/json
 
@@ -146,7 +137,7 @@ Content-Type: application/json
   "amount": 100.00
 }
 
-### Deposit before withdraw (409)
+### Deposit before withdraw (still works, transaction auto-finishes)
 # @name createEarlyDepositTxn
 POST {{baseUrl}}
 Content-Type: application/json
@@ -162,7 +153,7 @@ Content-Type: application/json
     client.global.set("earlyDepositCorrId", response.body.correlationId);
 %}
 
-###
+### Validate deposit first
 POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-deposit
 Content-Type: application/json
 
@@ -170,26 +161,22 @@ Content-Type: application/json
   "transactionId": "{{earlyDepositCorrId}}"
 }
 
-### Finish incomplete bank transaction (409)
-# @name createIncompleteTxn
-POST {{baseUrl}}
+### Validate withdraw second (auto-finishes the transaction)
+POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-withdraw
 Content-Type: application/json
 
 {
-  "fromAccountId": "acc-incomplete-001",
-  "toAccountId": "acc-incomplete-002",
-  "amount": 150.00
+  "transactionId": "{{earlyDepositCorrId}}"
 }
 
-> {%
-    client.global.set("incompleteTxnId", response.body.transactionId);
-%}
+### Verify transaction is FINISHED
+GET {{baseUrl}}/{{earlyDepositTxnId}}
+Content-Type: application/json
 
-###
-POST {{baseUrl}}/{{incompleteTxnId}}/finish
+### Try to validate again on finished transaction (409)
+POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-withdraw
 Content-Type: application/json
 
 {
-  "fromAccountId": "acc-incomplete-001",
-  "toAccountId": "acc-incomplete-002"
+  "transactionId": "{{earlyDepositCorrId}}"
 }
