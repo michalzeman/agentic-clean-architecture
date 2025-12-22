@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package mz.bank.transaction.contract;
+
+option java_package = "mz.bank.transaction.contract.proto";
+option java_outer_classname = "BankTransactionEventProto";
+option java_multiple_files = true;
+
+// Wrapper message for all bank transaction events
+message BankTransactionEvent {
+  // Event type discriminator using oneof
+  oneof event {
+    TransactionCreated transaction_created = 1;
+    TransactionMoneyWithdrawn transaction_money_withdrawn = 2;
+    TransactionMoneyDeposited transaction_money_deposited = 3;
+    TransactionFinished transaction_finished = 4;
+    TransactionFailed transaction_failed = 5;
+    TransactionRolledBack transaction_rolled_back = 6;
+    TransactionWithdrawRolledBack transaction_withdraw_rolled_back = 7;
+    TransactionDepositRolledBack transaction_deposit_rolled_back = 8;
+  }
+}
+
+// Event: Bank transaction was created
+message TransactionCreated {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string from_account_id = 4;
+  string to_account_id = 5;
+  // BigDecimal as string to preserve precision
+  string amount = 6;
+}
+
+// Event: Money was successfully withdrawn from source account
+message TransactionMoneyWithdrawn {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string account_id = 4;
+}
+
+// Event: Money was successfully deposited to destination account
+message TransactionMoneyDeposited {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string account_id = 4;
+}
+
+// Event: Bank transaction completed successfully
+message TransactionFinished {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string from_account_id = 4;
+  string to_account_id = 5;
+}
+
+// Event: Bank transaction failed and needs rollback
+message TransactionFailed {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string reason = 4;
+}
+
+// Event: Bank transaction was rolled back
+message TransactionRolledBack {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+  string from_account_id = 4;
+  string to_account_id = 5;
+  // BigDecimal as string to preserve precision
+  string amount = 6;
+}
+
+// Event: Withdraw phase was rolled back
+message TransactionWithdrawRolledBack {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+}
+
+// Event: Deposit phase was rolled back
+message TransactionDepositRolledBack {
+  string aggregate_id = 1;
+  string correlation_id = 2;
+  int64 updated_at_epoch_millis = 3;
+}
