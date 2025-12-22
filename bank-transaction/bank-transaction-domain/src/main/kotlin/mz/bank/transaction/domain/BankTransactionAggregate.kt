@@ -125,6 +125,9 @@ data class BankTransactionAggregate(
         require(bankTransaction.status != BankTransactionStatus.FINISHED && bankTransaction.status != BankTransactionStatus.FAILED) {
             "Cannot validate deposit for bankTransaction in status ${bankTransaction.status}"
         }
+        require(cmd.accountId == bankTransaction.toAccountId) {
+            "AccountId ${cmd.accountId.value} does not match transaction's toAccountId ${bankTransaction.toAccountId.value}"
+        }
 
         val event =
             if (bankTransaction.moneyWithdrawn) {
@@ -140,6 +143,7 @@ data class BankTransactionAggregate(
                     aggregateId = cmd.aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
+                    accountId = cmd.accountId,
                 )
             }
 

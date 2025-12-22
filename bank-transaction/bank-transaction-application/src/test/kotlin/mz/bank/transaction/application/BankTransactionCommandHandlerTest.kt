@@ -153,6 +153,7 @@ class BankTransactionCommandHandlerTest {
             val command =
                 BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
                     aggregateId = aggregateId,
+                    accountId = AggregateId("acc-002"),
                     correlationId = "corr-005",
                 )
             val expectedTransaction =

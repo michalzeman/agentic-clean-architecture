@@ -42,7 +42,12 @@ class RedisBankTransactionDomainEventsTest {
                     now,
                     AggregateId("acc-from"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId, "corr-domain-events", now),
+                BankTransactionEvent.BankTransactionMoneyDeposited(
+                    aggregateId,
+                    "corr-domain-events",
+                    now,
+                    AggregateId("acc-to"),
+                ),
             )
 
         // When
@@ -210,6 +215,7 @@ class RedisBankTransactionDomainEventsTest {
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
+                    accountId = AggregateId("acc-2"),
                 ),
                 BankTransactionEvent.BankTransactionFinished(
                     aggregateId = aggregateId,

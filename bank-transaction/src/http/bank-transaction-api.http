@@ -51,6 +51,7 @@ POST {{baseUrl}}/{{transactionId}}/validate-deposit
 Content-Type: application/json
 
 {
+  "accountId": "{{toAccountId}}",
   "transactionId": "{{correlationId}}"
 }
 
@@ -93,6 +94,7 @@ POST {{baseUrl}}/{{cancelTxnId}}/validate-deposit
 Content-Type: application/json
 
 {
+  "accountId": "{{cancelToAccountId}}",
   "transactionId": "{{cancelCorrId}}"
 }
 
@@ -165,6 +167,7 @@ POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-deposit
 Content-Type: application/json
 
 {
+  "accountId": "acc-early-002",
   "transactionId": "{{earlyDepositCorrId}}"
 }
 

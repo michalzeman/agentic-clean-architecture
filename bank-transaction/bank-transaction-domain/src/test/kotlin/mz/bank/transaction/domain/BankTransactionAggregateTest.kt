@@ -187,6 +187,24 @@ class BankTransactionAggregateTest {
             .hasMessageContaining("Cannot validate deposit for bankTransaction in status")
     }
 
+    @Test
+    fun `should fail to validate deposit when accountId does not match toAccountId`() {
+        // Given
+        val aggregate = createTestAggregate()
+        val cmd =
+            BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
+                aggregateId = aggregate.bankTransaction.aggregateId,
+                accountId = AggregateId("wrong-account-id"),
+                correlationId = aggregate.bankTransaction.correlationId,
+            )
+
+        // When & Then
+        assertThatThrownBy { aggregate.validateMoneyDeposit(cmd) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("AccountId")
+            .hasMessageContaining("does not match transaction's toAccountId")
+    }
+
     // ==================== Cancel Transaction Tests ====================
 
     @Test
@@ -254,7 +272,12 @@ class BankTransactionAggregateTest {
                     now,
                     AggregateId("acc-from"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId1, correlationId1, now),
+                BankTransactionEvent.BankTransactionMoneyDeposited(
+                    aggregateId1,
+                    correlationId1,
+                    now,
+                    AggregateId("acc-to"),
+                ),
                 BankTransactionEvent.BankTransactionFinished(
                     aggregateId1,
                     correlationId1,
@@ -388,6 +411,7 @@ class BankTransactionAggregateTest {
     private fun createDepositCommand(aggregate: BankTransactionAggregate): BankTransactionCommand.ValidateBankTransactionMoneyDeposit =
         BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
             aggregateId = aggregate.bankTransaction.aggregateId,
+            accountId = aggregate.bankTransaction.toAccountId,
             correlationId = aggregate.bankTransaction.correlationId,
         )
 

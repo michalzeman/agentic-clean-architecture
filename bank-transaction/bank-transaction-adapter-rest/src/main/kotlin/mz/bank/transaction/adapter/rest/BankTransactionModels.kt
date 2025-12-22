@@ -26,6 +26,7 @@ data class ValidateWithdrawRequest(
  * Request to validate money deposit.
  */
 data class ValidateDepositRequest(
+    val accountId: String,
     val transactionId: String,
 )
 
