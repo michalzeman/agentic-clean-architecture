@@ -44,9 +44,9 @@ class RedisMapRecordJsonSerializer(
         return objectMapper.readValue(payloadValue, type)
     }
 
-    private fun deserializeHeaders(record: MapRecord<String, String, String>): Map<String, String> {
+    private fun deserializeHeaders(record: MapRecord<String, String, String>): Map<String, Any> {
         val headersValue = record.value[HEADERS]
-        return headersValue?.let { objectMapper.readValue(it, object : TypeReference<Map<String, String>>() {}) }
+        return headersValue?.let { objectMapper.readValue(it, object : TypeReference<Map<String, Any>>() {}) }
             ?: emptyMap()
     }
 }

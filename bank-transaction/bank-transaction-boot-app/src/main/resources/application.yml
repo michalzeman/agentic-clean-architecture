@@ -27,3 +27,6 @@ adapters:
   redis:
     stream:
       bank-transaction-events-stream: bank-transaction.event.bank-transactions
+      bank-account-events-stream: bank-account.event.bank-accounts
+      bank-account-events-consumer-group: bank-transaction-service
+      bank-account-events-consumer-name: bank-transaction-consumer
