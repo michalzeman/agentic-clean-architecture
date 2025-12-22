@@ -196,6 +196,7 @@ class RedisBankTransactionMapperTest {
                     aggregateId = aggregateId,
                     correlationId = "corr-events-preserve",
                     updatedAt = now,
+                    accountId = AggregateId("acc-1"),
                 ),
             )
         val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)

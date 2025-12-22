@@ -32,6 +32,7 @@ sealed class BankTransactionEvent {
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
+        val accountId: AggregateId,
     ) : BankTransactionEvent()
 
     /**

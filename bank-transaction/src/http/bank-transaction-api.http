@@ -19,6 +19,8 @@ Content-Type: application/json
 > {%
     client.global.set("transactionId", response.body.transactionId);
     client.global.set("correlationId", response.body.correlationId);
+    client.global.set("fromAccountId", response.body.fromAccountId);
+    client.global.set("toAccountId", response.body.toAccountId);
 %}
 
 
@@ -40,6 +42,7 @@ POST {{baseUrl}}/{{transactionId}}/validate-withdraw
 Content-Type: application/json
 
 {
+  "accountId": "{{fromAccountId}}",
   "transactionId": "{{correlationId}}"
 }
 
@@ -72,6 +75,8 @@ Content-Type: application/json
 > {%
     client.global.set("cancelTxnId", response.body.transactionId);
     client.global.set("cancelCorrId", response.body.correlationId);
+    client.global.set("cancelFromAccountId", response.body.fromAccountId);
+    client.global.set("cancelToAccountId", response.body.toAccountId);
 %}
 
 ### Validate withdraw
@@ -79,6 +84,7 @@ POST {{baseUrl}}/{{cancelTxnId}}/validate-withdraw
 Content-Type: application/json
 
 {
+  "accountId": "{{cancelFromAccountId}}",
   "transactionId": "{{cancelCorrId}}"
 }
 
@@ -95,8 +101,8 @@ POST {{baseUrl}}/{{cancelTxnId}}/cancel
 Content-Type: application/json
 
 {
-  "fromAccountId": "acc-cancel-source",
-  "toAccountId": "acc-cancel-dest",
+  "fromAccountId": "{{cancelFromAccountId}}",
+  "toAccountId": "{{cancelToAccountId}}",
   "amount": 300.00
 }
 
@@ -151,6 +157,7 @@ Content-Type: application/json
 > {%
     client.global.set("earlyDepositTxnId", response.body.transactionId);
     client.global.set("earlyDepositCorrId", response.body.correlationId);
+    client.global.set("earlyDepositFromAccountId", response.body.fromAccountId);
 %}
 
 ### Validate deposit first
@@ -166,6 +173,7 @@ POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-withdraw
 Content-Type: application/json
 
 {
+  "accountId": "{{earlyDepositFromAccountId}}",
   "transactionId": "{{earlyDepositCorrId}}"
 }
 
@@ -178,5 +186,35 @@ POST {{baseUrl}}/{{earlyDepositTxnId}}/validate-withdraw
 Content-Type: application/json
 
 {
+  "accountId": "{{earlyDepositFromAccountId}}",
   "transactionId": "{{earlyDepositCorrId}}"
+}
+
+
+### ==================== Validation Error Cases ====================
+
+### Create transaction for validation testing
+# @name createValidationTest
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "acc-validation-source",
+  "toAccountId": "acc-validation-dest",
+  "amount": 200.00
+}
+
+> {%
+    client.global.set("validationTxnId", response.body.transactionId);
+    client.global.set("validationCorrId", response.body.correlationId);
+    client.global.set("validationFromAccountId", response.body.fromAccountId);
+%}
+
+### Try to validate withdraw with wrong accountId (400)
+POST {{baseUrl}}/{{validationTxnId}}/validate-withdraw
+Content-Type: application/json
+
+{
+  "accountId": "wrong-account-id",
+  "transactionId": "{{validationCorrId}}"
 }

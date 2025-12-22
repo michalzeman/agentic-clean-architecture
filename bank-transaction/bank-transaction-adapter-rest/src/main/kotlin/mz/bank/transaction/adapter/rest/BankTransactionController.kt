@@ -67,6 +67,7 @@ class BankTransactionController(
         val command =
             BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
                 aggregateId = AggregateId(transactionId),
+                accountId = AggregateId(request.accountId),
                 correlationId = request.transactionId,
             )
         val bankTransaction = commandHandler.handle(command)

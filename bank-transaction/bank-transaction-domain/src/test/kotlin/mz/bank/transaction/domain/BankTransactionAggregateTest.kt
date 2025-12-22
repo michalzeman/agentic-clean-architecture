@@ -92,6 +92,7 @@ class BankTransactionAggregateTest {
         val cmd =
             BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
                 aggregateId = aggregate.bankTransaction.aggregateId,
+                accountId = aggregate.bankTransaction.fromAccountId,
                 correlationId = aggregate.bankTransaction.correlationId,
             )
 
@@ -125,6 +126,24 @@ class BankTransactionAggregateTest {
         assertThatThrownBy { aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate)) }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("Cannot validate withdraw for bankTransaction in status")
+    }
+
+    @Test
+    fun `should fail to validate withdraw when accountId does not match fromAccountId`() {
+        // Given
+        val aggregate = createTestAggregate()
+        val cmd =
+            BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
+                aggregateId = aggregate.bankTransaction.aggregateId,
+                accountId = AggregateId("wrong-account-id"),
+                correlationId = aggregate.bankTransaction.correlationId,
+            )
+
+        // When & Then
+        assertThatThrownBy { aggregate.validateMoneyWithdraw(cmd) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("AccountId")
+            .hasMessageContaining("does not match transaction's fromAccountId")
     }
 
     // ==================== Validate Money Deposit Tests ====================
@@ -229,7 +248,12 @@ class BankTransactionAggregateTest {
                     AggregateId("acc-to"),
                     BigDecimal("100.00"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId1, correlationId1, now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
+                    aggregateId1,
+                    correlationId1,
+                    now,
+                    AggregateId("acc-from"),
+                ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId1, correlationId1, now),
                 BankTransactionEvent.BankTransactionFinished(
                     aggregateId1,
@@ -261,7 +285,12 @@ class BankTransactionAggregateTest {
                     AggregateId("acc-to"),
                     BigDecimal("100.00"),
                 ),
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId2, correlationId2, now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
+                    aggregateId2,
+                    correlationId2,
+                    now,
+                    AggregateId("acc-from"),
+                ),
                 BankTransactionEvent.BankTransactionWithdrawRolledBack(aggregateId2, correlationId2, now),
                 BankTransactionEvent.BankTransactionRolledBack(
                     aggregateId2,
@@ -352,6 +381,7 @@ class BankTransactionAggregateTest {
     private fun createWithdrawCommand(aggregate: BankTransactionAggregate): BankTransactionCommand.ValidateBankTransactionMoneyWithdraw =
         BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
             aggregateId = aggregate.bankTransaction.aggregateId,
+            accountId = aggregate.bankTransaction.fromAccountId,
             correlationId = aggregate.bankTransaction.correlationId,
         )
 

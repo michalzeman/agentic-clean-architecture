@@ -25,6 +25,7 @@ sealed class BankTransactionCommand {
      */
     data class ValidateBankTransactionMoneyWithdraw(
         val aggregateId: AggregateId,
+        val accountId: AggregateId,
         override val correlationId: String,
     ) : BankTransactionCommand()
 

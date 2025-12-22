@@ -36,7 +36,12 @@ class RedisBankTransactionDomainEventsTest {
         val aggregateId = AggregateId(id.toString())
         redisBankTransaction.domainEvents =
             mutableListOf(
-                BankTransactionEvent.BankTransactionMoneyWithdrawn(aggregateId, "corr-domain-events", now),
+                BankTransactionEvent.BankTransactionMoneyWithdrawn(
+                    aggregateId,
+                    "corr-domain-events",
+                    now,
+                    AggregateId("acc-from"),
+                ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(aggregateId, "corr-domain-events", now),
             )
 
@@ -124,6 +129,7 @@ class RedisBankTransactionDomainEventsTest {
                     aggregateId = aggregateId,
                     correlationId = "corr-preserve",
                     updatedAt = now,
+                    accountId = AggregateId("acc-1"),
                 ),
             )
         val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
@@ -198,6 +204,7 @@ class RedisBankTransactionDomainEventsTest {
                     aggregateId = aggregateId,
                     correlationId = "corr-multi-events",
                     updatedAt = now,
+                    accountId = AggregateId("acc-1"),
                 ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(
                     aggregateId = aggregateId,

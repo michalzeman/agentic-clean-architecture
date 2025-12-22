@@ -18,6 +18,7 @@ data class CreateBankTransactionRequest(
  * Request to validate money withdrawal.
  */
 data class ValidateWithdrawRequest(
+    val accountId: String,
     val transactionId: String,
 )
 
