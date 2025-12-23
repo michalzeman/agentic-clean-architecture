@@ -1,18 +1,17 @@
 package mz.bank.transaction.adapter.redis.stream.wiring
 
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
+import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
 import mz.bank.transaction.adapter.redis.stream.inbound.BankAccountEventMapper
 import mz.bank.transaction.application.integration.AccountCreatedEvent
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
-import org.springframework.integration.support.json.JacksonJsonUtils
 import org.springframework.messaging.MessageChannel
 
 /**
@@ -24,6 +23,7 @@ import org.springframework.messaging.MessageChannel
 class InboundBankAccountRedisStreamConfiguration(
     private val properties: BankTransactionRedisStreamProperties,
     private val lettuceConnectionFactory: LettuceConnectionFactory,
+    @param:Qualifier("protobufObjectMapper") private val protobufObjectMapper: ObjectMapper,
 ) {
     /**
      * Redis stream consumer for bank account events.
@@ -32,28 +32,16 @@ class InboundBankAccountRedisStreamConfiguration(
     @Bean
     fun bankAccountEventsRedisStreamConsumer(
         inboundBankAccountEventsChannel: MessageChannel,
-    ): RedisStreamConsumer<BankAccountEvent, AccountCreatedEvent?> {
-        val objectMapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz",
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "kotlin.collections",
-            )
-        objectMapper
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(ProtobufModule())
-
-        return RedisSteamConsumerBuilder<BankAccountEvent, AccountCreatedEvent?>(
+    ): RedisStreamConsumer<BankAccountEvent, AccountCreatedEvent?> =
+        RedisSteamConsumerBuilder<BankAccountEvent, AccountCreatedEvent?>(
             streamKey = properties.bankAccountEventsStream,
             channel = inboundBankAccountEventsChannel,
             consumerGroup = properties.bankAccountEventsConsumerGroup,
             consumerName = properties.bankAccountEventsConsumerName,
             type = BankAccountEvent::class.java,
             redisConnectionFactory = lettuceConnectionFactory,
-            objectMapper = objectMapper,
+            objectMapper = protobufObjectMapper,
         ).withMapper { protoEvent: BankAccountEvent ->
             BankAccountEventMapper.toAccountCreatedEvent(protoEvent)
         }.build()
-    }
 }

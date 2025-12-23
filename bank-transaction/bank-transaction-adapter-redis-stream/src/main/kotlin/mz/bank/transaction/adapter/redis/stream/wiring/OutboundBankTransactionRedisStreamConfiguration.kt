@@ -1,11 +1,11 @@
 package mz.bank.transaction.adapter.redis.stream.wiring
 
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
+import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.transaction.adapter.redis.stream.BankTransactionEventMapper
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
 import mz.shared.connector.redis.RedisStreamPublisher
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -15,7 +15,6 @@ import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.redis.store.RedisChannelMessageStore
-import org.springframework.integration.support.json.JacksonJsonUtils
 import org.springframework.messaging.MessageChannel
 import mz.bank.transaction.contract.proto.BankTransactionEvent as ProtoBankTransactionEvent
 import mz.bank.transaction.domain.BankTransactionEvent as DomainBankTransactionEvent
@@ -34,19 +33,9 @@ class OutboundBankTransactionRedisStreamConfiguration(
     private val protoRedisChannelMessageStore: RedisChannelMessageStore,
 ) {
     @Bean
-    fun redisMapRecordProtobufSerializer(): RedisMapRecordJsonSerializer {
-        val objectMapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz",
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "kotlin.collections",
-            )
-        objectMapper
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(ProtobufModule())
-        return RedisMapRecordJsonSerializer(objectMapper)
-    }
+    fun redisMapRecordProtobufSerializer(
+        @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
+    ): RedisMapRecordJsonSerializer = RedisMapRecordJsonSerializer(objectMapper)
 
     @Bean
     fun bankTransactionEventsRedisStreamPublisher(
