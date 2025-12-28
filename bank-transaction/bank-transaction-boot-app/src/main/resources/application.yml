@@ -20,6 +20,14 @@ spring:
 server:
   port: 8081
 
+logging:
+  level:
+    org.springframework.web.reactive: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.http.codec: DEBUG
+    reactor.netty.http.server: DEBUG
+    mz.bank.transaction.adapter.rest: DEBUG
+
 application:
   identifier: bank-transaction
 

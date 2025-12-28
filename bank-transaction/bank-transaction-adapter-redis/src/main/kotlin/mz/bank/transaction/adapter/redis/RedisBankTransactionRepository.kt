@@ -2,7 +2,7 @@ package mz.bank.transaction.adapter.redis
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mz.bank.transaction.application.BankTransactionRepository
+import mz.bank.transaction.application.transaction.BankTransactionRepository
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.shared.domain.AggregateId

@@ -1,9 +1,11 @@
-package mz.bank.transaction.application
+package mz.bank.transaction.application.transaction
 
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
+import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
@@ -14,25 +16,32 @@ import org.springframework.stereotype.Component
 class BankTransactionCommandHandler(
     private val bankTransactionRepository: BankTransactionRepository,
     private val lockProvider: LockProvider,
+    private val createTransactionUseCase: CreateTransactionUseCase,
 ) {
+    private val logger = LoggerFactory.getLogger(BankTransactionCommandHandler::class.java)
+
     /**
      * Handles a BankTransactionCommand and returns the updated BankTransaction.
      * Uses distributed locking to ensure consistency.
      */
-    suspend fun handle(command: BankTransactionCommand): BankTransaction =
-        when (command) {
+    suspend fun handle(command: BankTransactionCommand): BankTransaction {
+        logger.info("Handling command: {}", command::class.simpleName)
+        logger.debug("Command details: {}", command)
+        return when (command) {
             is BankTransactionCommand.CreateBankTransaction -> handleCreate(command)
             is BankTransactionCommand.ValidateBankTransactionMoneyWithdraw -> handleValidateWithdraw(command)
             is BankTransactionCommand.ValidateBankTransactionMoneyDeposit -> handleValidateDeposit(command)
             is BankTransactionCommand.FinishBankTransaction -> handleFinish(command)
             is BankTransactionCommand.CancelBankTransaction -> handleCancel(command)
         }
+    }
 
-    private suspend fun handleCreate(command: BankTransactionCommand.CreateBankTransaction): BankTransaction =
-        lockProvider.withLock(command.correlationId) {
-            val aggregate = BankTransactionAggregate.create(command)
-            bankTransactionRepository.upsert(aggregate)
-        }
+    private suspend fun handleCreate(command: BankTransactionCommand.CreateBankTransaction): BankTransaction {
+        logger.info("Creating new transaction with correlationId: {}", command.correlationId)
+        val result = createTransactionUseCase(command)
+        logger.info("Transaction created with id: {}", result.aggregateId.value)
+        return result
+    }
 
     private suspend fun handleValidateWithdraw(command: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransaction =
         lockProvider.withLock(command.aggregateId.value) {
@@ -62,7 +71,7 @@ class BankTransactionCommandHandler(
             bankTransactionRepository.upsert(aggregate)
         }
 
-    private suspend fun findBankTransactionOrThrow(aggregateId: mz.shared.domain.AggregateId): BankTransaction =
+    private suspend fun findBankTransactionOrThrow(aggregateId: AggregateId): BankTransaction =
         bankTransactionRepository.findById(aggregateId)
             ?: throw IllegalArgumentException("BankTransaction with id ${aggregateId.value} not found")
 }

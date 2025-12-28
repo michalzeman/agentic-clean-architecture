@@ -1,4 +1,4 @@
-package mz.bank.transaction.application
+package mz.bank.transaction.application.transaction
 
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate

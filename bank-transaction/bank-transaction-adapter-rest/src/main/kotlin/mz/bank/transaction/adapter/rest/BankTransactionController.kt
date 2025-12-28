@@ -1,9 +1,10 @@
 package mz.bank.transaction.adapter.rest
 
-import mz.bank.transaction.application.BankTransactionCommandHandler
-import mz.bank.transaction.application.BankTransactionRepository
+import mz.bank.transaction.application.transaction.BankTransactionCommandHandler
+import mz.bank.transaction.application.transaction.BankTransactionRepository
 import mz.bank.transaction.domain.BankTransactionCommand
 import mz.shared.domain.AggregateId
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -25,6 +26,8 @@ class BankTransactionController(
     private val commandHandler: BankTransactionCommandHandler,
     private val bankTransactionRepository: BankTransactionRepository,
 ) {
+    private val logger = LoggerFactory.getLogger(BankTransactionController::class.java)
+
     /**
      * Get transaction by ID.
      */
@@ -32,9 +35,11 @@ class BankTransactionController(
     suspend fun getBankTransaction(
         @PathVariable transactionId: String,
     ): ResponseEntity<BankTransactionResponse> {
+        logger.info("GET /api/v1/transactions/{} called", transactionId)
         val bankTransaction =
             bankTransactionRepository.findById(AggregateId(transactionId))
                 ?: return ResponseEntity.notFound().build()
+        logger.info("GET /api/v1/transactions/{} - transaction found", transactionId)
         return ResponseEntity.ok(bankTransaction.toResponse())
     }
 
@@ -45,6 +50,7 @@ class BankTransactionController(
     suspend fun createBankTransaction(
         @RequestBody request: CreateBankTransactionRequest,
     ): ResponseEntity<BankTransactionResponse> {
+        logger.info("POST /api/v1/transactions called with request: {}", request)
         val command =
             BankTransactionCommand.CreateBankTransaction(
                 correlationId = UUID.randomUUID().toString(),
@@ -52,7 +58,9 @@ class BankTransactionController(
                 toAccountId = AggregateId(request.toAccountId),
                 amount = request.amount,
             )
+        logger.info("POST /api/v1/transactions - command created: {}", command)
         val bankTransaction = commandHandler.handle(command)
+        logger.info("POST /api/v1/transactions - transaction created: {}", bankTransaction.aggregateId.value)
         return ResponseEntity.status(HttpStatus.CREATED).body(bankTransaction.toResponse())
     }
 
@@ -136,6 +144,7 @@ class BankTransactionController(
      */
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgument(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> {
+        logger.error("IllegalArgumentException caught in controller: {}", ex.message, ex)
         val error =
             ErrorResponse(
                 error = "Bad Request",
@@ -149,6 +158,7 @@ class BankTransactionController(
      */
     @ExceptionHandler(IllegalStateException::class)
     fun handleIllegalState(ex: IllegalStateException): ResponseEntity<ErrorResponse> {
+        logger.error("IllegalStateException caught in controller: {}", ex.message, ex)
         val error =
             ErrorResponse(
                 error = "Conflict",

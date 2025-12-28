@@ -18,7 +18,13 @@ sealed class BankTransactionCommand {
         val fromAccountId: AggregateId,
         val toAccountId: AggregateId,
         val amount: BigDecimal,
-    ) : BankTransactionCommand()
+    ) : BankTransactionCommand() {
+        init {
+            require(fromAccountId != toAccountId) {
+                "Cannot create transaction with same source and destination account: ${fromAccountId.value}"
+            }
+        }
+    }
 
     /**
      * Validate that money was withdrawn from source account.

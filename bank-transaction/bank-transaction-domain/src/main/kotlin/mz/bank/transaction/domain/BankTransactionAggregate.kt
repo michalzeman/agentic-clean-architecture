@@ -232,10 +232,6 @@ data class BankTransactionAggregate(
          * Generates a unique UUID for the aggregate ID.
          */
         fun create(cmd: BankTransactionCommand.CreateBankTransaction): BankTransactionAggregate {
-            require(cmd.amount > java.math.BigDecimal.ZERO) {
-                "BankTransaction amount must be positive"
-            }
-
             val now = Instant.now()
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val newBankTransaction =

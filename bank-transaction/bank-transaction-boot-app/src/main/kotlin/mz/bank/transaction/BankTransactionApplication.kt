@@ -1,9 +1,12 @@
 package mz.bank.transaction
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
 import org.springframework.integration.redis.store.RedisChannelMessageStore
@@ -36,6 +39,15 @@ class BankTransactionApplication {
     @Bean
     fun protoRedisChannelMessageStore(redisConnectionFactory: LettuceConnectionFactory): RedisChannelMessageStore =
         RedisChannelMessageStore(redisConnectionFactory) // uses default byte array serialization
+
+    @Bean
+    @Primary
+    fun objectMapper(): ObjectMapper {
+        val objectMapper = ObjectMapper()
+        objectMapper.registerModule(KotlinModule.Builder().build())
+        objectMapper.registerModule(JavaTimeModule())
+        return objectMapper
+    }
 }
 
 fun main(args: Array<String>) {

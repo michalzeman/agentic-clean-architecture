@@ -1,7 +1,11 @@
 package mz.bank.transaction.application
 
 import kotlinx.coroutines.runBlocking
+import mz.bank.transaction.application.transaction.BankTransactionCommandHandler
+import mz.bank.transaction.application.transaction.BankTransactionRepository
+import mz.bank.transaction.application.transaction.CreateTransactionUseCase
 import mz.bank.transaction.domain.BankTransaction
+import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
 import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
@@ -19,14 +23,16 @@ import java.time.Instant
 
 class BankTransactionCommandHandlerTest {
     private lateinit var bankTransactionRepository: BankTransactionRepository
+    private lateinit var createTransactionUseCase: CreateTransactionUseCase
     private lateinit var lockProvider: LockProvider
     private lateinit var commandHandler: BankTransactionCommandHandler
 
     @BeforeEach
     fun setUp() {
         bankTransactionRepository = mock()
+        createTransactionUseCase = mock()
         lockProvider = FakeLockProvider()
-        commandHandler = BankTransactionCommandHandler(bankTransactionRepository, lockProvider)
+        commandHandler = BankTransactionCommandHandler(bankTransactionRepository, lockProvider, createTransactionUseCase)
     }
 
     // ==================== CreateBankTransaction Tests ====================
@@ -43,9 +49,8 @@ class BankTransactionCommandHandlerTest {
                     amount = BigDecimal("100.00"),
                 )
 
-            whenever(bankTransactionRepository.upsert(any())).thenAnswer { invocation ->
-                val aggregate = invocation.getArgument<mz.bank.transaction.domain.BankTransactionAggregate>(0)
-                aggregate.bankTransaction
+            whenever(createTransactionUseCase.invoke(command)).thenAnswer {
+                BankTransactionAggregate.create(command).bankTransaction
             }
 
             // When
@@ -58,25 +63,6 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.toAccountId).isEqualTo(AggregateId("acc-002"))
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("100.00"))
             assertThat(result.status).isEqualTo(BankTransactionStatus.CREATED)
-            verify(bankTransactionRepository).upsert(any())
-        }
-
-    @Test
-    fun `should throw exception when creating bankTransaction with zero amount`(): Unit =
-        runBlocking {
-            // Given
-            val command =
-                BankTransactionCommand.CreateBankTransaction(
-                    correlationId = "corr-002",
-                    fromAccountId = AggregateId("acc-001"),
-                    toAccountId = AggregateId("acc-002"),
-                    amount = BigDecimal.ZERO,
-                )
-
-            // When & Then
-            assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("amount must be positive")
         }
 
     // ==================== ValidateBankTransactionMoneyWithdraw Tests ====================

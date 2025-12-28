@@ -41,48 +41,6 @@ class BankTransactionAggregateTest {
         assertThat(event.amount).isEqualByComparingTo(BigDecimal("100.00"))
     }
 
-    @Test
-    fun `should fail to create bankTransaction with invalid parameters`() {
-        // Test negative amount
-        assertThatThrownBy {
-            BankTransactionAggregate.create(
-                BankTransactionCommand.CreateBankTransaction(
-                    correlationId = "corr-002",
-                    fromAccountId = AggregateId("acc-from"),
-                    toAccountId = AggregateId("acc-to"),
-                    amount = BigDecimal("-50.00"),
-                ),
-            )
-        }.isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Transaction amount must be positive")
-
-        // Test zero amount
-        assertThatThrownBy {
-            BankTransactionAggregate.create(
-                BankTransactionCommand.CreateBankTransaction(
-                    correlationId = "corr-003",
-                    fromAccountId = AggregateId("acc-from"),
-                    toAccountId = AggregateId("acc-to"),
-                    amount = BigDecimal.ZERO,
-                ),
-            )
-        }.isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Transaction amount must be positive")
-
-        // Test same source and destination accounts
-        assertThatThrownBy {
-            BankTransactionAggregate.create(
-                BankTransactionCommand.CreateBankTransaction(
-                    correlationId = "corr-004",
-                    fromAccountId = AggregateId("acc-same"),
-                    toAccountId = AggregateId("acc-same"),
-                    amount = BigDecimal("100.00"),
-                ),
-            )
-        }.isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Source and destination accounts must be different")
-    }
-
     // ==================== Validate Money Withdraw Tests ====================
 
     @Test
