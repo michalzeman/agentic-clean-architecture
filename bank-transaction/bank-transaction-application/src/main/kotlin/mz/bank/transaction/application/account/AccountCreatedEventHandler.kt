@@ -1,6 +1,5 @@
 package mz.bank.transaction.application.account
 
-import mz.bank.transaction.application.integration.AccountCreatedEvent
 import mz.bank.transaction.domain.account.AccountView
 import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.ServiceActivator
@@ -21,12 +20,14 @@ class AccountCreatedEventHandler(
      * Handles incoming AccountCreatedEvent by storing the account ID in the local view.
      */
     @ServiceActivator(inputChannel = "inboundBankAccountEventsChannel")
-    suspend fun handle(event: AccountCreatedEvent) {
-        logger.info("Handling AccountCreatedEvent for accountId=${event.accountId}")
+    suspend fun handle(event: AccountEvent) {
+        if (event is AccountEvent.AccountCreatedEvent) {
+            logger.info("Handling AccountCreatedEvent for accountId=${event.accountId}")
 
-        val accountView = AccountView(accountId = event.accountId)
-        accountViewRepository.upsert(accountView)
+            val accountView = AccountView(accountId = event.accountId)
+            accountViewRepository.upsert(accountView)
 
-        logger.info("AccountView created for accountId=${event.accountId}")
+            logger.info("AccountView created for accountId=${event.accountId}")
+        }
     }
 }

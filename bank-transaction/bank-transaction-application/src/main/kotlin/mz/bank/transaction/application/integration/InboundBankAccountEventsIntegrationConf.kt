@@ -1,6 +1,6 @@
 package mz.bank.transaction.application.integration
 
-import mz.shared.domain.AggregateId
+import mz.bank.transaction.application.account.AccountEvent
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -36,14 +36,6 @@ class InboundBankAccountEventsIntegrationConf(
                 "$applicationIdentifier.persistence.inbound-bank-account-events.channel",
                 jsonRedisChannelMessageStore,
                 "$applicationIdentifier.persistence.inbound-bank-account-events.storage",
-            ).apply { datatype(AccountCreatedEvent::class.java) }
+            ).apply { datatype(AccountEvent.AccountCreatedEvent::class.java) }
             .getObject()
 }
-
-/**
- * Event representing that an account was created in the bank-account service.
- * This is a simple application event used for internal messaging.
- */
-data class AccountCreatedEvent(
-    val accountId: AggregateId,
-)

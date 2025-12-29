@@ -3,8 +3,8 @@ package mz.bank.transaction.adapter.redis.stream.wiring
 import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
-import mz.bank.transaction.adapter.redis.stream.inbound.BankAccountEventMapper
-import mz.bank.transaction.application.integration.AccountCreatedEvent
+import mz.bank.transaction.adapter.redis.stream.inbound.toAccountEvent
+import mz.bank.transaction.application.account.AccountEvent
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer
 import org.springframework.beans.factory.annotation.Qualifier
@@ -32,8 +32,8 @@ class InboundBankAccountRedisStreamConfiguration(
     @Bean
     fun bankAccountEventsRedisStreamConsumer(
         inboundBankAccountEventsChannel: MessageChannel,
-    ): RedisStreamConsumer<BankAccountEvent, AccountCreatedEvent?> =
-        RedisSteamConsumerBuilder<BankAccountEvent, AccountCreatedEvent?>(
+    ): RedisStreamConsumer<BankAccountEvent, AccountEvent> =
+        RedisSteamConsumerBuilder<BankAccountEvent, AccountEvent>(
             streamKey = properties.bankAccountEventsStream,
             channel = inboundBankAccountEventsChannel,
             consumerGroup = properties.bankAccountEventsConsumerGroup,
@@ -42,6 +42,6 @@ class InboundBankAccountRedisStreamConfiguration(
             redisConnectionFactory = lettuceConnectionFactory,
             objectMapper = protobufObjectMapper,
         ).withMapper { protoEvent: BankAccountEvent ->
-            BankAccountEventMapper.toAccountCreatedEvent(protoEvent)
+            protoEvent.toAccountEvent()
         }.build()
 }

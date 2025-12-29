@@ -3,6 +3,7 @@ description = "Bank Account Redis Stream Adapter Module"
 dependencies {
     api(project(":bank-account:bank-account-application"))
     api(project(":bank-account:bank-account-contract-proto"))
+    api(project(":bank-transaction:bank-transaction-contract-proto"))
     api(project(":shared-kernel:connector-redis"))
 
     // Spring Boot for configuration properties
