@@ -190,6 +190,9 @@ data class BankTransactionAggregate(
                     aggregateId = cmd.aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
+                    fromAccountId = cmd.fromAccountId,
+                    toAccountId = cmd.toAccountId,
+                    amount = cmd.amount,
                 ),
             )
         }
@@ -201,6 +204,9 @@ data class BankTransactionAggregate(
                     aggregateId = cmd.aggregateId,
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
+                    fromAccountId = cmd.fromAccountId,
+                    toAccountId = cmd.toAccountId,
+                    amount = cmd.amount,
                 ),
             )
         }

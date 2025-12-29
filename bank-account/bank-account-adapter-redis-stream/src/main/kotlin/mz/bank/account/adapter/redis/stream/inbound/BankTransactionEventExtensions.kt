@@ -61,6 +61,9 @@ fun BankTransactionEvent.toInboundEvent(): InboundBankTransactionEvent =
                 aggregateId = AggregateId(event.aggregateId),
                 correlationId = event.correlationId,
                 updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
+                fromAccountId = AggregateId(event.fromAccountId),
+                toAccountId = AggregateId(event.toAccountId),
+                amount = BigDecimal(event.amount),
                 reason = event.reason,
             )
         }
@@ -83,6 +86,8 @@ fun BankTransactionEvent.toInboundEvent(): InboundBankTransactionEvent =
                 aggregateId = AggregateId(event.aggregateId),
                 correlationId = event.correlationId,
                 updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
+                fromAccountId = AggregateId(event.fromAccountId),
+                amount = BigDecimal(event.amount),
             )
         }
 
@@ -92,6 +97,8 @@ fun BankTransactionEvent.toInboundEvent(): InboundBankTransactionEvent =
                 aggregateId = AggregateId(event.aggregateId),
                 correlationId = event.correlationId,
                 updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
+                toAccountId = AggregateId(event.toAccountId),
+                amount = BigDecimal(event.amount),
             )
         }
 

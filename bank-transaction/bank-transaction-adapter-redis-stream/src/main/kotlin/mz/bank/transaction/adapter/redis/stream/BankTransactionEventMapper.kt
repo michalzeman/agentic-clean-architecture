@@ -71,6 +71,9 @@ object BankTransactionEventMapper {
                             aggregateId = domainEvent.aggregateId.value
                             correlationId = domainEvent.correlationId
                             updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
+                            fromAccountId = domainEvent.fromAccountId.value
+                            toAccountId = domainEvent.toAccountId.value
+                            amount = domainEvent.amount.toPlainString()
                             reason = domainEvent.reason
                         }
                 }
@@ -93,6 +96,9 @@ object BankTransactionEventMapper {
                             aggregateId = domainEvent.aggregateId.value
                             correlationId = domainEvent.correlationId
                             updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
+                            fromAccountId = domainEvent.fromAccountId.value
+                            toAccountId = domainEvent.toAccountId.value
+                            amount = domainEvent.amount.toPlainString()
                         }
                 }
             is DomainEvent.BankTransactionDepositRolledBack ->
@@ -102,6 +108,9 @@ object BankTransactionEventMapper {
                             aggregateId = domainEvent.aggregateId.value
                             correlationId = domainEvent.correlationId
                             updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
+                            fromAccountId = domainEvent.fromAccountId.value
+                            toAccountId = domainEvent.toAccountId.value
+                            amount = domainEvent.amount.toPlainString()
                         }
                 }
         }

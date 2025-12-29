@@ -63,6 +63,9 @@ sealed class BankTransactionEvent {
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
+        val fromAccountId: AggregateId,
+        val toAccountId: AggregateId,
+        val amount: BigDecimal,
         val reason: String,
     ) : BankTransactionEvent()
 
@@ -85,6 +88,9 @@ sealed class BankTransactionEvent {
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
+        val fromAccountId: AggregateId,
+        val toAccountId: AggregateId,
+        val amount: BigDecimal,
     ) : BankTransactionEvent()
 
     /**
@@ -94,5 +100,8 @@ sealed class BankTransactionEvent {
         override val aggregateId: AggregateId,
         override val correlationId: String,
         override val updatedAt: Instant,
+        val fromAccountId: AggregateId,
+        val toAccountId: AggregateId,
+        val amount: BigDecimal,
     ) : BankTransactionEvent()
 }

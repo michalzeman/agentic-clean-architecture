@@ -131,6 +131,9 @@ class BankTransactionEventMapperTest {
         val aggregateId = AggregateId("txn-222")
         val correlationId = "corr-005"
         val updatedAt = Instant.parse("2025-01-15T14:00:00Z")
+        val fromAccountId = AggregateId("acc-from-005")
+        val toAccountId = AggregateId("acc-to-005")
+        val amount = BigDecimal("750.00")
         val reason = "Insufficient funds"
 
         val domainEvent =
@@ -138,6 +141,9 @@ class BankTransactionEventMapperTest {
                 aggregateId = aggregateId,
                 correlationId = correlationId,
                 updatedAt = updatedAt,
+                fromAccountId = fromAccountId,
+                toAccountId = toAccountId,
+                amount = amount,
                 reason = reason,
             )
 
@@ -149,6 +155,9 @@ class BankTransactionEventMapperTest {
         assertThat(protoEvent.transactionFailed.aggregateId).isEqualTo("txn-222")
         assertThat(protoEvent.transactionFailed.correlationId).isEqualTo("corr-005")
         assertThat(protoEvent.transactionFailed.updatedAtEpochMillis).isEqualTo(1736949600000L)
+        assertThat(protoEvent.transactionFailed.fromAccountId).isEqualTo("acc-from-005")
+        assertThat(protoEvent.transactionFailed.toAccountId).isEqualTo("acc-to-005")
+        assertThat(protoEvent.transactionFailed.amount).isEqualTo("750.00")
         assertThat(protoEvent.transactionFailed.reason).isEqualTo("Insufficient funds")
     }
 
@@ -191,12 +200,18 @@ class BankTransactionEventMapperTest {
         val aggregateId = AggregateId("txn-444")
         val correlationId = "corr-007"
         val updatedAt = Instant.parse("2025-01-15T16:00:00Z")
+        val fromAccountId = AggregateId("acc-from-007")
+        val toAccountId = AggregateId("acc-to-007")
+        val amount = BigDecimal("300.75")
 
         val domainEvent =
             BankTransactionEvent.BankTransactionWithdrawRolledBack(
                 aggregateId = aggregateId,
                 correlationId = correlationId,
                 updatedAt = updatedAt,
+                fromAccountId = fromAccountId,
+                toAccountId = toAccountId,
+                amount = amount,
             )
 
         // When
@@ -207,6 +222,9 @@ class BankTransactionEventMapperTest {
         assertThat(protoEvent.transactionWithdrawRolledBack.aggregateId).isEqualTo("txn-444")
         assertThat(protoEvent.transactionWithdrawRolledBack.correlationId).isEqualTo("corr-007")
         assertThat(protoEvent.transactionWithdrawRolledBack.updatedAtEpochMillis).isEqualTo(1736956800000L)
+        assertThat(protoEvent.transactionWithdrawRolledBack.fromAccountId).isEqualTo("acc-from-007")
+        assertThat(protoEvent.transactionWithdrawRolledBack.toAccountId).isEqualTo("acc-to-007")
+        assertThat(protoEvent.transactionWithdrawRolledBack.amount).isEqualTo("300.75")
     }
 
     @Test
@@ -215,12 +233,18 @@ class BankTransactionEventMapperTest {
         val aggregateId = AggregateId("txn-555")
         val correlationId = "corr-008"
         val updatedAt = Instant.parse("2025-01-15T17:00:00Z")
+        val fromAccountId = AggregateId("acc-from-008")
+        val toAccountId = AggregateId("acc-to-008")
+        val amount = BigDecimal("200.50")
 
         val domainEvent =
             BankTransactionEvent.BankTransactionDepositRolledBack(
                 aggregateId = aggregateId,
                 correlationId = correlationId,
                 updatedAt = updatedAt,
+                fromAccountId = fromAccountId,
+                toAccountId = toAccountId,
+                amount = amount,
             )
 
         // When
@@ -231,5 +255,8 @@ class BankTransactionEventMapperTest {
         assertThat(protoEvent.transactionDepositRolledBack.aggregateId).isEqualTo("txn-555")
         assertThat(protoEvent.transactionDepositRolledBack.correlationId).isEqualTo("corr-008")
         assertThat(protoEvent.transactionDepositRolledBack.updatedAtEpochMillis).isEqualTo(1736960400000L)
+        assertThat(protoEvent.transactionDepositRolledBack.fromAccountId).isEqualTo("acc-from-008")
+        assertThat(protoEvent.transactionDepositRolledBack.toAccountId).isEqualTo("acc-to-008")
+        assertThat(protoEvent.transactionDepositRolledBack.amount).isEqualTo("200.50")
     }
 }

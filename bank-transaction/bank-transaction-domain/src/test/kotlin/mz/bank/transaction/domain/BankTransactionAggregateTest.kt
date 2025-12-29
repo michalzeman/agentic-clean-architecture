@@ -272,7 +272,14 @@ class BankTransactionAggregateTest {
                     now,
                     AggregateId("acc-from"),
                 ),
-                BankTransactionEvent.BankTransactionWithdrawRolledBack(aggregateId2, correlationId2, now),
+                BankTransactionEvent.BankTransactionWithdrawRolledBack(
+                    aggregateId2,
+                    correlationId2,
+                    now,
+                    AggregateId("acc-from"),
+                    AggregateId("acc-to"),
+                    BigDecimal("100.00"),
+                ),
                 BankTransactionEvent.BankTransactionRolledBack(
                     aggregateId2,
                     correlationId2,

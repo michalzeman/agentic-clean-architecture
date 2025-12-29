@@ -133,6 +133,9 @@ class BankTransactionEventExtensionsTest {
                         .newBuilder()
                         .setAggregateId("tx-123")
                         .setCorrelationId("corr-123")
+                        .setFromAccountId("acc-1")
+                        .setToAccountId("acc-2")
+                        .setAmount("100.00")
                         .setReason("Insufficient funds")
                         .setUpdatedAtEpochMillis(1000L)
                         .build(),
@@ -144,6 +147,9 @@ class BankTransactionEventExtensionsTest {
         val event = result as InboundBankTransactionEvent.TransactionFailed
         assertThat(event.aggregateId).isEqualTo(AggregateId("tx-123"))
         assertThat(event.correlationId).isEqualTo("corr-123")
+        assertThat(event.fromAccountId).isEqualTo(AggregateId("acc-1"))
+        assertThat(event.toAccountId).isEqualTo(AggregateId("acc-2"))
+        assertThat(event.amount).isEqualTo(BigDecimal("100.00"))
         assertThat(event.reason).isEqualTo("Insufficient funds")
         assertThat(event.updatedAt).isEqualTo(Instant.ofEpochMilli(1000L))
     }
@@ -187,6 +193,9 @@ class BankTransactionEventExtensionsTest {
                         .newBuilder()
                         .setAggregateId("tx-123")
                         .setCorrelationId("corr-123")
+                        .setFromAccountId("acc-1")
+                        .setToAccountId("acc-2")
+                        .setAmount("100.00")
                         .setUpdatedAtEpochMillis(1000L)
                         .build(),
                 ).build()
@@ -197,6 +206,8 @@ class BankTransactionEventExtensionsTest {
         val event = result as InboundBankTransactionEvent.TransactionWithdrawRolledBack
         assertThat(event.aggregateId).isEqualTo(AggregateId("tx-123"))
         assertThat(event.correlationId).isEqualTo("corr-123")
+        assertThat(event.fromAccountId).isEqualTo(AggregateId("acc-1"))
+        assertThat(event.amount).isEqualTo(BigDecimal("100.00"))
         assertThat(event.updatedAt).isEqualTo(Instant.ofEpochMilli(1000L))
     }
 
@@ -210,6 +221,9 @@ class BankTransactionEventExtensionsTest {
                         .newBuilder()
                         .setAggregateId("tx-123")
                         .setCorrelationId("corr-123")
+                        .setFromAccountId("acc-1")
+                        .setToAccountId("acc-2")
+                        .setAmount("100.00")
                         .setUpdatedAtEpochMillis(1000L)
                         .build(),
                 ).build()
@@ -220,6 +234,8 @@ class BankTransactionEventExtensionsTest {
         val event = result as InboundBankTransactionEvent.TransactionDepositRolledBack
         assertThat(event.aggregateId).isEqualTo(AggregateId("tx-123"))
         assertThat(event.correlationId).isEqualTo("corr-123")
+        assertThat(event.toAccountId).isEqualTo(AggregateId("acc-2"))
+        assertThat(event.amount).isEqualTo(BigDecimal("100.00"))
         assertThat(event.updatedAt).isEqualTo(Instant.ofEpochMilli(1000L))
     }
 
