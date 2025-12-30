@@ -6,7 +6,9 @@ import mz.bank.account.contract.proto.bankAccountEvent
 import mz.bank.account.contract.proto.moneyDeposited
 import mz.bank.account.contract.proto.moneyWithdrawn
 import mz.bank.account.contract.proto.transactionFinished
+import mz.bank.account.contract.proto.transferDepositRolledBack
 import mz.bank.account.contract.proto.transferDepositStarted
+import mz.bank.account.contract.proto.transferWithdrawalRolledBack
 import mz.bank.account.contract.proto.transferWithdrawalStarted
 import mz.bank.account.domain.BankAccountEvent as DomainEvent
 
@@ -74,6 +76,26 @@ object BankAccountEventMapper {
                             aggregateId = domainEvent.aggregateId.value
                             updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
                             transactionId = domainEvent.transactionId
+                        }
+                }
+            is DomainEvent.TransferWithdrawalRolledBack ->
+                bankAccountEvent {
+                    transferWithdrawalRolledBack =
+                        transferWithdrawalRolledBack {
+                            aggregateId = domainEvent.aggregateId.value
+                            updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
+                            transactionId = domainEvent.transactionId
+                            amount = domainEvent.amount.toPlainString()
+                        }
+                }
+            is DomainEvent.TransferDepositRolledBack ->
+                bankAccountEvent {
+                    transferDepositRolledBack =
+                        transferDepositRolledBack {
+                            aggregateId = domainEvent.aggregateId.value
+                            updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
+                            transactionId = domainEvent.transactionId
+                            amount = domainEvent.amount.toPlainString()
                         }
                 }
         }

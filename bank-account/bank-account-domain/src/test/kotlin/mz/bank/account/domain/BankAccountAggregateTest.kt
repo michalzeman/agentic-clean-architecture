@@ -654,6 +654,161 @@ class BankAccountAggregateTest {
         assertThat(aggregate.account.version).isEqualTo(2L)
     }
 
+    // ==================== Rollback Tests ====================
+
+    @Test
+    fun `should rollback withdraw for transfer successfully`() {
+        // Given
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
+        val withdrawCmd =
+            BankAccountCommand.WithdrawForTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-1",
+                amount = BigDecimal("50.00"),
+            )
+        val afterWithdraw = aggregate.withdrawForTransfer(withdrawCmd)
+
+        val rollbackCmd =
+            BankAccountCommand.RollbackWithdrawForTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-1",
+                amount = BigDecimal("50.00"),
+            )
+
+        // When
+        val result = afterWithdraw.rollbackWithdrawForTransfer(rollbackCmd)
+
+        // Then
+        assertThat(result.account.amount).isEqualByComparingTo(BigDecimal("200.00"))
+        assertThat(result.account.openedTransactions).doesNotContain("txn-rollback-1")
+        assertThat(result.domainEvents).hasSize(1)
+        assertThat(result.domainEvents.first()).isInstanceOf(BankAccountEvent.TransferWithdrawalRolledBack::class.java)
+    }
+
+    @Test
+    fun `should fail to rollback withdraw when transaction not in opened set`() {
+        // Given
+        val aggregate = createTestAggregate(BigDecimal("200.00"))
+        val rollbackCmd =
+            BankAccountCommand.RollbackWithdrawForTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-not-exists",
+                amount = BigDecimal("50.00"),
+            )
+
+        // When & Then
+        assertThatThrownBy { aggregate.rollbackWithdrawForTransfer(rollbackCmd) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("is not in opened set")
+    }
+
+    @Test
+    fun `should rollback deposit for transfer successfully`() {
+        // Given
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
+        val depositCmd =
+            BankAccountCommand.DepositFromTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-2",
+                amount = BigDecimal("75.00"),
+            )
+        val afterDeposit = aggregate.depositFromTransfer(depositCmd)
+
+        val rollbackCmd =
+            BankAccountCommand.RollbackDepositFromTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-2",
+                amount = BigDecimal("75.00"),
+            )
+
+        // When
+        val result = afterDeposit.rollbackDepositFromTransfer(rollbackCmd)
+
+        // Then
+        assertThat(result.account.amount).isEqualByComparingTo(BigDecimal("100.00"))
+        assertThat(result.account.openedTransactions).doesNotContain("txn-rollback-2")
+        assertThat(result.domainEvents).hasSize(1)
+        assertThat(result.domainEvents.first()).isInstanceOf(BankAccountEvent.TransferDepositRolledBack::class.java)
+    }
+
+    @Test
+    fun `should fail to rollback deposit when transaction not in opened set`() {
+        // Given
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
+        val rollbackCmd =
+            BankAccountCommand.RollbackDepositFromTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-not-exists",
+                amount = BigDecimal("75.00"),
+            )
+
+        // When & Then
+        assertThatThrownBy { aggregate.rollbackDepositFromTransfer(rollbackCmd) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("is not in opened set")
+    }
+
+    @Test
+    fun `should rollback deposit without balance check`() {
+        // Given - Account has $100, deposit $75 (total $175), then spend $100 (total $75)
+        val aggregate = createTestAggregate(BigDecimal("100.00"))
+        val depositCmd =
+            BankAccountCommand.DepositFromTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-3",
+                amount = BigDecimal("75.00"),
+            )
+        val afterDeposit = aggregate.depositFromTransfer(depositCmd)
+
+        // Spend some money (balance goes below deposited amount)
+        val withdrawCmd =
+            BankAccountCommand.WithdrawMoney(
+                aggregateId = aggregate.account.aggregateId,
+                amount = BigDecimal("100.00"),
+            )
+        val afterSpend = afterDeposit.withdraw(withdrawCmd)
+
+        // Now balance is $75, but we need to rollback $75 deposit
+        val rollbackCmd =
+            BankAccountCommand.RollbackDepositFromTransfer(
+                aggregateId = aggregate.account.aggregateId,
+                transactionId = "txn-rollback-3",
+                amount = BigDecimal("75.00"),
+            )
+
+        // When - This should succeed even though it brings balance to 0
+        val result = afterSpend.rollbackDepositFromTransfer(rollbackCmd)
+
+        // Then
+        assertThat(result.account.amount).isEqualByComparingTo(BigDecimal("0.00"))
+        assertThat(result.account.openedTransactions).doesNotContain("txn-rollback-3")
+    }
+
+    @Test
+    fun `should apply rollback events correctly when rebuilding from events`() {
+        // Given
+        val aggregateId = AggregateId("acc-rollback-events")
+        val now = Instant.now()
+        val events =
+            listOf(
+                BankAccountEvent.AccountCreated(aggregateId, now, Email("rollback@example.com"), BigDecimal("200.00")),
+                BankAccountEvent.TransferWithdrawalStarted(aggregateId, now, "txn-rb-1", BigDecimal("50.00")),
+                BankAccountEvent.TransferDepositStarted(aggregateId, now, "txn-rb-2", BigDecimal("30.00")),
+                BankAccountEvent.TransferWithdrawalRolledBack(aggregateId, now, "txn-rb-1", BigDecimal("50.00")),
+                BankAccountEvent.TransferDepositRolledBack(aggregateId, now, "txn-rb-2", BigDecimal("30.00")),
+            )
+
+        // When
+        val aggregate = BankAccountAggregate.fromEvents(aggregateId, events)
+
+        // Then
+        // Balance: 200 - 50 + 30 + 50 - 30 = 200 (back to original)
+        assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("200.00"))
+        assertThat(aggregate.account.openedTransactions).isEmpty()
+        assertThat(aggregate.account.finishedTransactions).isEmpty()
+        assertThat(aggregate.account.version).isEqualTo(5L)
+    }
+
     // ==================== Helper Methods ====================
 
     private fun createTestAggregate(initialBalance: BigDecimal): BankAccountAggregate =

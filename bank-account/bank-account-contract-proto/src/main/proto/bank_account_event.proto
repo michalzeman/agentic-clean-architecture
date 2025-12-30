@@ -16,6 +16,8 @@ message BankAccountEvent {
     TransferWithdrawalStarted transfer_withdrawal_started = 4;
     TransferDepositStarted transfer_deposit_started = 5;
     TransactionFinished transaction_finished = 6;
+    TransferWithdrawalRolledBack transfer_withdrawal_rolled_back = 7;
+    TransferDepositRolledBack transfer_deposit_rolled_back = 8;
   }
 }
 
@@ -67,4 +69,22 @@ message TransactionFinished {
   string aggregate_id = 1;
   int64 updated_at_epoch_millis = 2;
   string transaction_id = 3;
+}
+
+// Event: Transfer withdrawal was rolled back
+message TransferWithdrawalRolledBack {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string transaction_id = 3;
+  // BigDecimal as string to preserve precision
+  string amount = 4;
+}
+
+// Event: Transfer deposit was rolled back
+message TransferDepositRolledBack {
+  string aggregate_id = 1;
+  int64 updated_at_epoch_millis = 2;
+  string transaction_id = 3;
+  // BigDecimal as string to preserve precision
+  string amount = 4;
 }

@@ -50,4 +50,18 @@ sealed class BankAccountEvent {
         override val updatedAt: Instant,
         val transactionId: String,
     ) : BankAccountEvent()
+
+    data class TransferWithdrawalRolledBack(
+        override val aggregateId: AggregateId,
+        override val updatedAt: Instant,
+        val transactionId: String,
+        val amount: BigDecimal,
+    ) : BankAccountEvent()
+
+    data class TransferDepositRolledBack(
+        override val aggregateId: AggregateId,
+        override val updatedAt: Instant,
+        val transactionId: String,
+        val amount: BigDecimal,
+    ) : BankAccountEvent()
 }

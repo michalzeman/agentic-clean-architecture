@@ -39,4 +39,16 @@ sealed class BankAccountCommand {
         val aggregateId: AggregateId,
         val transactionId: String,
     ) : BankAccountCommand()
+
+    data class RollbackWithdrawForTransfer(
+        val aggregateId: AggregateId,
+        val transactionId: String,
+        val amount: BigDecimal,
+    ) : BankAccountCommand()
+
+    data class RollbackDepositFromTransfer(
+        val aggregateId: AggregateId,
+        val transactionId: String,
+        val amount: BigDecimal,
+    ) : BankAccountCommand()
 }

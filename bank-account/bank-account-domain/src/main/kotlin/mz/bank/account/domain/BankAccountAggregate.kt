@@ -66,6 +66,22 @@ data class BankAccountAggregate(
                         updatedAt = event.updatedAt,
                     )
                 }
+                is BankAccountEvent.TransferWithdrawalRolledBack -> {
+                    account.copy(
+                        amount = account.amount + event.amount,
+                        openedTransactions = account.openedTransactions - event.transactionId,
+                        version = account.version + 1,
+                        updatedAt = event.updatedAt,
+                    )
+                }
+                is BankAccountEvent.TransferDepositRolledBack -> {
+                    account.copy(
+                        amount = account.amount - event.amount,
+                        openedTransactions = account.openedTransactions - event.transactionId,
+                        version = account.version + 1,
+                        updatedAt = event.updatedAt,
+                    )
+                }
             }
 
         return copy(account = updatedAccount)
@@ -170,6 +186,47 @@ data class BankAccountAggregate(
                 aggregateId = cmd.aggregateId,
                 updatedAt = Instant.now(),
                 transactionId = cmd.transactionId,
+            )
+
+        return applyEvent(event).copy(domainEvents = listOf(event))
+    }
+
+    /**
+     * Rolls back a withdrawal for a transfer transaction.
+     * Refunds the money to the source account and removes the transaction from opened set.
+     */
+    fun rollbackWithdrawForTransfer(cmd: BankAccountCommand.RollbackWithdrawForTransfer): BankAccountAggregate {
+        require(cmd.transactionId in account.openedTransactions) {
+            "Transaction ${cmd.transactionId} is not in opened set"
+        }
+
+        val event =
+            BankAccountEvent.TransferWithdrawalRolledBack(
+                aggregateId = cmd.aggregateId,
+                updatedAt = Instant.now(),
+                transactionId = cmd.transactionId,
+                amount = cmd.amount,
+            )
+
+        return applyEvent(event).copy(domainEvents = listOf(event))
+    }
+
+    /**
+     * Rolls back a deposit for a transfer transaction.
+     * Reverses the deposit from the destination account and removes the transaction from opened set.
+     * Does not enforce balance checks as this is a compensating transaction.
+     */
+    fun rollbackDepositFromTransfer(cmd: BankAccountCommand.RollbackDepositFromTransfer): BankAccountAggregate {
+        require(cmd.transactionId in account.openedTransactions) {
+            "Transaction ${cmd.transactionId} is not in opened set"
+        }
+
+        val event =
+            BankAccountEvent.TransferDepositRolledBack(
+                aggregateId = cmd.aggregateId,
+                updatedAt = Instant.now(),
+                transactionId = cmd.transactionId,
+                amount = cmd.amount,
             )
 
         return applyEvent(event).copy(domainEvents = listOf(event))

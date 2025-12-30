@@ -55,51 +55,7 @@ class InboundBankTransactionEventExtensionsTest {
     }
 
     @Test
-    fun `should convert TransactionRolledBack to DepositMoney command`() {
-        // Given
-        val event =
-            InboundBankTransactionEvent.TransactionRolledBack(
-                aggregateId = AggregateId("tx-789"),
-                correlationId = "corr-789",
-                updatedAt = Instant.now(),
-                fromAccountId = AggregateId("acc-from"),
-                toAccountId = AggregateId("acc-to"),
-                amount = BigDecimal("150.00"),
-            )
-
-        // When
-        val command = event.toDepositMoney()
-
-        // Then
-        assertThat(command).isInstanceOf(BankAccountCommand.DepositMoney::class.java)
-        assertThat(command.aggregateId).isEqualTo(AggregateId("acc-from"))
-        assertThat(command.amount).isEqualByComparingTo(BigDecimal("150.00"))
-    }
-
-    @Test
-    fun `should convert TransactionRolledBack to WithdrawMoney command`() {
-        // Given
-        val event =
-            InboundBankTransactionEvent.TransactionRolledBack(
-                aggregateId = AggregateId("tx-012"),
-                correlationId = "corr-012",
-                updatedAt = Instant.now(),
-                fromAccountId = AggregateId("acc-from"),
-                toAccountId = AggregateId("acc-to"),
-                amount = BigDecimal("300.00"),
-            )
-
-        // When
-        val command = event.toWithdrawMoney()
-
-        // Then
-        assertThat(command).isInstanceOf(BankAccountCommand.WithdrawMoney::class.java)
-        assertThat(command.aggregateId).isEqualTo(AggregateId("acc-to"))
-        assertThat(command.amount).isEqualByComparingTo(BigDecimal("300.00"))
-    }
-
-    @Test
-    fun `should convert TransactionWithdrawRolledBack to DepositMoney command`() {
+    fun `should convert TransactionWithdrawRolledBack to RollbackWithdrawForTransfer command`() {
         // Given
         val event =
             InboundBankTransactionEvent.TransactionWithdrawRolledBack(
@@ -111,16 +67,17 @@ class InboundBankTransactionEventExtensionsTest {
             )
 
         // When
-        val command = event.toDepositMoney()
+        val command = event.toRollbackWithdrawForTransfer()
 
         // Then
-        assertThat(command).isInstanceOf(BankAccountCommand.DepositMoney::class.java)
+        assertThat(command).isInstanceOf(BankAccountCommand.RollbackWithdrawForTransfer::class.java)
         assertThat(command.aggregateId).isEqualTo(AggregateId("acc-from"))
+        assertThat(command.transactionId).isEqualTo("tx-345")
         assertThat(command.amount).isEqualByComparingTo(BigDecimal("500.00"))
     }
 
     @Test
-    fun `should convert TransactionDepositRolledBack to WithdrawMoney command`() {
+    fun `should convert TransactionDepositRolledBack to RollbackDepositFromTransfer command`() {
         // Given
         val event =
             InboundBankTransactionEvent.TransactionDepositRolledBack(
@@ -132,11 +89,12 @@ class InboundBankTransactionEventExtensionsTest {
             )
 
         // When
-        val command = event.toWithdrawMoney()
+        val command = event.toRollbackDepositFromTransfer()
 
         // Then
-        assertThat(command).isInstanceOf(BankAccountCommand.WithdrawMoney::class.java)
+        assertThat(command).isInstanceOf(BankAccountCommand.RollbackDepositFromTransfer::class.java)
         assertThat(command.aggregateId).isEqualTo(AggregateId("acc-to"))
+        assertThat(command.transactionId).isEqualTo("tx-678")
         assertThat(command.amount).isEqualByComparingTo(BigDecimal("750.00"))
     }
 }

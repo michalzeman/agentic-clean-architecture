@@ -39,57 +39,38 @@ fun InboundBankTransactionEvent.TransactionCreated.toDepositFromTransfer(): Bank
     )
 
 /**
- * Converts TransactionRolledBack event to DepositMoney command.
- * Refunds money to the source account when a transaction is rolled back after withdrawal.
- *
- * Field mapping:
- * - event.fromAccountId → command.aggregateId
- * - event.amount → command.amount
- */
-fun InboundBankTransactionEvent.TransactionRolledBack.toDepositMoney(): BankAccountCommand.DepositMoney =
-    BankAccountCommand.DepositMoney(
-        aggregateId = fromAccountId,
-        amount = amount,
-    )
-
-/**
- * Converts TransactionRolledBack event to WithdrawMoney command.
- * Reverses money from the destination account when a transaction is rolled back after deposit.
- *
- * Field mapping:
- * - event.toAccountId → command.aggregateId
- * - event.amount → command.amount
- */
-fun InboundBankTransactionEvent.TransactionRolledBack.toWithdrawMoney(): BankAccountCommand.WithdrawMoney =
-    BankAccountCommand.WithdrawMoney(
-        aggregateId = toAccountId,
-        amount = amount,
-    )
-
-/**
- * Converts TransactionWithdrawRolledBack event to DepositMoney command.
+ * Converts TransactionWithdrawRolledBack event to RollbackWithdrawForTransfer command.
  * Refunds money to the source account when withdrawal is rolled back.
+ * Uses transaction-aware rollback that validates against openedTransactions.
  *
  * Field mapping:
  * - event.fromAccountId → command.aggregateId
+ * - event.aggregateId.value → command.transactionId
  * - event.amount → command.amount
  */
-fun InboundBankTransactionEvent.TransactionWithdrawRolledBack.toDepositMoney(): BankAccountCommand.DepositMoney =
-    BankAccountCommand.DepositMoney(
+fun InboundBankTransactionEvent.TransactionWithdrawRolledBack.toRollbackWithdrawForTransfer():
+    BankAccountCommand.RollbackWithdrawForTransfer =
+    BankAccountCommand.RollbackWithdrawForTransfer(
         aggregateId = fromAccountId,
+        transactionId = aggregateId.value,
         amount = amount,
     )
 
 /**
- * Converts TransactionDepositRolledBack event to WithdrawMoney command.
+ * Converts TransactionDepositRolledBack event to RollbackDepositFromTransfer command.
  * Reverses money from the destination account when deposit is rolled back.
+ * Uses transaction-aware rollback that validates against openedTransactions
+ * and does not enforce balance checks.
  *
  * Field mapping:
  * - event.toAccountId → command.aggregateId
+ * - event.aggregateId.value → command.transactionId
  * - event.amount → command.amount
  */
-fun InboundBankTransactionEvent.TransactionDepositRolledBack.toWithdrawMoney(): BankAccountCommand.WithdrawMoney =
-    BankAccountCommand.WithdrawMoney(
+fun InboundBankTransactionEvent.TransactionDepositRolledBack.toRollbackDepositFromTransfer():
+    BankAccountCommand.RollbackDepositFromTransfer =
+    BankAccountCommand.RollbackDepositFromTransfer(
         aggregateId = toAccountId,
+        transactionId = aggregateId.value,
         amount = amount,
     )

@@ -28,6 +28,8 @@ class BankAccountCommandHandler(
             is BankAccountCommand.WithdrawForTransfer -> handleWithdrawForTransfer(command)
             is BankAccountCommand.DepositFromTransfer -> handleDepositFromTransfer(command)
             is BankAccountCommand.FinishTransaction -> handleFinishTransaction(command)
+            is BankAccountCommand.RollbackWithdrawForTransfer -> handleRollbackWithdrawForTransfer(command)
+            is BankAccountCommand.RollbackDepositFromTransfer -> handleRollbackDepositFromTransfer(command)
         }
 
     private suspend fun handleCreate(command: BankAccountCommand.CreateAccount): BankAccount =
@@ -67,6 +69,20 @@ class BankAccountCommandHandler(
         lockProvider.withLock(command.aggregateId.value) {
             val account = findAccountOrThrow(command.aggregateId)
             val aggregate = BankAccountAggregate(account).finishTransaction(command)
+            bankAccountRepository.upsert(aggregate)
+        }
+
+    private suspend fun handleRollbackWithdrawForTransfer(command: BankAccountCommand.RollbackWithdrawForTransfer): BankAccount =
+        lockProvider.withLock(command.aggregateId.value) {
+            val account = findAccountOrThrow(command.aggregateId)
+            val aggregate = BankAccountAggregate(account).rollbackWithdrawForTransfer(command)
+            bankAccountRepository.upsert(aggregate)
+        }
+
+    private suspend fun handleRollbackDepositFromTransfer(command: BankAccountCommand.RollbackDepositFromTransfer): BankAccount =
+        lockProvider.withLock(command.aggregateId.value) {
+            val account = findAccountOrThrow(command.aggregateId)
+            val aggregate = BankAccountAggregate(account).rollbackDepositFromTransfer(command)
             bankAccountRepository.upsert(aggregate)
         }
 
