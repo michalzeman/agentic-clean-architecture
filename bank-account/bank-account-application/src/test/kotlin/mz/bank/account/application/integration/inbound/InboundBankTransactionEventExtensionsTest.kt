@@ -1,5 +1,10 @@
 package mz.bank.account.application.integration.inbound
 
+import mz.bank.account.application.transaction.InboundBankTransactionEvent
+import mz.bank.account.application.transaction.toDepositFromTransfer
+import mz.bank.account.application.transaction.toRollbackDepositFromTransfer
+import mz.bank.account.application.transaction.toRollbackWithdrawForTransfer
+import mz.bank.account.application.transaction.toWithdrawForTransfer
 import mz.bank.account.domain.BankAccountCommand
 import mz.shared.domain.AggregateId
 import org.assertj.core.api.Assertions.assertThat

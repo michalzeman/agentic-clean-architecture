@@ -4,7 +4,13 @@ import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountCommand
 import mz.shared.domain.LockProvider
+import org.apache.commons.logging.LogFactory
+import org.springframework.integration.annotation.Poller
+import org.springframework.integration.annotation.ServiceActivator
+import org.springframework.messaging.Message
 import org.springframework.stereotype.Component
+
+private val logger = LogFactory.getLog(BankAccountCommandHandler::class.java)
 
 /**
  * Command handler for BankAccount aggregate.
@@ -20,7 +26,7 @@ class BankAccountCommandHandler(
      * Handles a BankAccountCommand and returns the updated BankAccount.
      * Uses distributed locking to ensure consistency.
      */
-    suspend fun handle(command: BankAccountCommand): BankAccount =
+    suspend fun handle(command: BankAccountCommand): BankAccount? =
         when (command) {
             is BankAccountCommand.CreateAccount -> handleCreate(command)
             is BankAccountCommand.DepositMoney -> handleDeposit(command)
@@ -30,6 +36,7 @@ class BankAccountCommandHandler(
             is BankAccountCommand.FinishTransaction -> handleFinishTransaction(command)
             is BankAccountCommand.RollbackWithdrawForTransfer -> handleRollbackWithdrawForTransfer(command)
             is BankAccountCommand.RollbackDepositFromTransfer -> handleRollbackDepositFromTransfer(command)
+            BankAccountCommand.NoOp -> null
         }
 
     private suspend fun handleCreate(command: BankAccountCommand.CreateAccount): BankAccount =
@@ -89,4 +96,21 @@ class BankAccountCommandHandler(
     private suspend fun findAccountOrThrow(aggregateId: mz.shared.domain.AggregateId): BankAccount =
         bankAccountRepository.findById(aggregateId)
             ?: throw IllegalArgumentException("BankAccount with id ${aggregateId.value} not found")
+
+    /**
+     * Handles BankAccountCommand asynchronously from the command channel.
+     * Consumes commands from bankAccountCommandChannel with configurable polling.
+     */
+    @ServiceActivator(
+        inputChannel = "bankAccountCommandChannel",
+        requiresReply = "false",
+        poller = Poller(fixedDelay = "\${adapters.command-channel.poller-delay-ms:100}"),
+        async = "true",
+    )
+    suspend fun handleAsync(message: Message<BankAccountCommand>) {
+        val command = message.payload
+        logger.info("Processing command from channel: $command")
+        handle(command)
+        logger.info("Command processed successfully: $command")
+    }
 }

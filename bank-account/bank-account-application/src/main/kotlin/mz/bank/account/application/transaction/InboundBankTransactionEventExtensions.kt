@@ -1,6 +1,14 @@
-package mz.bank.account.application.integration.inbound
+package mz.bank.account.application.transaction
 
 import mz.bank.account.domain.BankAccountCommand
+
+fun InboundBankTransactionEvent.toCommand(): BankAccountCommand =
+    when (this) {
+        is InboundBankTransactionEvent.TransactionCreated -> this.toWithdrawForTransfer()
+        is InboundBankTransactionEvent.TransactionWithdrawRolledBack -> this.toRollbackWithdrawForTransfer()
+        is InboundBankTransactionEvent.TransactionDepositRolledBack -> this.toRollbackDepositFromTransfer()
+        else -> BankAccountCommand.NoOp
+    }
 
 /**
  * Converts TransactionCreated event to WithdrawForTransfer command (Phase 1).

@@ -27,3 +27,5 @@ adapters:
       bank-transaction-events-stream: bank-transaction.event.bank-transactions
       bank-transaction-events-consumer-group: bank-account-service
       bank-transaction-events-consumer-name: bank-account-consumer
+  command-channel:
+    poller-delay-ms: 100

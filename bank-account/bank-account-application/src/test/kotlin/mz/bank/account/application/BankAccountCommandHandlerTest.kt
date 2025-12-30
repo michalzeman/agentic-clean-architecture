@@ -14,6 +14,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.messaging.Message
+import org.springframework.messaging.support.GenericMessage
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -50,7 +52,7 @@ class BankAccountCommandHandlerTest {
             }
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.aggregateId.value).isNotBlank()
@@ -97,7 +99,7 @@ class BankAccountCommandHandlerTest {
             whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("150.00"))
@@ -143,7 +145,7 @@ class BankAccountCommandHandlerTest {
             whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("70.00"))
@@ -194,7 +196,7 @@ class BankAccountCommandHandlerTest {
             whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("125.00"))
@@ -227,7 +229,7 @@ class BankAccountCommandHandlerTest {
             whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("150.00"))
@@ -264,11 +266,88 @@ class BankAccountCommandHandlerTest {
             whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
 
             // When
-            val result = commandHandler.handle(command)
+            val result = commandHandler.handle(command)!!
 
             // Then
             assertThat(result.openedTransactions).doesNotContain("txn-003")
             assertThat(result.finishedTransactions).contains("txn-003")
+        }
+
+    // ==================== HandleAsync Tests ====================
+
+    @Test
+    fun `should handle async command from message channel for deposit`(): Unit =
+        runBlocking {
+            // Given
+            val aggregateId = AggregateId("acc-async-deposit")
+            val existingAccount = createBankAccount(aggregateId, BigDecimal("100.00"))
+            val command =
+                BankAccountCommand.DepositMoney(
+                    aggregateId = aggregateId,
+                    amount = BigDecimal("50.00"),
+                )
+            val message: Message<BankAccountCommand> = GenericMessage(command)
+            val expectedAccount = createBankAccount(aggregateId, BigDecimal("150.00"), version = 1L)
+
+            whenever(bankAccountRepository.findById(aggregateId)).thenReturn(existingAccount)
+            whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
+
+            // When
+            commandHandler.handleAsync(message)
+
+            // Then
+            verify(bankAccountRepository).findById(aggregateId)
+            verify(bankAccountRepository).upsert(any())
+        }
+
+    @Test
+    fun `should handle async command from message channel for create account`(): Unit =
+        runBlocking {
+            // Given
+            val command =
+                BankAccountCommand.CreateAccount(
+                    email = Email("async@example.com"),
+                    initialBalance = BigDecimal("200.00"),
+                )
+            val message: Message<BankAccountCommand> = GenericMessage(command)
+
+            whenever(bankAccountRepository.existsByEmail(command.email)).thenReturn(false)
+            whenever(bankAccountRepository.upsert(any())).thenAnswer { invocation ->
+                val aggregate = invocation.getArgument<mz.bank.account.domain.BankAccountAggregate>(0)
+                aggregate.account
+            }
+
+            // When
+            commandHandler.handleAsync(message)
+
+            // Then
+            verify(bankAccountRepository).existsByEmail(command.email)
+            verify(bankAccountRepository).upsert(any())
+        }
+
+    @Test
+    fun `should handle async command from message channel for withdraw`(): Unit =
+        runBlocking {
+            // Given
+            val aggregateId = AggregateId("acc-async-withdraw")
+            val existingAccount = createBankAccount(aggregateId, BigDecimal("100.00"))
+            val command =
+                BankAccountCommand.WithdrawMoney(
+                    aggregateId = aggregateId,
+                    amount = BigDecimal("30.00"),
+                )
+            val message: Message<BankAccountCommand> = GenericMessage(command)
+            val expectedAccount = createBankAccount(aggregateId, BigDecimal("70.00"), version = 1L)
+
+            whenever(bankAccountRepository.findById(aggregateId)).thenReturn(existingAccount)
+            whenever(bankAccountRepository.upsert(any())).thenReturn(expectedAccount)
+
+            // When
+            commandHandler.handleAsync(message)
+
+            // Then
+            verify(bankAccountRepository).findById(aggregateId)
+            verify(bankAccountRepository).upsert(any())
         }
 
     // ==================== Helper Methods ====================

@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.stereotype.Component
 
-private val logger = LoggerFactory.getLogger(AccountCreatedEventHandler::class.java)
+private val logger = LoggerFactory.getLogger(AccountEventHandler::class.java)
 
 /**
  * Handler for AccountCreatedEvent from the bank-account service.
@@ -13,7 +13,7 @@ private val logger = LoggerFactory.getLogger(AccountCreatedEventHandler::class.j
  * It does not emit any events as this is purely a local view update.
  */
 @Component
-class AccountCreatedEventHandler(
+class AccountEventHandler(
     private val accountViewRepository: AccountViewRepository,
 ) {
     /**

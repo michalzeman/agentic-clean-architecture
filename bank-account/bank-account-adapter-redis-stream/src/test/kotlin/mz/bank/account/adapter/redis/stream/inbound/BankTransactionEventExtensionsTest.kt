@@ -1,6 +1,6 @@
 package mz.bank.account.adapter.redis.stream.inbound
 
-import mz.bank.account.application.integration.inbound.InboundBankTransactionEvent
+import mz.bank.account.application.transaction.InboundBankTransactionEvent
 import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.bank.transaction.contract.proto.TransactionCreated
 import mz.bank.transaction.contract.proto.TransactionDepositRolledBack

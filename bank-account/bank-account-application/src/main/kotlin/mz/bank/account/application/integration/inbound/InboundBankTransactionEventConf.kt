@@ -1,8 +1,12 @@
 package mz.bank.account.application.integration.inbound
 
+import mz.bank.account.application.transaction.InboundBankTransactionEvent
+import mz.bank.account.application.transaction.toCommand
+import mz.bank.account.domain.BankAccountCommand
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.redis.store.RedisChannelMessageStore
 import org.springframework.messaging.MessageChannel
@@ -26,4 +30,16 @@ class InboundBankTransactionEventConf(
                 "$applicationIdentifier.persistence.inbound-bank-transaction-events.storage",
             ).apply { datatype(InboundBankTransactionEvent::class.java) }
             .getObject()
+
+    @Bean
+    fun inboundBankTransactionEventsFlow(
+        inboundBankTransactionEventsChannel: MessageChannel,
+        bankAccountCommandChannel: MessageChannel,
+    ): IntegrationFlow =
+        IntegrationFlow
+            .from(inboundBankTransactionEventsChannel)
+            .transform<InboundBankTransactionEvent, BankAccountCommand> { event -> event.toCommand() }
+            .filter<BankAccountCommand> { it !is BankAccountCommand.NoOp }
+            .channel(bankAccountCommandChannel)
+            .get()
 }

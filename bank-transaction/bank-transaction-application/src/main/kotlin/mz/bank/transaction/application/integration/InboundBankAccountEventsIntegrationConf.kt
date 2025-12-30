@@ -36,6 +36,6 @@ class InboundBankAccountEventsIntegrationConf(
                 "$applicationIdentifier.persistence.inbound-bank-account-events.channel",
                 jsonRedisChannelMessageStore,
                 "$applicationIdentifier.persistence.inbound-bank-account-events.storage",
-            ).apply { datatype(AccountEvent.AccountCreatedEvent::class.java) }
+            ).apply { datatype(AccountEvent::class.java) }
             .getObject()
 }

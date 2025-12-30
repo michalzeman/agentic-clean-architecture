@@ -51,4 +51,6 @@ sealed class BankAccountCommand {
         val transactionId: String,
         val amount: BigDecimal,
     ) : BankAccountCommand()
+
+    object NoOp : BankAccountCommand()
 }

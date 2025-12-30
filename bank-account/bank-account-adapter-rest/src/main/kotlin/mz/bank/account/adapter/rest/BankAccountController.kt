@@ -50,8 +50,9 @@ class BankAccountController(
                 email = Email(request.email),
                 initialBalance = request.initialBalance,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.status(HttpStatus.CREATED).body(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.status(HttpStatus.CREATED).body(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**
@@ -67,8 +68,9 @@ class BankAccountController(
                 aggregateId = AggregateId(accountId),
                 amount = request.amount,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.ok(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.ok(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**
@@ -84,8 +86,9 @@ class BankAccountController(
                 aggregateId = AggregateId(accountId),
                 amount = request.amount,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.ok(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.ok(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**
@@ -102,8 +105,9 @@ class BankAccountController(
                 transactionId = request.transactionId,
                 amount = request.amount,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.ok(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.ok(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**
@@ -120,8 +124,9 @@ class BankAccountController(
                 transactionId = request.transactionId,
                 amount = request.amount,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.ok(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.ok(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**
@@ -137,8 +142,9 @@ class BankAccountController(
                 aggregateId = AggregateId(accountId),
                 transactionId = request.transactionId,
             )
-        val account = commandHandler.handle(command)
-        return ResponseEntity.ok(account.toResponse())
+        return commandHandler.handle(command)?.let {
+            ResponseEntity.ok(it.toResponse())
+        } ?: ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 
     /**

@@ -3,7 +3,7 @@ package mz.bank.account.adapter.redis.stream.wiring
 import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.adapter.redis.stream.BankAccountRedisStreamProperties
 import mz.bank.account.adapter.redis.stream.inbound.toInboundEvent
-import mz.bank.account.application.integration.inbound.InboundBankTransactionEvent
+import mz.bank.account.application.transaction.InboundBankTransactionEvent
 import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer

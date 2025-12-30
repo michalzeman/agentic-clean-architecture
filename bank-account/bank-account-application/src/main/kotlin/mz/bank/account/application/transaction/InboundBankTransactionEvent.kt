@@ -1,4 +1,4 @@
-package mz.bank.account.application.integration.inbound
+package mz.bank.account.application.transaction
 
 import mz.shared.domain.AggregateId
 import java.math.BigDecimal
