@@ -48,6 +48,8 @@ class BankTransactionEventMapperTest {
         val correlationId = "corr-002"
         val updatedAt = Instant.parse("2025-01-15T11:00:00Z")
         val accountId = AggregateId("acc-from-002")
+        val toAccountId = AggregateId("acc-to-002")
+        val amount = BigDecimal("250.00")
 
         val domainEvent =
             BankTransactionEvent.BankTransactionMoneyWithdrawn(
@@ -55,6 +57,8 @@ class BankTransactionEventMapperTest {
                 correlationId = correlationId,
                 updatedAt = updatedAt,
                 accountId = accountId,
+                toAccountId = toAccountId,
+                amount = amount,
             )
 
         // When
@@ -66,6 +70,8 @@ class BankTransactionEventMapperTest {
         assertThat(protoEvent.transactionMoneyWithdrawn.correlationId).isEqualTo("corr-002")
         assertThat(protoEvent.transactionMoneyWithdrawn.updatedAtEpochMillis).isEqualTo(1736938800000L)
         assertThat(protoEvent.transactionMoneyWithdrawn.accountId).isEqualTo("acc-from-002")
+        assertThat(protoEvent.transactionMoneyWithdrawn.toAccountId).isEqualTo("acc-to-002")
+        assertThat(protoEvent.transactionMoneyWithdrawn.amount).isEqualTo("250.00")
     }
 
     @Test

@@ -6,6 +6,9 @@ import mz.bank.transaction.domain.BankTransactionCommand
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
 import org.slf4j.LoggerFactory
+import org.springframework.integration.annotation.Poller
+import org.springframework.integration.annotation.ServiceActivator
+import org.springframework.messaging.Message
 import org.springframework.stereotype.Component
 
 /**
@@ -34,6 +37,23 @@ class BankTransactionCommandHandler(
             is BankTransactionCommand.FinishBankTransaction -> handleFinish(command)
             is BankTransactionCommand.CancelBankTransaction -> handleCancel(command)
         }
+    }
+
+    /**
+     * Handles BankTransactionCommand asynchronously from the command channel.
+     * Consumes commands from bankTransactionCommandChannel with configurable polling.
+     */
+    @ServiceActivator(
+        inputChannel = "bankTransactionCommandChannel",
+        requiresReply = "false",
+        poller = Poller(fixedDelay = "\${adapters.command-channel.poller-delay-ms:100}"),
+        async = "true",
+    )
+    suspend fun handleAsync(message: Message<BankTransactionCommand>) {
+        val command = message.payload
+        logger.info("Processing command from channel: $command")
+        handle(command)
+        logger.info("Command processed successfully: $command")
     }
 
     private suspend fun handleCreate(command: BankTransactionCommand.CreateBankTransaction): BankTransaction {

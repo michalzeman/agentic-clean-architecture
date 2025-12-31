@@ -41,6 +41,8 @@ class RedisBankTransactionDomainEventsTest {
                     "corr-domain-events",
                     now,
                     AggregateId("acc-from"),
+                    AggregateId("acc-to"),
+                    BigDecimal("100.00"),
                 ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(
                     aggregateId,
@@ -135,6 +137,8 @@ class RedisBankTransactionDomainEventsTest {
                     correlationId = "corr-preserve",
                     updatedAt = now,
                     accountId = AggregateId("acc-1"),
+                    toAccountId = AggregateId("acc-2"),
+                    amount = BigDecimal("300.00"),
                 ),
             )
         val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)
@@ -210,6 +214,8 @@ class RedisBankTransactionDomainEventsTest {
                     correlationId = "corr-multi-events",
                     updatedAt = now,
                     accountId = AggregateId("acc-1"),
+                    toAccountId = AggregateId("acc-2"),
+                    amount = BigDecimal("500.00"),
                 ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(
                     aggregateId = aggregateId,

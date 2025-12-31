@@ -38,6 +38,9 @@ message TransactionMoneyWithdrawn {
   string correlation_id = 2;
   int64 updated_at_epoch_millis = 3;
   string account_id = 4;
+  string to_account_id = 5;
+  // BigDecimal as string to preserve precision
+  string amount = 6;
 }
 
 // Event: Money was successfully deposited to destination account

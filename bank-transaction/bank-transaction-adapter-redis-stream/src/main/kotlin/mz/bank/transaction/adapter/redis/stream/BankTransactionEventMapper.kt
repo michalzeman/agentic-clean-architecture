@@ -41,6 +41,8 @@ object BankTransactionEventMapper {
                             correlationId = domainEvent.correlationId
                             updatedAtEpochMillis = domainEvent.updatedAt.toEpochMilli()
                             accountId = domainEvent.accountId.value
+                            toAccountId = domainEvent.toAccountId.value
+                            amount = domainEvent.amount.toPlainString()
                         }
                 }
             is DomainEvent.BankTransactionMoneyDeposited ->

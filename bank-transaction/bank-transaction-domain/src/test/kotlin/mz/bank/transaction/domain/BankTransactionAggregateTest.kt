@@ -229,6 +229,8 @@ class BankTransactionAggregateTest {
                     correlationId1,
                     now,
                     AggregateId("acc-from"),
+                    AggregateId("acc-to"),
+                    BigDecimal("100.00"),
                 ),
                 BankTransactionEvent.BankTransactionMoneyDeposited(
                     aggregateId1,
@@ -271,6 +273,8 @@ class BankTransactionAggregateTest {
                     correlationId2,
                     now,
                     AggregateId("acc-from"),
+                    AggregateId("acc-to"),
+                    BigDecimal("100.00"),
                 ),
                 BankTransactionEvent.BankTransactionWithdrawRolledBack(
                     aggregateId2,

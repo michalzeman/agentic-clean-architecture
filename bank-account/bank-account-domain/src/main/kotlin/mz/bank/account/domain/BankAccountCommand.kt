@@ -40,6 +40,10 @@ sealed class BankAccountCommand {
         val transactionId: String,
     ) : BankAccountCommand()
 
+    data class FinishTransactions(
+        val commands: Set<FinishTransaction>,
+    ) : BankAccountCommand()
+
     data class RollbackWithdrawForTransfer(
         val aggregateId: AggregateId,
         val transactionId: String,

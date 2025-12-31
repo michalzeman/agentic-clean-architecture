@@ -1,0 +1,36 @@
+package mz.bank.transaction.application.integration.command
+
+import mz.bank.transaction.domain.BankTransactionCommand
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.integration.dsl.MessageChannels
+import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.messaging.MessageChannel
+
+/**
+ * Configuration for bank transaction command channel.
+ *
+ * Provides a Redis-backed persistent queue for processing BankTransactionCommand asynchronously.
+ * Commands published to this channel are consumed by BankTransactionCommandHandler.
+ */
+@Configuration
+class BankTransactionCommandChannelConf(
+    @param:Value("\${application.identifier}") private val applicationIdentifier: String,
+    private val jsonRedisChannelMessageStore: RedisChannelMessageStore,
+) {
+    /**
+     * Channel for bank transaction commands.
+     * Redis-backed for persistence and reliability.
+     * Uses JSON serialization for BankTransactionCommand.
+     */
+    @Bean
+    fun bankTransactionCommandChannel(): MessageChannel =
+        MessageChannels
+            .queue(
+                "$applicationIdentifier.persistence.bank-transaction-commands.channel",
+                jsonRedisChannelMessageStore,
+                "$applicationIdentifier.persistence.bank-transaction-commands.storage",
+            ).apply { datatype(BankTransactionCommand::class.java) }
+            .getObject()
+}

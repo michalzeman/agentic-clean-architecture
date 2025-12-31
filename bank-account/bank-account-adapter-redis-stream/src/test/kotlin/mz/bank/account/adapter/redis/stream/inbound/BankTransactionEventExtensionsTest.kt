@@ -57,6 +57,8 @@ class BankTransactionEventExtensionsTest {
                         .setAggregateId("tx-123")
                         .setCorrelationId("corr-123")
                         .setAccountId("acc-1")
+                        .setToAccountId("acc-2")
+                        .setAmount("150.00")
                         .setUpdatedAtEpochMillis(1000L)
                         .build(),
                 ).build()
@@ -68,6 +70,8 @@ class BankTransactionEventExtensionsTest {
         assertThat(event.aggregateId).isEqualTo(AggregateId("tx-123"))
         assertThat(event.correlationId).isEqualTo("corr-123")
         assertThat(event.accountId).isEqualTo(AggregateId("acc-1"))
+        assertThat(event.toAccountId).isEqualTo(AggregateId("acc-2"))
+        assertThat(event.amount).isEqualTo(BigDecimal("150.00"))
         assertThat(event.updatedAt).isEqualTo(Instant.ofEpochMilli(1000L))
     }
 

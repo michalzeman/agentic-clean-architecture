@@ -31,6 +31,8 @@ fun BankTransactionEvent.toInboundEvent(): InboundBankTransactionEvent =
                 correlationId = event.correlationId,
                 updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
                 accountId = AggregateId(event.accountId),
+                toAccountId = AggregateId(event.toAccountId),
+                amount = BigDecimal(event.amount),
             )
         }
 
@@ -99,6 +101,17 @@ fun BankTransactionEvent.toInboundEvent(): InboundBankTransactionEvent =
                 updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
                 toAccountId = AggregateId(event.toAccountId),
                 amount = BigDecimal(event.amount),
+            )
+        }
+
+        hasTransactionFinished() -> {
+            val event = transactionFinished
+            InboundBankTransactionEvent.TransactionFinished(
+                aggregateId = AggregateId(event.aggregateId),
+                correlationId = event.correlationId,
+                updatedAt = Instant.ofEpochMilli(event.updatedAtEpochMillis),
+                fromAccountId = AggregateId(event.fromAccountId),
+                toAccountId = AggregateId(event.toAccountId),
             )
         }
 

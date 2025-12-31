@@ -112,6 +112,8 @@ data class BankTransactionAggregate(
                     correlationId = cmd.correlationId,
                     updatedAt = Instant.now(),
                     accountId = cmd.accountId,
+                    toAccountId = bankTransaction.toAccountId,
+                    amount = bankTransaction.amount,
                 )
             }
 

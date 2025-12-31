@@ -22,6 +22,7 @@ class BankAccountApplication {
                 "mz", // project-specific package
                 "java.math",
                 "org.springframework.data.redis.connection.stream",
+                "org.springframework",
                 "kotlin.collections",
             )
         mapper

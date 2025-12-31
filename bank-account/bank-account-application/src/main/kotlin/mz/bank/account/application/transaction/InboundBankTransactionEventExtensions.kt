@@ -5,10 +5,29 @@ import mz.bank.account.domain.BankAccountCommand
 fun InboundBankTransactionEvent.toCommand(): BankAccountCommand =
     when (this) {
         is InboundBankTransactionEvent.TransactionCreated -> this.toWithdrawForTransfer()
+        is InboundBankTransactionEvent.TransactionMoneyWithdrawn -> this.toDepositFromTransfer()
+        is InboundBankTransactionEvent.TransactionMoneyDeposited -> this.toFinishTransaction()
         is InboundBankTransactionEvent.TransactionWithdrawRolledBack -> this.toRollbackWithdrawForTransfer()
         is InboundBankTransactionEvent.TransactionDepositRolledBack -> this.toRollbackDepositFromTransfer()
+        is InboundBankTransactionEvent.TransactionFinished -> this.toTransactionFinishedFromAccountId()
         else -> BankAccountCommand.NoOp
     }
+
+fun InboundBankTransactionEvent.TransactionFinished.toTransactionFinishedFromAccountId(): BankAccountCommand.FinishTransactions {
+    val fromAccountCommand =
+        BankAccountCommand.FinishTransaction(
+            aggregateId = fromAccountId,
+            transactionId = aggregateId.value,
+        )
+
+    val toAccountCommand =
+        BankAccountCommand.FinishTransaction(
+            aggregateId = toAccountId,
+            transactionId = aggregateId.value,
+        )
+
+    return BankAccountCommand.FinishTransactions(setOf(fromAccountCommand, toAccountCommand))
+}
 
 /**
  * Converts TransactionCreated event to WithdrawForTransfer command (Phase 1).
@@ -27,23 +46,39 @@ fun InboundBankTransactionEvent.TransactionCreated.toWithdrawForTransfer(): Bank
     )
 
 /**
- * Converts TransactionCreated event to DepositFromTransfer command (Phase 2).
- * Initiates the deposit to the destination account.
+ * Converts TransactionMoneyWithdrawn event to DepositFromTransfer command (Phase 2).
+ * Initiates the deposit to the destination account after successful withdrawal validation.
  *
- * Note: This should be triggered only after successful withdrawal.
- * In a saga pattern, this would be called in response to a TransferWithdrawalStarted event
- * or BankTransactionMoneyWithdrawn event.
+ * This is triggered by the bank-transaction service after it validates the withdrawal.
+ * It advances the saga to the deposit phase.
  *
  * Field mapping:
  * - event.toAccountId → command.aggregateId (target account)
  * - event.aggregateId.value → command.transactionId
  * - event.amount → command.amount
  */
-fun InboundBankTransactionEvent.TransactionCreated.toDepositFromTransfer(): BankAccountCommand.DepositFromTransfer =
+fun InboundBankTransactionEvent.TransactionMoneyWithdrawn.toDepositFromTransfer(): BankAccountCommand.DepositFromTransfer =
     BankAccountCommand.DepositFromTransfer(
         aggregateId = toAccountId,
         transactionId = aggregateId.value,
         amount = amount,
+    )
+
+/**
+ * Converts TransactionMoneyDeposited event to FinishTransaction command (Phase 3).
+ * Completes the transaction on both accounts after successful deposit validation.
+ *
+ * This is triggered by the bank-transaction service after it validates the deposit.
+ * It advances the saga to the finish phase.
+ *
+ * Field mapping:
+ * - event.accountId → command.aggregateId (the account to finish)
+ * - event.aggregateId.value → command.transactionId
+ */
+fun InboundBankTransactionEvent.TransactionMoneyDeposited.toFinishTransaction(): BankAccountCommand.FinishTransaction =
+    BankAccountCommand.FinishTransaction(
+        aggregateId = accountId,
+        transactionId = aggregateId.value,
     )
 
 /**

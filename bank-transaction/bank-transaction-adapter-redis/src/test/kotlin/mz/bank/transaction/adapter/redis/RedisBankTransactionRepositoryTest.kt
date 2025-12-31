@@ -164,6 +164,8 @@ class RedisBankTransactionRepositoryTest {
                         correlationId = "corr-events",
                         updatedAt = now,
                         accountId = AggregateId("acc-from"),
+                        toAccountId = AggregateId("acc-to"),
+                        amount = BigDecimal("300.00"),
                     ),
                 )
             val aggregate = BankTransactionAggregate(bankTransaction, domainEvents)

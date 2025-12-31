@@ -32,6 +32,8 @@ application:
   identifier: bank-transaction
 
 adapters:
+  command-channel:
+    poller-delay-ms: 100
   redis:
     stream:
       bank-transaction-events-stream: bank-transaction.event.bank-transactions

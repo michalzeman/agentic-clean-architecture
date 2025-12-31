@@ -1,5 +1,8 @@
 package mz.bank.account.application
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountCommand
@@ -33,9 +36,10 @@ class BankAccountCommandHandler(
             is BankAccountCommand.WithdrawMoney -> handleWithdraw(command)
             is BankAccountCommand.WithdrawForTransfer -> handleWithdrawForTransfer(command)
             is BankAccountCommand.DepositFromTransfer -> handleDepositFromTransfer(command)
-            is BankAccountCommand.FinishTransaction -> handleFinishTransaction(command)
             is BankAccountCommand.RollbackWithdrawForTransfer -> handleRollbackWithdrawForTransfer(command)
             is BankAccountCommand.RollbackDepositFromTransfer -> handleRollbackDepositFromTransfer(command)
+            is BankAccountCommand.FinishTransaction -> handleFinishTransaction(command)
+            is BankAccountCommand.FinishTransactions -> handleFinishTransactions(command)
             BankAccountCommand.NoOp -> null
         }
 
@@ -72,11 +76,26 @@ class BankAccountCommandHandler(
             bankAccountRepository.upsert(aggregate)
         }
 
+    private suspend fun handleFinishTransactions(command: BankAccountCommand.FinishTransactions): BankAccount =
+        supervisorScope {
+            command.commands
+                .map {
+                    async {
+                        handleFinishTransaction(it)
+                    }
+                }.awaitAll()
+                .first()
+        }
+
     private suspend fun handleFinishTransaction(command: BankAccountCommand.FinishTransaction): BankAccount =
         lockProvider.withLock(command.aggregateId.value) {
             val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).finishTransaction(command)
-            bankAccountRepository.upsert(aggregate)
+            if (command.transactionId in account.openedTransactions) {
+                val aggregate = BankAccountAggregate(account).finishTransaction(command)
+                bankAccountRepository.upsert(aggregate)
+            } else {
+                account
+            }
         }
 
     private suspend fun handleRollbackWithdrawForTransfer(command: BankAccountCommand.RollbackWithdrawForTransfer): BankAccount =
