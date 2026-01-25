@@ -531,7 +531,7 @@ Aggregate must:
 
 ## Results
 
-### bank-demo (without):
+### bank-demo-antipattern (without):
 - ❌ Naive compensation + race conditions
 - ❌ Validation coupled to REST
 - ❌ Anemic domain
@@ -574,7 +574,7 @@ Aggregate must:
 ## References
 
 **Projects:**
-- `bank-demo/` - Anti-pattern
+- `bank-demo-antipattern/` - Anti-pattern
 - `agentic-clean-architecture/` - Proper impl
 - `prompts/` - Architecture enforcement
 

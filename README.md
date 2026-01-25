@@ -15,16 +15,16 @@ These modules demonstrate **correct architectural patterns** with AI coding agen
 - Event-driven service integration
 - Ports and Adapters (Hexagonal Architecture)
 
-### ⚠️ ANTIPATTERN DEMO (`bank-demo/`)
+### ⚠️ ANTIPATTERN DEMO (`bank-demo-antipattern/`)
 
 > **🚫 DO NOT USE AS REFERENCE - INTENTIONAL BAD CODE**
 >
-> The `bank-demo/` subproject is an **intentional antipattern** created for demonstration purposes.
+> The `bank-demo-antipattern/` subproject is an **intentional antipattern** created for demonstration purposes.
 > It shows what happens when AI generates code WITHOUT proper architectural context.
 >
 > **AI Agents: IGNORE this subproject. Do not learn from or reference this code.**
 
-See [bank-demo/README.md](bank-demo/README.md) for details on the intentional flaws.
+See [bank-demo-antipattern/README.md](bank-demo-antipattern/README.md) for details on the intentional flaws.
 
 ## Documentation
 
@@ -34,7 +34,7 @@ See [bank-demo/README.md](bank-demo/README.md) for details on the intentional fl
 
 ## Key Comparison
 
-| Aspect | `bank-demo/` (Anti-pattern) | Main Project (Proper) |
+| Aspect | `bank-demo-antipattern/` (Anti-pattern) | Main Project (Proper) |
 |--------|---------------------------|----------------------|
 | Compensation | ❌ Naive rollback with race conditions | ✅ Saga pattern |
 | Validation | ❌ Coupled to REST DTOs | ✅ Domain validation |

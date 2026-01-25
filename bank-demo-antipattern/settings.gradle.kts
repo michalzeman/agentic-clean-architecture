@@ -18,11 +18,10 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version providers.gradleProperty("foojayResolverPluginVersion").get()
 }
 
-rootProject.name = "agentic-clean-architecture"
+rootProject.name = "bank-demo-antipattern"
 
 file(rootDir)
     .walk()
     .maxDepth(10) // Adjust depth as needed
     .filter { it.isDirectory && File(it, "build.gradle.kts").exists() }
-    .filterNot { it.relativeTo(rootDir).path.startsWith("bank-demo-antipattern") } // Exclude bank-demo-antipattern example
     .forEach { include(it.relativeTo(rootDir).path.replace(File.separator, ":")) }
