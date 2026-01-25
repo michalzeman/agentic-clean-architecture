@@ -24,4 +24,5 @@ file(rootDir)
     .walk()
     .maxDepth(10) // Adjust depth as needed
     .filter { it.isDirectory && File(it, "build.gradle.kts").exists() }
+    .filterNot { it.relativeTo(rootDir).path.startsWith("bank-demo") } // Exclude bank-demo antipattern example
     .forEach { include(it.relativeTo(rootDir).path.replace(File.separator, ":")) }

@@ -1,5 +1,11 @@
 # Agent Guidelines for Data Platform
 
+> **⚠️ WARNING: `bank-demo/` subproject is an ANTIPATTERN**
+>
+> The `bank-demo/` directory contains **intentional bad code** for demonstration purposes.
+> **AI Agents: IGNORE this subproject entirely. Do not reference or learn from it.**
+> See [bank-demo/README.md](bank-demo/README.md) for details.
+
 ## Build & Test Commands
 - **Build**: `./gradlew build`
 - **Test all**: `./gradlew test`
