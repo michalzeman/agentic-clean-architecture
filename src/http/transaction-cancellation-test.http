@@ -1,0 +1,134 @@
+### Bank Transaction Cancellation Test - Rollback Demo
+### This file demonstrates the transaction cancellation flow
+
+### Base URLs for local development
+@accountBaseUrl = http://localhost:8080/api/v1/accounts
+@transactionBaseUrl = http://localhost:8081/api/v1/transactions
+
+
+### ==================== Setup: Create Test Accounts ====================
+
+### Create source account for cancellation test
+# @name createCancelSourceAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "cancel-source-{{$timestamp}}@example.com",
+  "initialBalance": 3000.00
+}
+
+> {%
+    client.global.set("cancelSourceAccountId", response.body.accountId);
+    client.test("Cancel source account created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.balance === 3000.00, "Initial balance should be 3000");
+    });
+%}
+
+### Create destination account for cancellation test
+# @name createCancelDestAccount
+POST {{accountBaseUrl}}
+Content-Type: application/json
+
+{
+  "email": "cancel-dest-{{$timestamp}}@example.com",
+  "initialBalance": 2000.00
+}
+
+> {%
+    client.global.set("cancelDestAccountId", response.body.accountId);
+    client.test("Cancel destination account created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.balance === 2000.00, "Initial balance should be 2000");
+    });
+%}
+
+
+### ==================== Transaction Cancellation Demo ====================
+
+### Step 1: Create transaction to be cancelled
+# @name createCancelTransaction
+POST {{transactionBaseUrl}}
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{cancelSourceAccountId}}",
+  "toAccountId": "{{cancelDestAccountId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.global.set("cancelTransactionId", response.body.transactionId);
+    client.global.set("cancelCorrelationId", response.body.correlationId);
+    client.test("Transaction to be cancelled created", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+        client.assert(response.body.status === "CREATED", "Transaction status is not CREATED");
+        client.assert(response.body.amount === 800.00, "Amount should be 800");
+    });
+%}
+
+### Step 2: Get transaction details to verify creation
+GET {{transactionBaseUrl}}/{{cancelTransactionId}}
+Content-Type: application/json
+
+> {%
+    client.test("Transaction retrieved before cancellation", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.transactionId === client.global.get("cancelTransactionId"));
+    });
+%}
+
+### Step 3: Cancel the transaction
+POST {{transactionBaseUrl}}/{{cancelTransactionId}}/cancel
+Content-Type: application/json
+
+{
+  "fromAccountId": "{{cancelSourceAccountId}}",
+  "toAccountId": "{{cancelDestAccountId}}",
+  "amount": 800.00
+}
+
+> {%
+    client.test("Transaction cancelled", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FAILED", "Transaction status should be FAILED");
+    });
+%}
+
+### Step 4: Get transaction details to verify cancellation
+GET {{transactionBaseUrl}}/{{cancelTransactionId}}
+Content-Type: application/json
+
+> {%
+    client.test("Cancelled transaction state verified", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.status === "FAILED", "Transaction should be FAILED");
+        client.assert(response.body.transactionId === client.global.get("cancelTransactionId"));
+    });
+%}
+
+
+### ==================== Verify Account Details ====================
+
+### Get source account details
+GET {{accountBaseUrl}}/{{cancelSourceAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Source account details retrieved", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.accountId === client.global.get("cancelSourceAccountId"));
+    });
+%}
+
+### Get destination account details
+GET {{accountBaseUrl}}/{{cancelDestAccountId}}
+Content-Type: application/json
+
+> {%
+    client.test("Destination account details retrieved", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.accountId === client.global.get("cancelDestAccountId"));
+    });
+%}
