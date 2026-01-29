@@ -80,25 +80,20 @@ class RedisLockProvider(
         // unlock will succeed even if executed on a different thread than the one that acquired the lock.
         val threadId = ThreadLocalRandom.current().nextLong()
 
-        var attempt = 0
         val maxAttempts = 3
-        var lastError: Exception? = null
 
-        while (true) {
+        repeat(maxAttempts) { attempt ->
             try {
                 lock.lockAsync(10, TimeUnit.SECONDS, threadId).toCompletableFuture().await()
-                break
+                return@repeat
             } catch (e: Exception) {
-                lastError = e
-                attempt++
-                if (attempt < maxAttempts) {
-                    val backoffMs = (100 * Math.pow(2.0, attempt.toDouble())).toLong().coerceAtMost(1000)
-                    logger.warn("Failed to acquire lock '$keyLock', attempt $attempt/$maxAttempts", e)
-                    delay(backoffMs)
-                } else {
+                if (attempt == maxAttempts - 1) {
                     logger.error("Failed to acquire lock '$keyLock' after $maxAttempts attempts", e)
-                    throw lastError
+                    throw e
                 }
+                val backoffMs = (100L shl attempt).coerceAtMost(1000L)
+                logger.warn("Failed to acquire lock '$keyLock', attempt ${attempt + 1}/$maxAttempts", e)
+                delay(backoffMs)
             }
         }
 
