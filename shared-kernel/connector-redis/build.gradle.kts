@@ -19,6 +19,8 @@ dependencies {
     api("org.springframework.data:spring-data-redis")
     api("org.springframework:spring-messaging")
 
+    api(libs.redisson)
+
     api("com.fasterxml.jackson.core:jackson-core")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")

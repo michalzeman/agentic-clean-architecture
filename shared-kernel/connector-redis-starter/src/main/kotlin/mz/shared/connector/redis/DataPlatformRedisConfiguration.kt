@@ -4,6 +4,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule
 import mz.shared.domain.LockProvider
+import org.redisson.api.RedissonClient
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer
@@ -52,7 +53,7 @@ class DataPlatformRedisConfiguration(
         RedisLockRegistry(redisConnectionFactory, lockRegistryName)
 
     @Bean
-    fun lockProvider(redisLockRegistry: RedisLockRegistry): LockProvider = RedisLockProvider(redisLockRegistry)
+    fun lockProvider(redisson: RedissonClient): LockProvider = RedisLockProvider(redisson)
 
     @Bean
     fun jackson2ObjectMapperBuilderCustomizer(): Jackson2ObjectMapperBuilderCustomizer =

@@ -18,6 +18,18 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version providers.gradleProperty("foojayResolverPluginVersion").get()
 }
 
+val redissonVersion: String by settings
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            version("redissonSpringBootVersion", redissonVersion)
+            library("redisson-spring-starter", "org.redisson:redisson-spring-boot-starter:$redissonVersion")
+            library("redisson", "org.redisson:redisson:$redissonVersion")
+        }
+    }
+}
+
 rootProject.name = "agentic-clean-architecture"
 
 file(rootDir)
