@@ -40,3 +40,5 @@ adapters:
       bank-account-events-stream: bank-account.event.bank-accounts
       bank-account-events-consumer-group: bank-transaction-service
       bank-account-events-consumer-name: bank-transaction-consumer
+      # Poller delay for outbound Redis stream publishing (in milliseconds)
+      poller-delay-ms: 100

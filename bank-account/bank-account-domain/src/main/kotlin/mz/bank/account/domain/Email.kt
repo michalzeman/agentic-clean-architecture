@@ -9,17 +9,20 @@ data class Email(
 ) {
     init {
         require(value.isNotBlank()) { "Email cannot be blank" }
-        require(value.contains("@")) { "Email must contain '@' symbol" }
         require(value.length <= MAX_LENGTH) { "Email cannot exceed $MAX_LENGTH characters" }
-
-        val parts = value.split("@")
-        require(parts.size == 2) { "Email must contain exactly one '@' symbol" }
-        require(parts[0].isNotBlank()) { "Email local part cannot be blank" }
-        require(parts[1].isNotBlank()) { "Email domain cannot be blank" }
-        require(parts[1].contains(".")) { "Email domain must contain a dot" }
+        require(EMAIL_REGEX.matches(value)) { "Email format is invalid: '$value'" }
     }
 
     companion object {
         private const val MAX_LENGTH = 254
+
+        /**
+         * This regex validates common email formats while rejecting obviously invalid ones
+         * like "test@.com", "test@test.", "test..test@example.com", etc.
+         */
+        private val EMAIL_REGEX =
+            Regex(
+                "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            )
     }
 }

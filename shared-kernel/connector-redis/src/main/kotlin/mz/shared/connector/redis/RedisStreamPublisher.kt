@@ -6,12 +6,12 @@ import kotlinx.coroutines.withContext
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import mz.shared.domain.AGGREGATE_ID
 import mz.shared.domain.LockProvider
-import org.apache.commons.logging.LogFactory
+import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.stream.StringRecord
 import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.messaging.Message
 
-private val logger = LogFactory.getLog(RedisStreamPublisher::class.java)
+private val logger = LoggerFactory.getLogger(RedisStreamPublisher::class.java)
 
 class RedisStreamPublisher<V : com.google.protobuf.GeneratedMessage>(
     private val streamKey: String,

@@ -18,7 +18,7 @@ import kotlinx.coroutines.reactive.asFlow
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import mz.shared.domain.AGGREGATE_ID
 import mz.shared.domain.LockProvider
-import org.apache.commons.logging.LogFactory
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.connection.stream.Consumer
@@ -36,7 +36,7 @@ import org.springframework.messaging.support.ErrorMessage
 import org.springframework.messaging.support.MessageBuilder
 import java.time.Duration
 
-private val logger = LogFactory.getLog(RedisStreamConsumer::class.java)
+private val logger = LoggerFactory.getLogger(RedisStreamConsumer::class.java)
 
 class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal constructor(
     val channel: MessageChannel,

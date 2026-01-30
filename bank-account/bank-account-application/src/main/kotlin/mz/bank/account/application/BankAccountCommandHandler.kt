@@ -7,13 +7,13 @@ import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountCommand
 import mz.shared.domain.LockProvider
-import org.apache.commons.logging.LogFactory
+import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.Poller
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.messaging.Message
 import org.springframework.stereotype.Component
 
-private val logger = LogFactory.getLog(BankAccountCommandHandler::class.java)
+private val logger = LoggerFactory.getLogger(BankAccountCommandHandler::class.java)
 
 /**
  * Command handler for BankAccount aggregate.

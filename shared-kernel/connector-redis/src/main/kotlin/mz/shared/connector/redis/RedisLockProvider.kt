@@ -7,16 +7,16 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.withContext
 import mz.shared.domain.LockProvider
-import org.apache.commons.logging.LogFactory
 import org.redisson.api.RedissonClient
 import org.redisson.api.RedissonReactiveClient
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
-private val logger = LogFactory.getLog(RedisLockProvider::class.java)
+private val logger = LoggerFactory.getLogger(RedisLockProvider::class.java)
 
 class RedisLockProvider(
     private val redissonClient: RedissonClient,
