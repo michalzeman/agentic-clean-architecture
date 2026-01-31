@@ -11,9 +11,9 @@ import org.springframework.web.reactive.function.client.WebClient
  */
 @ConfigurationProperties(prefix = "bank-system-tests")
 data class TestProperties(
-    val accountServiceUrl: String = "http://localhost:8080",
-    val transactionServiceUrl: String = "http://localhost:8081",
-    val healthEndpoint: String = "/actuator/health",
+    val accountServiceUrl: String,
+    val transactionServiceUrl: String,
+    val healthEndpoint: String,
 )
 
 /**

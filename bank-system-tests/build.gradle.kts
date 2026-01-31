@@ -8,6 +8,9 @@ dependencies {
 
     // WebClient for HTTP tests
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+
+    testImplementation("org.springframework.integration:spring-integration-core")
+    testImplementation("org.springframework.integration:spring-integration-redis")
 }
 
 // Disable bootJar as this is a test-only module
