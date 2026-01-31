@@ -69,7 +69,7 @@ class AccountEventExtensionsTest {
                 BankTransaction(
                     aggregateId = AggregateId("tx-789"),
                     version = 3,
-                    correlationId = "tx-789",
+                    correlationId = "corr-abc",
                     fromAccountId = AggregateId("acc-from"),
                     toAccountId = AggregateId("acc-to"),
                     amount = BigDecimal("300.00"),
@@ -87,7 +87,7 @@ class AccountEventExtensionsTest {
             assertThat(command).isNotNull
             assertThat(command).isInstanceOf(BankTransactionCommand.FinishBankTransaction::class.java)
             assertThat(command!!.aggregateId).isEqualTo(AggregateId("tx-789"))
-            assertThat(command.correlationId).isEqualTo("tx-789")
+            assertThat(command.correlationId).isEqualTo("corr-abc")
             assertThat(command.fromAccountId).isEqualTo(AggregateId("acc-from"))
             assertThat(command.toAccountId).isEqualTo(AggregateId("acc-to"))
         }

@@ -13,6 +13,7 @@ dependencies {
     testImplementation("org.springframework.integration:spring-integration-redis")
 
     testImplementation(project(":shared-kernel:connector-redis-starter"))
+    testImplementation(project(":shared-kernel:connector-system-tests"))
 
     testImplementation(project(":bank-account:bank-account-contract-proto"))
     testImplementation(project(":bank-transaction:bank-transaction-contract-proto"))

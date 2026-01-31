@@ -63,7 +63,7 @@ suspend fun AccountEvent.TransactionFinishedEvent.toFinishCommand(
 
     return BankTransactionCommand.FinishBankTransaction(
         aggregateId = AggregateId(transactionId),
-        correlationId = transactionId,
+        correlationId = transaction.correlationId,
         fromAccountId = transaction.fromAccountId,
         toAccountId = transaction.toAccountId,
     )
