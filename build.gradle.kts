@@ -105,48 +105,36 @@ subprojects {
 
     tasks.register<Test>("systemTest") {
         group = "verification"
-        useJUnitPlatform()
-        dependsOn(":systemChecksTests")
+        description = "Runs system integration tests against external services"
+        useJUnitPlatform {
+            includeTags("systemChecks")
+        }
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
     }
 }
 
-tasks.register<Test>("systemChecksTests") {
+// Root project system test task that orchestrates docker and bank-system-tests
+tasks.register("systemTest") {
     group = "verification"
-    dependsOn(":dockerComposeUp")
+    description = "Runs system integration tests with docker-compose services"
+    dependsOn(":bank-account:bank-account-boot-app:bootJar")
+    dependsOn(":bank-transaction:bank-transaction-boot-app:bootJar")
+    dependsOn(":bank-system-tests:systemTest")
 }
 
-tasks.register("dockerComposeUp") {
+tasks.register<Exec>("dockerComposeUp") {
     group = "Docker"
-    description = "Starts docker-compose services in detached mode and waits for them to start"
+    description = "Starts docker-compose services with system-tests profile"
+    dependsOn(":bank-account:bank-account-boot-app:bootJar")
+    dependsOn(":bank-transaction:bank-transaction-boot-app:bootJar")
 
-    doLast {
-        providers.exec {
-            commandLine(
-                "sh",
-                "-c",
-                "docker compose up -d"
-            )
-            standardOutput = System.out
-            errorOutput = System.err
-            isIgnoreExitValue = false
-        }
-    }
+    commandLine("docker", "compose", "--profile", "system-tests", "up", "-d", "--wait")
 }
 
-tasks.register("tearDownDockerCompose") {
+tasks.register<Exec>("tearDownDockerCompose") {
     group = "docker"
+    description = "Stops and removes docker-compose services"
 
-    val allTestTasks = project.subprojects.flatMap { project -> project.tasks.matching { it.name == "systemTest" } }
-    mustRunAfter(allTestTasks)
-    doLast {
-        providers.exec {
-            commandLine(
-                "sh",
-                "-c",
-                "docker compose down -v"
-            )
-        }
-    }
+    commandLine("docker", "compose", "--profile", "system-tests", "down", "-v")
 }
-
-tasks["systemChecksTests"].dependsOn("dockerComposeUp").finalizedBy("tearDownDockerCompose")

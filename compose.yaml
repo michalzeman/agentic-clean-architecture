@@ -17,6 +17,49 @@ services:
     volumes:
       - redisinsight-data:/data
 
+  bank-account-service:
+    image: 'bank-account:latest'
+    build:
+      context: .
+      dockerfile: bank-account/bank-account-boot-app/Dockerfile
+    ports:
+      - '8080:8080'
+    depends_on:
+      - redis-db
+    environment:
+      - REDIS_DB=redis-db
+      - SERVER_PORT=8080
+    profiles:
+      - system-tests
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  bank-transaction-service:
+    image: 'bank-transaction:latest'
+    build:
+      context: .
+      dockerfile: bank-transaction/bank-transaction-boot-app/Dockerfile
+    ports:
+      - '8081:8081'
+    depends_on:
+      - redis-db
+      - bank-account-service
+    environment:
+      - REDIS_DB=redis-db
+      - SERVER_PORT=8081
+    profiles:
+      - system-tests
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
 volumes:
   redis-db-data:
   redisinsight-data:
