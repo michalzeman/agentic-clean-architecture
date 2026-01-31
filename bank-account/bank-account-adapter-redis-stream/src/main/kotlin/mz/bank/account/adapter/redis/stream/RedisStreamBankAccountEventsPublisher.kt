@@ -24,7 +24,12 @@ class RedisStreamBankAccountEventsPublisher(
     @ServiceActivator(
         inputChannel = "outboundBankAccountRedisStreamChannel",
         requiresReply = "false",
-        poller = Poller(fixedDelay = "\${adapters.redis.stream.poller-delay-ms:100}"),
+        poller =
+            Poller(
+                fixedDelay = "\${app.integration.redis.poller.fixed-delay:100}",
+                maxMessagesPerPoll = "\${app.integration.redis.poller.max-messages-per-poll:10}",
+                taskExecutor = "redisStreamTaskExecutor",
+            ),
         async = "true",
     )
     suspend fun publish(message: Message<ProtoBankAccountEvent>) {

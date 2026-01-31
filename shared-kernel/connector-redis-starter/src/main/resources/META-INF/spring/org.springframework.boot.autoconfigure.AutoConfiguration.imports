@@ -1,1 +1,3 @@
 mz.shared.connector.redis.DataPlatformRedisConfiguration
+mz.shared.connector.redis.config.RedisStreamExecutorConfig
+mz.shared.connector.redis.config.ProtobufObjectMapperConfig

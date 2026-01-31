@@ -119,11 +119,17 @@ class BankAccountCommandHandler(
     /**
      * Handles BankAccountCommand asynchronously from the command channel.
      * Consumes commands from bankAccountCommandChannel with configurable polling.
+     * Uses the shared redisStreamTaskExecutor for thread pool management.
      */
     @ServiceActivator(
         inputChannel = "bankAccountCommandChannel",
         requiresReply = "false",
-        poller = Poller(fixedDelay = "\${adapters.command-channel.poller-delay-ms:100}"),
+        poller =
+            Poller(
+                fixedDelay = "\${app.integration.redis.poller.fixed-delay:100}",
+                maxMessagesPerPoll = "\${app.integration.redis.poller.max-messages-per-poll:10}",
+                taskExecutor = "redisStreamTaskExecutor",
+            ),
         async = "true",
     )
     suspend fun handleAsync(message: Message<BankAccountCommand>) {

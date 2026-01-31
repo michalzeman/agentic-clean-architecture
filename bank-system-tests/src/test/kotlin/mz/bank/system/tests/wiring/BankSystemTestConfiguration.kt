@@ -1,13 +1,12 @@
 package mz.bank.system.tests.wiring
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.system.tests.ServiceHealthChecker
 import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -16,7 +15,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.dsl.QueueChannelSpec
-import org.springframework.integration.support.json.JacksonJsonUtils
 import org.springframework.messaging.MessageChannel
 import org.springframework.web.reactive.function.client.WebClient
 
@@ -129,21 +127,6 @@ class BankSystemTestConfiguration(
             serviceName = "bank-transaction-service",
         )
 
-    @Bean("protobufObjectMapper")
-    fun protobufObjectMapper(): ObjectMapper {
-        val objectMapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz",
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "kotlin.collections",
-            )
-        objectMapper
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(ProtobufModule())
-        return objectMapper
-    }
-
     @Bean
     fun bankAccountEventsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
 
@@ -157,7 +140,7 @@ class BankSystemTestConfiguration(
     @Bean
     fun bankAccountEventsRedisStreamConsumer(
         bankAccountEventsStreamChannel: MessageChannel,
-        protobufObjectMapper: ObjectMapper,
+        @Qualifier("protobufObjectMapper") protobufObjectMapper: ObjectMapper,
     ): RedisStreamConsumer<BankAccountEvent, BankAccountEvent> =
         RedisSteamConsumerBuilder<BankAccountEvent, BankAccountEvent>(
             streamKey = testProperties.adapterRedisStreamsBankAccount.eventsStream,
@@ -176,7 +159,7 @@ class BankSystemTestConfiguration(
     @Bean
     fun bankTransactionEventsRedisStreamConsumer(
         bankTransactionEventsStreamChannel: MessageChannel,
-        protobufObjectMapper: ObjectMapper,
+        @Qualifier("protobufObjectMapper") protobufObjectMapper: ObjectMapper,
     ): RedisStreamConsumer<BankTransactionEvent, BankTransactionEvent> =
         RedisSteamConsumerBuilder<BankTransactionEvent, BankTransactionEvent>(
             streamKey = testProperties.adapterRedisStreamsBankTransaction.eventsStream,

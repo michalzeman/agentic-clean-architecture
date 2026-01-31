@@ -31,14 +31,24 @@ logging:
 application:
   identifier: bank-transaction
 
+# Spring Integration Redis configuration
+# Provides centralized thread pool and poller configuration for message channels
+app:
+  integration:
+    redis:
+      enabled: true
+      executor:
+        core-pool-size: 10
+        max-pool-size: 50
+        thread-name-prefix: "message-channel-"
+      poller:
+        fixed-delay: 100
+        max-messages-per-poll: 10
+
 adapters:
-  command-channel:
-    poller-delay-ms: 100
   redis:
     stream:
       bank-transaction-events-stream: bank-transaction.event.bank-transactions
       bank-account-events-stream: bank-account.event.bank-accounts
       bank-account-events-consumer-group: bank-transaction-service
       bank-account-events-consumer-name: bank-transaction-consumer
-      # Poller delay for outbound Redis stream publishing (in milliseconds)
-      poller-delay-ms: 100
