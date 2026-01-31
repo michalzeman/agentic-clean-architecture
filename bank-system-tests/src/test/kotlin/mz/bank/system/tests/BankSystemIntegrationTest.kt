@@ -2,6 +2,7 @@ package mz.bank.system.tests
 
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
+import mz.bank.system.tests.wiring.BankSystemTestConfiguration
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag

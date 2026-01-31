@@ -1,4 +1,25 @@
+spring:
+  application:
+    name: bank-system-tests
+
+  data:
+    redis:
+      host: ${REDIS_DB:localhost}
+      port: 6379
+      database: 0
+
 bank-system-tests:
   account-service-url: "http://localhost:8080"
   transaction-service-url: "http://localhost:8081"
   health-endpoint: "/actuator/health"
+  adapter:
+    redis-streams:
+      bank-account:
+        events-stream: bank-account.event.bank-accounts
+        events-consumer-group: bank-account-service-systen-tests
+        events-consumer-name: bank-account-consumer-systen-tests
+
+      bank-transaction:
+        events-stream: bank-transaction.event.bank-transactions
+        events-consumer-group: bank-transaction-service-systen-tests
+        events-consumer-name: bank-transaction-consumer-systen-tests

@@ -19,6 +19,9 @@ dependencies {
     api("org.springframework.data:spring-data-redis")
     api("org.springframework:spring-messaging")
 
+    // lettuce redis driver
+    api("io.lettuce:lettuce-core")
+
     api(libs.redisson)
 
     api("com.fasterxml.jackson.core:jackson-core")
