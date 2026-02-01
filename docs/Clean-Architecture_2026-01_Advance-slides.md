@@ -2,19 +2,21 @@
 
 Building Maintainable Systems with AI Coding Agents
 
-Note: 30-minute presentation on why architecture matters MORE in the AI age, not less
-
 ---
 
 ## The Promise vs. Reality
 
 **The Promise:**
-- AI coding agents will replace senior engineers
-- Just describe what you want, AI handles the rest
+
+- AI coding agents will replace software engineers
+- Just describe requirements → AI builds production-ready systems
 
 **The Reality:** 
-- AI accelerates both quality code AND technical debt 
-- Without architectural guidance → "Big ball of mud" faster 
+
+- AI is a powerful tool, not a creative replacement 
+- AI needs architectural guidance from experienced engineers 
+- Without proper context → high coupling, breaking changes, unmaintainable code 
+- Result: "Big ball of mud" produced faster than ever 
 
 Note: Set the stage - many believe AI makes architecture less important. The opposite is true.
 
@@ -23,10 +25,12 @@ Note: Set the stage - many believe AI makes architecture less important. The opp
 ## Why Architecture Still Matters
 
 Only experienced engineers provide:
-- Architectural decisions (Saga vs. 2PC)
-- Bounded context boundaries
-- Consistency model selection
-- Non-functional requirements
+
+- Transaction pattern selection (Saga vs. 2PC)
+- Strategic component separation (high cohesion, loose coupling)
+- Consistency model selection (eventual vs. strong)
+- Non-functional requirements definition
+
 **AI needs proper context** 
 Note: AI cannot make these judgment calls. It needs proper context.
 
@@ -38,7 +42,7 @@ Note: AI cannot make these judgment calls. It needs proper context.
 
 **Goal:** Show what happens without architectural guidance
 
-> "Architecture is the art of postponing decisions about technical details"  
+> "Architecture is the art of postponing decisions about technical details"\
 > — Uncle Bob
 
 Note: We'll show what happens when those decisions are never made
@@ -63,6 +67,7 @@ Note: Realistic prompt many teams use. What's missing is all the architectural c
 ---
 
 ## What Was Intentionally OMITTED
+
 - ❌ Architectural patterns (Saga, CQRS) 
 - ❌ Transaction boundaries strategy 
 - ❌ Layered architecture 
@@ -175,7 +180,7 @@ data class BankAccount(
 )
 ```
 
-**Impact:** Swap Redis → PostgreSQL = **20+ files**
+**Impact:** Swap Redis → PostgreSQL = **3-5 days, 20+ files**
 
 Note: Domain logic mixed with persistence
 
@@ -184,13 +189,17 @@ Note: Domain logic mixed with persistence
 ## The Core Problem
 
 **What went wrong:**
+
 - High coupling, low cohesion 
 - Extensive refactoring for any change 
+
 **The misconception:** 
+
 > "AI fills the quality gap" 
 
 **Reality:** 
- - AI accelerates tech debt without guidance 
+
+- AI accelerates tech debt without guidance 
 
 ---
 
@@ -206,9 +215,28 @@ Note: Domain logic mixed with persistence
 
 ---
 
+## System Design
+
+![System Design Bank](System%20Design%20Bank.excalidraw.png)
+
+---
+
+## Tech Stack Overview
+
+**Core Technologies:**
+- Language: Kotlin with coroutines support
+- Framework: Spring Boot
+- Concurrency: Kotlin Coroutines + Project Reactor (reactive streams)
+
+**Spring Ecosystem:**
+- Spring Integration - Message-driven architecture
+- Spring Data Redis - Repository abstraction
+
+---
+
 ## Clean Architecture Overview
 
-![[Clean_Architecture_circles.excalidraw.png]]
+![Clean Architecture Circles](Clean_Architecture_circles.excalidraw.png)
 
 **Key:** Dependencies flow **inward** to domain
 
@@ -242,6 +270,7 @@ internal class RedisBankAccountRepository(
 ## Layer 1: Entities
 
 **Aggregate Pattern:**
+
 - Immutable
 - Commands → Events
 - Invariant protection
@@ -340,6 +369,7 @@ Note: Redis annotations isolated, events transient
 **Core Principle:** Mapping at architectural boundaries
 
 **Why:**
+
 - **Outer** adapts to external formats (DB, REST, protocols)
 - **Inner** uses business-friendly formats (entities, value objects)
 - **Protection:** DB/API changes can't break business rules
@@ -349,12 +379,14 @@ Note: Redis annotations isolated, events transient
 ## Before vs. After
 
 **Before:**
+
 ```kotlin
 @RedisHash("bank-account")  // ❌ Persistence in domain
 data class BankAccount(@Id var id: String, ...)
 ```
 
 **After:**
+
 ```kotlin
 // DOMAIN - Pure
 data class BankAccount(val aggregateId: AggregateId, ...)
@@ -369,6 +401,12 @@ internal class RedisBankAccount(@Id val id: UUID, ...)
 ## Event-Driven Integration
 
 **Core:** Services communicate via events, not REST calls
+
+![BankAccount Integration AccountAggregate](BankAccount-integration-AccountAggregate.excalidraw.png)
+
+---
+
+## Event-Driven Integration - Sequence Diagram of a CommandHandler for create
 
 ```mermaid
 sequenceDiagram
@@ -395,6 +433,7 @@ sealed class BankAccountEvent {
 ```
 
 **Publishing:**
+
 ```kotlin
 @Component
 class BankAccountDomainEventListener(
@@ -412,6 +451,7 @@ class BankAccountDomainEventListener(
 ## Service Decoupling
 
 **❌ BAD: REST coupling**
+
 ```kotlin
 class BankTransactionService(
     private val accountClient: AccountServiceClient  // HTTP
@@ -424,6 +464,7 @@ class BankTransactionService(
 ```
 
 **✅ GOOD: Event-driven**
+
 ```kotlin
 class BankTransactionCommandHandler(
     private val accountViewRepo: AccountViewRepository
@@ -436,13 +477,18 @@ class BankTransactionCommandHandler(
 
 ---
 
+## Event-Driven Integration: Account View in BankTransaction Service
+
+![BankTransaction Integration AccountView](BankTransaction-integration-AccountView.excalidraw.png)
+
+---
 ## Impact Comparison
 
-| Scenario | REST | Event-Driven |
-|----------|------|-------------|
-| Service down | ❌ 70s outage | ✅ 0s |
-| Latency | ❌ 100-500ms | ✅ <1ms |
-| Deployment | ❌ Coordinated | ✅ Independent |
+| Scenario     | REST          | Event-Driven                     |
+| ------------ | ------------- | -------------------------------- |
+| Service down | ❌ 70s outage  | ✅ 0s                             |
+| Latency      | ❌ 100-500ms   | ✅ <10ms (Kafka) / ~100ms (Redis) |
+| Deployment   | ❌ Coordinated | ✅ Independent                    |
 
 **Trade-off:** Strong → Eventual consistency (10-100ms)
 
@@ -531,14 +577,16 @@ Aggregate must:
 
 ## Results
 
-### bank-demo-antipattern (without):
+### bank-demo-antipattern:
+
 - ❌ Naive compensation + race conditions
 - ❌ Validation coupled to REST
 - ❌ Anemic domain
 - ❌ Tech coupling
 - ⏱️ **Swap Redis:** 20+ files
 
-### agentic-clean (with):
+### agentic-clean-architecture:
+
 - ✅ Saga pattern
 - ✅ Domain validation
 - ✅ Rich aggregates
@@ -562,6 +610,7 @@ Aggregate must:
 ## What's NOT Covered
 
 **Intentionally omitted:**
+
 - Full observability
 - Comprehensive testing
 - Security implementation
@@ -574,11 +623,13 @@ Aggregate must:
 ## References
 
 **Projects:**
+
 - `bank-demo-antipattern/` - Anti-pattern
 - `agentic-clean-architecture/` - Proper impl
 - `prompts/` - Architecture enforcement
 
 **Key Files:**
+
 - Domain: `BankAccountAggregate.kt`
 - Application: `BankAccountCommandHandler.kt`
 - Adapter: `RedisBankAccountRepository.kt`
@@ -589,5 +640,5 @@ Aggregate must:
 
 **Thank you!**
 
-Architecture in the AI age:  
+Architecture in the AI age:\
 **Guidance over generation**
