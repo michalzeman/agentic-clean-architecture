@@ -42,8 +42,8 @@ Note: AI cannot make these judgment calls. It needs proper context.
 
 **Goal:** Show what happens without architectural guidance
 
-> "Architecture is the art of postponing decisions about technical details"\
-> — Uncle Bob
+> Architecture is the art of postponing decisions about technical details\
+> — paraphrased from Robert C. Martin
 
 Note: We'll show what happens when those decisions are never made
 

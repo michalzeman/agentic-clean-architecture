@@ -6,6 +6,6 @@ data class AggregateId(
     val value: String,
 ) {
     init {
-        assert(value.isNotEmpty())
+        require(value.isNotBlank()) { "AggregateId cannot be blank" }
     }
 }

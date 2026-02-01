@@ -4,7 +4,7 @@
 >
 > This subproject demonstrates what happens when AI coding agents generate code
 > **WITHOUT proper architectural context**. It is part of the presentation
-> ["Clean Architecture in the AI Age"](../docs/Clean%20Architecture%20in%20the%20AI%20Age%20-%20Advanced%20Slides.md).
+> ["Clean Architecture in the AI Age"](../docs/Clean-Architecture_2026-01_Advance-slides.md).
 >
 > **DO NOT:**
 > - Use this code as a reference for your projects
@@ -100,5 +100,5 @@ For the **proper architectural approach**, see the main project modules:
 This module exists solely to demonstrate the **consequences of missing architectural context**
 when using AI coding agents. The flaws are intentional and documented.
 
-See the full presentation: [Clean Architecture in the AI Age](../docs/Clean%20Architecture%20in%20the%20AI%20Age%20-%20Advanced%20Slides.md)
+See the full presentation: [Clean Architecture in the AI Age](../docs/Clean-Architecture_2026-01_Advance-slides.md)
 

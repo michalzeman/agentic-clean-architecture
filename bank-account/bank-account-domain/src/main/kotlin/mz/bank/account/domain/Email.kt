@@ -17,8 +17,8 @@ data class Email(
         private const val MAX_LENGTH = 254
 
         /**
-         * This regex validates common email formats while rejecting obviously invalid ones
-         * like "test@.com", "test@test.", "test..test@example.com", etc.
+         * Basic email format validation. Rejects obviously invalid formats
+         * like "test@.com" or "test@test." but does not enforce full RFC 5321 compliance.
          */
         private val EMAIL_REGEX =
             Regex(
