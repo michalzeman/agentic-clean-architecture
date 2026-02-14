@@ -1,12 +1,11 @@
 package mz.shared.connector.redis.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule
+import mz.shared.connector.redis.json.MessagingObjectMapperBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.integration.support.json.JacksonJsonUtils
 
 /**
  * Auto-configuration for Protobuf ObjectMapper used by Redis Stream serialization.
@@ -39,17 +38,8 @@ class ProtobufObjectMapperConfig {
      */
     @Bean("protobufObjectMapper")
     @ConditionalOnMissingBean(name = ["protobufObjectMapper"])
-    fun protobufObjectMapper(): ObjectMapper {
-        val objectMapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz",
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "kotlin.collections",
-            )
-        objectMapper
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(ProtobufModule())
-        return objectMapper
-    }
+    fun protobufObjectMapper(): ObjectMapper =
+        MessagingObjectMapperBuilder()
+            .withModule(ProtobufModule())
+            .build()
 }

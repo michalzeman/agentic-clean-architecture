@@ -3,6 +3,7 @@ package mz.bank.transaction
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import mz.shared.connector.redis.json.MessagingObjectMapperBuilder
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -11,7 +12,6 @@ import org.springframework.core.serializer.Deserializer
 import org.springframework.core.serializer.Serializer
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider
-import org.springframework.integration.support.json.JacksonJsonUtils
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.GenericMessage
 import javax.sql.DataSource
@@ -30,16 +30,9 @@ class BankTransactionApplication {
         // Use the messaging-aware object mapper for JSON serialization with trusted packages
         // org.springframework.integration.gateway is required for MonoReplyChannel deserialization
         val objectMapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz", // project-specific package
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "org.springframework",
-                "kotlin.collections",
-                "org.springframework.integration.gateway",
-            )
-        objectMapper.registerModule(KotlinModule.Builder().build())
-        objectMapper.registerModule(JavaTimeModule())
+            MessagingObjectMapperBuilder()
+                .withTrustedPackage("org.springframework.integration.gateway")
+                .build()
 
         store.setSerializer(
             object : Serializer<Message<*>> {
