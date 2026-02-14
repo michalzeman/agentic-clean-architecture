@@ -45,6 +45,12 @@ application:
 # Provides centralized thread pool and poller configuration for message channels
 app:
   integration:
+    postgresql:
+      trusted-packages:
+        - mz
+        - java.math
+        - org.springframework
+        - kotlin.collections
     redis:
       enabled: true
       executor:
