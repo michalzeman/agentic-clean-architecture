@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ChangeSet 1: Create the bank-transaction schema -->
+    <changeSet id="1" author="migration-team">
+        <sql>
+            CREATE SCHEMA IF NOT EXISTS "bank-transaction";
+        </sql>
+        <comment>Create bank-transaction schema</comment>
+    </changeSet>
+
+    <!-- ChangeSet 2: Set search path and create Spring Integration tables in bank-transaction schema -->
+    <changeSet id="2" author="migration-team">
+        <sql>SET search_path TO "bank-transaction";</sql>
+        <sqlFile path="classpath:db/changelog/V1__spring_integration_schema.sql"
+                 relativeToChangelogFile="false"
+                 splitStatements="true"
+                 stripComments="true"/>
+        <comment>Spring Integration JDBC Message Store schema in bank-transaction schema</comment>
+    </changeSet>
+
+</databaseChangeLog>

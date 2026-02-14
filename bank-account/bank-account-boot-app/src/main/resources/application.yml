@@ -23,12 +23,20 @@ spring:
     username: ${POSTGRES_USER:bank_user}
     password: ${POSTGRES_PASSWORD:bank_pass}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      schema: bank-account
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
   # Liquibase for database migrations
   liquibase:
     enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.xml
+    change-log: classpath:db/changelog/db.changelog-bank-account.xml
     default-schema: public
+    liquibase-schema: public
 
 application:
   identifier: bank-account

@@ -3,14 +3,12 @@ package mz.bank.account
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import org.springframework.core.serializer.Deserializer
 import org.springframework.core.serializer.Serializer
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider
 import org.springframework.integration.support.json.JacksonJsonUtils
@@ -20,22 +18,6 @@ import javax.sql.DataSource
 
 @SpringBootApplication
 class BankAccountApplication {
-    @Bean
-    fun genericJackson2JsonRedisSerializer(): GenericJackson2JsonRedisSerializer {
-        val mapper =
-            JacksonJsonUtils.messagingAwareMapper(
-                "mz",
-                "java.math",
-                "org.springframework.data.redis.connection.stream",
-                "org.springframework",
-                "kotlin.collections",
-            )
-        mapper
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(ProtobufModule())
-        return GenericJackson2JsonRedisSerializer(mapper)
-    }
-
     /**
      * JSON-based JDBC channel message store for domain events and commands.
      * Replaces RedisChannelMessageStore with PostgreSQL-backed storage.

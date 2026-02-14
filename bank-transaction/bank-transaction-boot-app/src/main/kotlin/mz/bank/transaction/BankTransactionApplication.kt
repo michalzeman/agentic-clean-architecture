@@ -36,6 +36,7 @@ class BankTransactionApplication {
                 "org.springframework.data.redis.connection.stream",
                 "org.springframework",
                 "kotlin.collections",
+                "org.springframework.integration.gateway",
             )
         objectMapper.registerModule(KotlinModule.Builder().build())
         objectMapper.registerModule(JavaTimeModule())
