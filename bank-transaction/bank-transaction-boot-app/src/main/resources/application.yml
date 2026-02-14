@@ -17,6 +17,19 @@ spring:
       port: 6379
       database: 0
 
+  # PostgreSQL datasource for message channel persistence
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_DB:localhost}:5432/bank_db
+    username: ${POSTGRES_USER:bank_user}
+    password: ${POSTGRES_PASSWORD:bank_pass}
+    driver-class-name: org.postgresql.Driver
+
+  # Liquibase for database migrations
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: public
+
 server:
   port: 8081
 

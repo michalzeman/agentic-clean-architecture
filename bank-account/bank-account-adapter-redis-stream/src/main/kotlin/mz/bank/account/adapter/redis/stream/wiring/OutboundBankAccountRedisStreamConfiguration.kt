@@ -14,7 +14,7 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
-import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
 import mz.bank.account.contract.proto.BankAccountEvent as ProtoBankAccountEvent
 import mz.bank.account.domain.BankAccountEvent as DomainBankAccountEvent
@@ -30,7 +30,7 @@ class OutboundBankAccountRedisStreamConfiguration(
     private val applicationIdentifier: String,
     private val properties: BankAccountRedisStreamProperties,
     private val reactiveRedisTemplate: ReactiveRedisTemplate<String, *>,
-    private val protoRedisChannelMessageStore: RedisChannelMessageStore,
+    private val protoJdbcChannelMessageStore: JdbcChannelMessageStore,
     @param:Qualifier("protobufObjectMapper") private val protobufObjectMapper: ObjectMapper,
 ) {
     @Bean
@@ -47,7 +47,7 @@ class OutboundBankAccountRedisStreamConfiguration(
         )
 
     /**
-     * Redis-backed channel for protobuf events to be published to Redis stream.
+     * PostgreSQL-backed channel for protobuf events to be published to Redis stream.
      * Uses protobuf serialization for efficient storage and transmission.
      */
     @Bean
@@ -55,7 +55,7 @@ class OutboundBankAccountRedisStreamConfiguration(
         MessageChannels
             .queue(
                 "$applicationIdentifier.persistence.outbound-bank-account-redis-stream.channel",
-                protoRedisChannelMessageStore,
+                protoJdbcChannelMessageStore,
                 "$applicationIdentifier.persistence.outbound-bank-account-redis-stream.storage",
             ).apply { datatype(ProtoBankAccountEvent::class.java) }
             .getObject()

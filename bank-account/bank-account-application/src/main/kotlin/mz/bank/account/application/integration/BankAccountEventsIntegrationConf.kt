@@ -7,16 +7,16 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
-import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
 
 /**
  * Integration configuration for outbound bank account domain events.
  *
  * Architecture:
- * 1. [bankAccountDomainEventsChannel] - Redis-backed persistent queue for domain events
+ * 1. [bankAccountDomainEventsChannel] - PostgreSQL-backed persistent queue for domain events
  * 2. [bankAccountDomainEventsPublishSubscribeChannel] - Fanout channel for multiple consumers
- * 3. [outboundBankAccountRedisStreamChannel] - Redis-backed queue for Redis stream publishing (protobuf)
+ * 3. [outboundBankAccountRedisStreamChannel] - PostgreSQL-backed queue for Redis stream publishing (protobuf)
  *
  * Flow: Domain Events → Persistent Queue → PublishSubscribe → Consumer Queues → Redis Stream
  */
@@ -24,18 +24,18 @@ import org.springframework.messaging.MessageChannel
 class BankAccountEventsIntegrationConf(
     @param:Value("\${application.identifier}")
     private val applicationIdentifier: String,
-    private val jsonRedisChannelMessageStore: RedisChannelMessageStore,
+    private val jsonJdbcChannelMessageStore: JdbcChannelMessageStore,
 ) {
     /**
      * Primary channel for domain events published by BankAccountDomainEventListener.
-     * Redis-backed for persistence and reliability.
+     * PostgreSQL-backed for persistence and reliability.
      */
     @Bean
     fun bankAccountDomainEventsChannel(): MessageChannel =
         MessageChannels
             .queue(
                 "$applicationIdentifier.persistence.bank-account-domain-events.channel",
-                jsonRedisChannelMessageStore,
+                jsonJdbcChannelMessageStore,
                 "$applicationIdentifier.persistence.bank-account-domain-events.storage",
             ).apply { datatype(BankAccountEvent::class.java) }
             .getObject()

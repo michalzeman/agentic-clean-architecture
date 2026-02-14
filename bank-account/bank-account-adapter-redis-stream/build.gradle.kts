@@ -11,6 +11,7 @@ dependencies {
 
     // Spring Integration
     implementation("org.springframework.integration:spring-integration-core")
+    implementation("org.springframework.integration:spring-integration-jdbc")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")

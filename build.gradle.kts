@@ -129,7 +129,7 @@ tasks.register<Exec>("dockerComposeUp") {
     dependsOn(":bank-account:bank-account-boot-app:bootJar")
     dependsOn(":bank-transaction:bank-transaction-boot-app:bootJar")
 
-    commandLine("docker", "compose", "--profile", "system-tests", "up", "-d", "--wait")
+    commandLine("docker", "compose", "--profile", "system-tests", "up", "-d", "--wait", "--build")
 }
 
 tasks.register<Exec>("tearDownDockerCompose") {

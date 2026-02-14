@@ -7,16 +7,29 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
-import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.core.serializer.Deserializer
+import org.springframework.core.serializer.Serializer
+import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
+import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider
 import org.springframework.integration.support.json.JacksonJsonUtils
+import org.springframework.messaging.Message
+import org.springframework.messaging.support.GenericMessage
+import javax.sql.DataSource
 
 @SpringBootApplication
 class BankTransactionApplication {
+    /**
+     * JSON-based JDBC channel message store for domain events and commands.
+     * Replaces RedisChannelMessageStore with PostgreSQL-backed storage.
+     */
     @Bean
-    fun genericJackson2JsonRedisSerializer(): GenericJackson2JsonRedisSerializer {
-        val mapper =
+    fun jsonJdbcChannelMessageStore(dataSource: DataSource): JdbcChannelMessageStore {
+        val store = JdbcChannelMessageStore(dataSource)
+        store.setChannelMessageStoreQueryProvider(PostgresChannelMessageStoreQueryProvider())
+        store.setRegion("json")
+        // Use the messaging-aware object mapper for JSON serialization with trusted packages
+        // org.springframework.integration.gateway is required for MonoReplyChannel deserialization
+        val objectMapper =
             JacksonJsonUtils.messagingAwareMapper(
                 "mz", // project-specific package
                 "java.math",
@@ -24,22 +37,42 @@ class BankTransactionApplication {
                 "org.springframework",
                 "kotlin.collections",
             )
-        mapper.registerModule(KotlinModule.Builder().build())
-        return GenericJackson2JsonRedisSerializer(mapper)
+        objectMapper.registerModule(KotlinModule.Builder().build())
+        objectMapper.registerModule(JavaTimeModule())
+
+        store.setSerializer(
+            object : Serializer<Message<*>> {
+                override fun serialize(
+                    message: Message<*>,
+                    outputStream: java.io.OutputStream,
+                ) {
+                    objectMapper.writeValue(outputStream, message)
+                }
+            },
+        )
+
+        store.setDeserializer(
+            object : Deserializer<Message<*>> {
+                @Suppress("UNCHECKED_CAST")
+                override fun deserialize(inputStream: java.io.InputStream): Message<*> =
+                    objectMapper.readValue(inputStream, GenericMessage::class.java) as Message<*>
+            },
+        )
+
+        return store
     }
 
+    /**
+     * Binary JDBC channel message store for protobuf events.
+     * Uses BYTEA for efficient binary storage.
+     */
     @Bean
-    fun jsonRedisChannelMessageStore(
-        redisConnectionFactory: LettuceConnectionFactory,
-        genericJackson2JsonRedisSerializer: GenericJackson2JsonRedisSerializer,
-    ): RedisChannelMessageStore =
-        RedisChannelMessageStore(redisConnectionFactory).apply {
-            setValueSerializer(genericJackson2JsonRedisSerializer)
-        }
-
-    @Bean
-    fun protoRedisChannelMessageStore(redisConnectionFactory: LettuceConnectionFactory): RedisChannelMessageStore =
-        RedisChannelMessageStore(redisConnectionFactory) // uses default byte array serialization
+    fun protoJdbcChannelMessageStore(dataSource: DataSource): JdbcChannelMessageStore {
+        val store = JdbcChannelMessageStore(dataSource)
+        store.setChannelMessageStoreQueryProvider(PostgresChannelMessageStoreQueryProvider())
+        store.setRegion("proto")
+        return store
+    }
 
     @Bean
     @Primary

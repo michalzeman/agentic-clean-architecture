@@ -5,23 +5,23 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.integration.dsl.MessageChannels
-import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
 
 /**
  * Configuration for bank account command channel.
  *
- * Provides a Redis-backed persistent queue for processing BankAccountCommand asynchronously.
+ * Provides a PostgreSQL-backed persistent queue for processing BankAccountCommand asynchronously.
  * Commands published to this channel are consumed by BankAccountCommandHandler.
  */
 @Configuration
 class BankAccountCommandChannelConf(
     @param:Value("\${application.identifier}") private val applicationIdentifier: String,
-    private val jsonRedisChannelMessageStore: RedisChannelMessageStore,
+    private val jsonJdbcChannelMessageStore: JdbcChannelMessageStore,
 ) {
     /**
      * Channel for bank account commands.
-     * Redis-backed for persistence and reliability.
+     * PostgreSQL-backed for persistence and reliability.
      * Uses JSON serialization for BankAccountCommand.
      */
     @Bean
@@ -29,7 +29,7 @@ class BankAccountCommandChannelConf(
         MessageChannels
             .queue(
                 "$applicationIdentifier.persistence.bank-account-commands.channel",
-                jsonRedisChannelMessageStore,
+                jsonJdbcChannelMessageStore,
                 "$applicationIdentifier.persistence.bank-account-commands.storage",
             ).apply { datatype(BankAccountCommand::class.java) }
             .getObject()

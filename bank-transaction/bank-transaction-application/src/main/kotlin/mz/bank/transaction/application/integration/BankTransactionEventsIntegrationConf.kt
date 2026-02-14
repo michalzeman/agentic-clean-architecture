@@ -7,14 +7,14 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
-import org.springframework.integration.redis.store.RedisChannelMessageStore
+import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
 
 /**
  * Integration configuration for outbound bank transaction domain events.
  *
  * Architecture:
- * 1. [bankTransactionDomainEventsChannel] - Redis-backed persistent queue for domain events
+ * 1. [bankTransactionDomainEventsChannel] - PostgreSQL-backed persistent queue for domain events
  * 2. [bankTransactionDomainEventsPublishSubscribeChannel] - Fanout channel for multiple consumers
  *
  * Flow: Domain Events → Persistent Queue → PublishSubscribe → Consumer Queues (defined in adapters)
@@ -26,18 +26,18 @@ import org.springframework.messaging.MessageChannel
 class BankTransactionEventsIntegrationConf(
     @param:Value("\${application.identifier}")
     private val applicationIdentifier: String,
-    private val jsonRedisChannelMessageStore: RedisChannelMessageStore,
+    private val jsonJdbcChannelMessageStore: JdbcChannelMessageStore,
 ) {
     /**
      * Primary channel for domain events published by BankTransactionDomainEventListener.
-     * Redis-backed for persistence and reliability.
+     * PostgreSQL-backed for persistence and reliability.
      */
     @Bean
     fun bankTransactionDomainEventsChannel(): MessageChannel =
         MessageChannels
             .queue(
                 "$applicationIdentifier.persistence.bank-transaction-domain-events.channel",
-                jsonRedisChannelMessageStore,
+                jsonJdbcChannelMessageStore,
                 "$applicationIdentifier.persistence.bank-transaction-domain-events.storage",
             ).apply { datatype(BankTransactionEvent::class.java) }
             .getObject()

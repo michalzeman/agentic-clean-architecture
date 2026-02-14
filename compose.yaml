@@ -17,6 +17,23 @@ services:
     volumes:
       - redisinsight-data:/data
 
+  postgres-db:
+    image: 'postgres:16-alpine'
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: bank_db
+      POSTGRES_USER: bank_user
+      POSTGRES_PASSWORD: bank_pass
+    volumes:
+      - postgres-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bank_user -d bank_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
   bank-account-service:
     image: 'bank-account:latest'
     build:
@@ -25,9 +42,15 @@ services:
     ports:
       - '8080:8080'
     depends_on:
-      - redis-db
+      redis-db:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
     environment:
       - REDIS_DB=redis-db
+      - POSTGRES_DB=postgres-db
+      - POSTGRES_USER=bank_user
+      - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8080
     profiles:
       - system-tests
@@ -46,10 +69,17 @@ services:
     ports:
       - '8081:8081'
     depends_on:
-      - redis-db
-      - bank-account-service
+      redis-db:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
+      bank-account-service:
+        condition: service_healthy
     environment:
       - REDIS_DB=redis-db
+      - POSTGRES_DB=postgres-db
+      - POSTGRES_USER=bank_user
+      - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8081
     profiles:
       - system-tests
@@ -63,3 +93,4 @@ services:
 volumes:
   redis-db-data:
   redisinsight-data:
+  postgres-db-data:
