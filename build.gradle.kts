@@ -129,6 +129,9 @@ tasks.register<Exec>("dockerComposeUp") {
     dependsOn(":bank-account:bank-account-boot-app:bootJar")
     dependsOn(":bank-transaction:bank-transaction-boot-app:bootJar")
 
+    val persistenceProfile = project.findProperty("persistenceProfile")?.toString() ?: "redis-persistence"
+    environment("PERSISTENCE_PROFILE", persistenceProfile)
+
     commandLine("docker", "compose", "--profile", "system-tests", "up", "-d", "--wait", "--build")
 }
 

@@ -8,6 +8,9 @@ management:
       enabled: false
 
 spring:
+  profiles:
+    active: redis-persistence
+
   application:
     name: bank-account-service
 
