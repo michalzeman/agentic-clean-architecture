@@ -2,3 +2,4 @@
 /.kotlin/
 /.gradle/
 **/build/**
+**/.DS_Store
