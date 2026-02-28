@@ -25,8 +25,8 @@
 
     <!-- ChangeSet 3: Create bank_transaction and account_view tables for PostgreSQL persistence adapter -->
     <changeSet id="3" author="migration-team">
-        <sqlFile path="classpath:db/changelog/V2__bank_transaction_tables.sql"
-                 relativeToChangelogFile="false"
+        <sqlFile path="V2__bank_transaction_tables.sql"
+                 relativeToChangelogFile="true"
                  splitStatements="true"
                  stripComments="true"/>
         <comment>bank_transaction and account_view tables for postgres-persistence profile</comment>
