@@ -7,14 +7,17 @@ import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import java.util.UUID
 
 /**
  * Redis implementation of BankAccountRepository.
  * Handles persistence operations using Spring Data Redis.
+ * Active when the 'redis-persistence' Spring profile is enabled.
  */
 @Component
+@Profile("redis-persistence")
 internal class RedisBankAccountRepository(
     private val repository: BankAccountDataRepository,
 ) : BankAccountRepository {

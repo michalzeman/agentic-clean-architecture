@@ -21,11 +21,14 @@ It contains:
 # Build and run unit tests
 ./gradlew build
 
-# Start infrastructure (Redis + RedisInsight)
+# Start infrastructure (Redis + PostgreSQL + RedisInsight)
 docker compose up -d
 
 # Run system tests (starts services in Docker, runs tests, tears down)
 ./gradlew systemTest
+
+# run system tests with PostgreSQL persistence
+./gradlew systemTest -PpersistenceProfile=postgres-persistence
 ```
 
 Services (when running via `docker compose --profile system-tests up`):

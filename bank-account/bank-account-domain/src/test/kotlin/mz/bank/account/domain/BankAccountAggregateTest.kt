@@ -534,7 +534,7 @@ class BankAccountAggregateTest {
 
         // Then
         assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("130.00"))
-        assertThat(aggregate.account.version).isEqualTo(3L)
+        assertThat(aggregate.account.version).isEqualTo(2L)
         assertThat(aggregate.domainEvents).isEmpty()
     }
 
@@ -562,7 +562,7 @@ class BankAccountAggregateTest {
         assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("260.00"))
         assertThat(aggregate.account.openedTransactions).isEmpty()
         assertThat(aggregate.account.finishedTransactions).containsExactly("txn-events-1", "txn-events-2")
-        assertThat(aggregate.account.version).isEqualTo(7L)
+        assertThat(aggregate.account.version).isEqualTo(6L)
     }
 
     // ==================== Invariants Tests ====================
@@ -806,7 +806,7 @@ class BankAccountAggregateTest {
         assertThat(aggregate.account.amount).isEqualByComparingTo(BigDecimal("200.00"))
         assertThat(aggregate.account.openedTransactions).isEmpty()
         assertThat(aggregate.account.finishedTransactions).isEmpty()
-        assertThat(aggregate.account.version).isEqualTo(5L)
+        assertThat(aggregate.account.version).isEqualTo(4L)
     }
 
     // ==================== Helper Methods ====================

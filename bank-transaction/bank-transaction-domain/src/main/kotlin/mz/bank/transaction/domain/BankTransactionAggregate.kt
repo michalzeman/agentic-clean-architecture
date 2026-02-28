@@ -26,7 +26,6 @@ data class BankTransactionAggregate(
                         toAccountId = event.toAccountId,
                         amount = event.amount,
                         status = BankTransactionStatus.CREATED,
-                        version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }

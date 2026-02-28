@@ -24,7 +24,6 @@ data class BankAccountAggregate(
                     account.copy(
                         email = event.email,
                         amount = event.initialBalance,
-                        version = account.version + 1,
                         updatedAt = event.updatedAt,
                     )
                 }
@@ -266,8 +265,8 @@ data class BankAccountAggregate(
 
             return BankAccountAggregate(
                 account = newAccount,
-                domainEvents = listOf(event),
-            )
+                domainEvents = emptyList(),
+            ).applyEvent(event).copy(domainEvents = listOf(event))
         }
 
         /**

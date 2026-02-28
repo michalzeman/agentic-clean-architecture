@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":bank-account:bank-account-domain"))
     implementation(project(":bank-account:bank-account-application"))
     implementation(project(":bank-account:bank-account-adapter-redis"))
+    implementation(project(":bank-account:bank-account-adapter-postgresql"))
     implementation(project(":bank-account:bank-account-adapter-redis-stream"))
     implementation(project(":bank-account:bank-account-adapter-rest"))
     implementation(project(":shared-kernel:connector-redis-starter"))
@@ -24,6 +25,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 
     // PostgreSQL driver for message channel persistence
     implementation("org.postgresql:postgresql")

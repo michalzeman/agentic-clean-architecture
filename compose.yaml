@@ -52,6 +52,7 @@ services:
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=${PERSISTENCE_PROFILE:-redis-persistence}
     profiles:
       - system-tests
     healthcheck:
@@ -81,6 +82,7 @@ services:
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8081
+      - SPRING_PROFILES_ACTIVE=${PERSISTENCE_PROFILE:-redis-persistence}
     profiles:
       - system-tests
     healthcheck:

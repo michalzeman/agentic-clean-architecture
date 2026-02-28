@@ -252,7 +252,7 @@ class BankTransactionAggregateTest {
         assertThat(successAggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
         assertThat(successAggregate.bankTransaction.moneyWithdrawn).isTrue()
         assertThat(successAggregate.bankTransaction.moneyDeposited).isTrue()
-        assertThat(successAggregate.bankTransaction.version).isEqualTo(4L)
+        assertThat(successAggregate.bankTransaction.version).isEqualTo(3L)
         assertThat(successAggregate.domainEvents).isEmpty()
 
         // Test failed transaction rebuild with rollback
@@ -299,7 +299,7 @@ class BankTransactionAggregateTest {
         assertThat(failedAggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(failedAggregate.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(failedAggregate.bankTransaction.moneyDeposited).isFalse()
-        assertThat(failedAggregate.bankTransaction.version).isEqualTo(4L)
+        assertThat(failedAggregate.bankTransaction.version).isEqualTo(3L)
         assertThat(failedAggregate.domainEvents).isEmpty()
     }
 

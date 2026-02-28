@@ -5,14 +5,17 @@ import kotlinx.coroutines.withContext
 import mz.bank.transaction.application.account.AccountViewRepository
 import mz.bank.transaction.domain.account.AccountView
 import mz.shared.domain.AggregateId
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 /**
  * Redis implementation of AccountViewRepository.
  * Handles persistence operations for the account view read model using Spring Data Redis.
  * Uses indexed accountId field for efficient lookups.
+ * Active when the 'redis-persistence' Spring profile is enabled.
  */
 @Component
+@Profile("redis-persistence")
 internal class RedisAccountViewRepository(
     private val repository: AccountViewDataRepository,
 ) : AccountViewRepository {
