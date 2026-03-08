@@ -15,3 +15,10 @@ internal interface BankAccountJdbcRepository : ListCrudRepository<PostgresBankAc
     @Query("SELECT COUNT(*) > 0 FROM bank_account WHERE email = :email")
     fun existsByEmail(email: String): Boolean
 }
+
+internal interface BankAccountTransactionRefJdbcRepository : ListCrudRepository<PostgresBankAccountTransactionRef, Long> {
+    @Query("SELECT * FROM bank_account_transaction_ref WHERE bank_account_id = :bankAccountId")
+    fun findAllByBankAccountId(bankAccountId: Long): List<PostgresBankAccountTransactionRef>
+
+    fun deleteAllByBankAccountId(bankAccountId: Long)
+}

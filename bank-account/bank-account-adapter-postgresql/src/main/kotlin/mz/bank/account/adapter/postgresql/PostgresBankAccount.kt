@@ -1,13 +1,10 @@
 package mz.bank.account.adapter.postgresql
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountEvent
 import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
-import org.postgresql.util.PGobject
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Transient
 import org.springframework.data.annotation.Version
@@ -19,14 +16,10 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
-internal val bankAccountObjectMapper = jacksonObjectMapper()
-
 /**
  * Spring Data JDBC persistence entity for BankAccount.
  * Uses a BIGSERIAL surrogate PK and a separate aggregate_id UUID for domain identity.
- * Set<String> fields are stored as JSONB columns. PGobject is used directly as the
- * field type so Spring Data JDBC passes it straight to the JDBC driver without
- * interference from collection-handling or custom converter resolution.
+ * Transaction references are stored in the separate bank_account_transaction_ref table.
  */
 @Table("bank_account")
 internal open class PostgresBankAccount(
@@ -34,8 +27,6 @@ internal open class PostgresBankAccount(
     @field:Column("aggregate_id") val aggregateId: UUID,
     val email: String,
     val amount: BigDecimal,
-    @field:Column("opened_transactions") val openedTransactions: PGobject = jsonbOf("[]"),
-    @field:Column("finished_transactions") val finishedTransactions: PGobject = jsonbOf("[]"),
     @field:Version val version: Long,
     @field:Column("created_at") val createdAt: Instant,
     @field:Column("updated_at") val updatedAt: Instant,
@@ -56,33 +47,60 @@ internal open class PostgresBankAccount(
     }
 }
 
-/** Creates a JSONB-typed PGobject from a JSON string. */
-internal fun jsonbOf(json: String): PGobject =
-    PGobject().apply {
-        type = "jsonb"
-        value = json
-    }
+internal enum class TransactionRefState {
+    OPENED,
+    FINISHED,
+}
+
+@Table("bank_account_transaction_ref")
+internal data class PostgresBankAccountTransactionRef(
+    @field:Id val id: Long? = null,
+    @field:Column("bank_account_id") val bankAccountId: Long,
+    @field:Column("transaction_id") val transactionId: String,
+    val state: String,
+    @field:Column("created_at") val createdAt: Instant,
+)
+
+private fun PostgresBankAccountTransactionRef.toState(): TransactionRefState =
+    runCatching { TransactionRefState.valueOf(state) }
+        .getOrElse {
+            throw IllegalStateException("Unknown transaction state: $state")
+        }
 
 /**
  * Converts PostgresBankAccount persistence entity to BankAccount domain entity.
- * Deserializes the PGobject JSONB value back to Set<String>.
+ * Maps transaction references to opened/finished transaction id sets.
  */
-internal fun PostgresBankAccount.toBankAccount(): BankAccount =
-    BankAccount(
-        aggregateId = AggregateId(aggregateId.toString()),
-        email = Email(email),
-        amount = amount,
-        openedTransactions = bankAccountObjectMapper.readValue(openedTransactions.value ?: "[]"),
-        finishedTransactions = bankAccountObjectMapper.readValue(finishedTransactions.value ?: "[]"),
-        version = version,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-    )
+internal fun PostgresBankAccount.toBankAccount(transactionRefs: List<PostgresBankAccountTransactionRef> = emptyList()): BankAccount =
+    transactionRefs.let { refs ->
+        val finishedTransactions =
+            refs
+                .asSequence()
+                .filter { it.toState() == TransactionRefState.FINISHED }
+                .map { it.transactionId.toString() }
+                .toSet()
+        val openedTransactions =
+            refs
+                .asSequence()
+                .filter { it.toState() == TransactionRefState.OPENED }
+                .map { it.transactionId.toString() }
+                .toSet() - finishedTransactions
+
+        BankAccount(
+            aggregateId = AggregateId(aggregateId.toString()),
+            email = Email(email),
+            amount = amount,
+            openedTransactions = openedTransactions,
+            finishedTransactions = finishedTransactions,
+            version = version,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
+    }
 
 /**
  * Converts BankAccountAggregate to PostgresBankAccount persistence entity.
  * Carries the existing surrogate id forward for updates (null triggers INSERT).
- * Serializes Set<String> fields to PGobject (jsonb) for JSONB column storage.
  * Attaches domain events for publication after save.
  *
  * versionOverride: pass account.version - 1 on the UPDATE path so that Spring Data
@@ -99,12 +117,36 @@ internal fun BankAccountAggregate.toPostgresBankAccount(
             aggregateId = UUID.fromString(account.aggregateId.value),
             email = account.email.value,
             amount = account.amount,
-            openedTransactions = jsonbOf(bankAccountObjectMapper.writeValueAsString(account.openedTransactions)),
-            finishedTransactions = jsonbOf(bankAccountObjectMapper.writeValueAsString(account.finishedTransactions)),
             version = versionOverride,
             createdAt = account.createdAt,
             updatedAt = account.updatedAt,
         )
     entity.addDomainEvents(domainEvents)
     return entity
+}
+
+internal fun BankAccountAggregate.toTransactionRefs(bankAccountId: Long): List<PostgresBankAccountTransactionRef> {
+    val finishedTransactions = account.finishedTransactions
+    val openedTransactions = account.openedTransactions - finishedTransactions
+
+    val openedRefs =
+        openedTransactions.map { transactionId ->
+            PostgresBankAccountTransactionRef(
+                bankAccountId = bankAccountId,
+                transactionId = transactionId,
+                state = TransactionRefState.OPENED.name,
+                createdAt = account.updatedAt,
+            )
+        }
+    val finishedRefs =
+        finishedTransactions.map { transactionId ->
+            PostgresBankAccountTransactionRef(
+                bankAccountId = bankAccountId,
+                transactionId = transactionId,
+                state = TransactionRefState.FINISHED.name,
+                createdAt = account.updatedAt,
+            )
+        }
+
+    return openedRefs + finishedRefs
 }

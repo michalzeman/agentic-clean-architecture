@@ -10,8 +10,8 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories
  * Active only when the 'postgres-persistence' Spring profile is enabled.
  * Extends AbstractJdbcConfiguration to properly integrate with Spring Data JDBC
  * infrastructure when both JDBC and Redis modules are on the classpath.
- * No custom converters are needed: Set<String> JSONB fields are handled by
- * explicit JSON serialization in the PostgresBankAccount mapping functions.
+ * No custom converters are needed: bank account transaction ids are stored in
+ * the dedicated bank_account_transaction_ref table.
  */
 @Configuration
 @Profile("postgres-persistence")

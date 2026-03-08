@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -18,41 +19,46 @@ import java.util.UUID
 
 class PostgresBankAccountRepositoryTest {
     private lateinit var bankAccountJdbcRepository: BankAccountJdbcRepository
+    private lateinit var transactionRefJdbcRepository: BankAccountTransactionRefJdbcRepository
     private lateinit var postgresBankAccountRepository: PostgresBankAccountRepository
 
     @BeforeEach
     fun setUp() {
         bankAccountJdbcRepository = mock()
-        postgresBankAccountRepository = PostgresBankAccountRepository(bankAccountJdbcRepository)
+        transactionRefJdbcRepository = mock()
+        postgresBankAccountRepository = PostgresBankAccountRepository(bankAccountJdbcRepository, transactionRefJdbcRepository)
     }
-
-    // ==================== findById Tests ====================
 
     @Test
     fun `should find bankAccount by aggregateId when it exists`(): Unit =
         runBlocking {
-            // Given
             val id = UUID.randomUUID()
             val aggregateId = AggregateId(id.toString())
             val now = Instant.now()
-            val postgresBankAccount =
+            val accountRow =
                 PostgresBankAccount(
                     id = 1L,
                     aggregateId = id,
                     email = "test@example.com",
                     amount = BigDecimal("200.00"),
-                    openedTransactions = jsonbOf("""["txn-1"]"""),
-                    finishedTransactions = jsonbOf("[]"),
                     version = 2L,
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(bankAccountJdbcRepository.findByAggregateId(id)).thenReturn(postgresBankAccount)
+            val refs =
+                listOf(
+                    PostgresBankAccountTransactionRef(
+                        bankAccountId = 1L,
+                        transactionId = "txn-1",
+                        state = TransactionRefState.OPENED.name,
+                        createdAt = now,
+                    ),
+                )
+            whenever(bankAccountJdbcRepository.findByAggregateId(id)).thenReturn(accountRow)
+            whenever(transactionRefJdbcRepository.findAllByBankAccountId(1L)).thenReturn(refs)
 
-            // When
             val result = postgresBankAccountRepository.findById(aggregateId)
 
-            // Then
             assertThat(result).isNotNull
             assertThat(result?.aggregateId).isEqualTo(aggregateId)
             assertThat(result?.email).isEqualTo(Email("test@example.com"))
@@ -60,30 +66,25 @@ class PostgresBankAccountRepositoryTest {
             assertThat(result?.openedTransactions).containsExactly("txn-1")
             assertThat(result?.version).isEqualTo(2L)
             verify(bankAccountJdbcRepository).findByAggregateId(id)
+            verify(transactionRefJdbcRepository).findAllByBankAccountId(1L)
         }
 
     @Test
     fun `should return null when bankAccount does not exist`(): Unit =
         runBlocking {
-            // Given
             val id = UUID.randomUUID()
             val aggregateId = AggregateId(id.toString())
             whenever(bankAccountJdbcRepository.findByAggregateId(id)).thenReturn(null)
 
-            // When
             val result = postgresBankAccountRepository.findById(aggregateId)
 
-            // Then
             assertThat(result).isNull()
             verify(bankAccountJdbcRepository).findByAggregateId(id)
         }
 
-    // ==================== upsert Tests ====================
-
     @Test
     fun `should insert bankAccount when it does not exist yet`(): Unit =
         runBlocking {
-            // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val uuid = UUID.fromString(aggregateId.value)
             val now = Instant.now()
@@ -92,6 +93,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = aggregateId,
                     email = Email("new@example.com"),
                     amount = BigDecimal("500.00"),
+                    openedTransactions = setOf("txn-open-1"),
                     version = 0L,
                     createdAt = now,
                     updatedAt = now,
@@ -103,30 +105,29 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "new@example.com",
                     amount = BigDecimal("500.00"),
-                    openedTransactions = jsonbOf("[]"),
-                    finishedTransactions = jsonbOf("[]"),
                     version = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )
             whenever(bankAccountJdbcRepository.findByAggregateId(uuid)).thenReturn(null)
             whenever(bankAccountJdbcRepository.save(any())).thenReturn(savedEntity)
+            whenever(transactionRefJdbcRepository.saveAll(any<List<PostgresBankAccountTransactionRef>>())).thenAnswer { it.arguments[0] }
 
-            // When
             val result = postgresBankAccountRepository.upsert(aggregate)
 
-            // Then
             assertThat(result.aggregateId).isEqualTo(aggregateId)
             assertThat(result.email).isEqualTo(Email("new@example.com"))
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("500.00"))
+            assertThat(result.openedTransactions).containsExactly("txn-open-1")
             verify(bankAccountJdbcRepository).findByAggregateId(uuid)
             verify(bankAccountJdbcRepository).save(any())
+            verify(transactionRefJdbcRepository).deleteAllByBankAccountId(1L)
+            verify(transactionRefJdbcRepository).saveAll(any<List<PostgresBankAccountTransactionRef>>())
         }
 
     @Test
     fun `should update bankAccount when it already exists`(): Unit =
         runBlocking {
-            // Given
             val aggregateId = AggregateId(UUID.randomUUID().toString())
             val uuid = UUID.fromString(aggregateId.value)
             val now = Instant.now()
@@ -135,6 +136,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = aggregateId,
                     email = Email("existing@example.com"),
                     amount = BigDecimal("750.00"),
+                    finishedTransactions = setOf("txn-done-1"),
                     version = 3L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
@@ -146,8 +148,6 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "existing@example.com",
                     amount = BigDecimal("500.00"),
-                    openedTransactions = jsonbOf("[]"),
-                    finishedTransactions = jsonbOf("[]"),
                     version = 2L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now.minusSeconds(100),
@@ -158,38 +158,69 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "existing@example.com",
                     amount = BigDecimal("750.00"),
-                    openedTransactions = jsonbOf("[]"),
-                    finishedTransactions = jsonbOf("[]"),
                     version = 3L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
                 )
             whenever(bankAccountJdbcRepository.findByAggregateId(uuid)).thenReturn(existingEntity)
             whenever(bankAccountJdbcRepository.save(any())).thenReturn(savedEntity)
+            whenever(transactionRefJdbcRepository.saveAll(any<List<PostgresBankAccountTransactionRef>>())).thenAnswer { it.arguments[0] }
 
-            // When
             val result = postgresBankAccountRepository.upsert(aggregate)
 
-            // Then
             assertThat(result.aggregateId).isEqualTo(aggregateId)
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("750.00"))
             assertThat(result.version).isEqualTo(3L)
+            assertThat(result.finishedTransactions).containsExactly("txn-done-1")
             verify(bankAccountJdbcRepository).save(any())
+            verify(transactionRefJdbcRepository).deleteAllByBankAccountId(5L)
+            verify(transactionRefJdbcRepository).saveAll(any<List<PostgresBankAccountTransactionRef>>())
         }
 
-    // ==================== existsByEmail Tests ====================
+    @Test
+    fun `should skip refs save when both transaction sets are empty`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId(UUID.randomUUID().toString())
+            val uuid = UUID.fromString(aggregateId.value)
+            val now = Instant.now()
+            val bankAccount =
+                BankAccount(
+                    aggregateId = aggregateId,
+                    email = Email("empty@example.com"),
+                    amount = BigDecimal("10.00"),
+                    version = 0L,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val aggregate = BankAccountAggregate(bankAccount, emptyList())
+            val savedEntity =
+                PostgresBankAccount(
+                    id = 9L,
+                    aggregateId = uuid,
+                    email = "empty@example.com",
+                    amount = BigDecimal("10.00"),
+                    version = 0L,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(bankAccountJdbcRepository.findByAggregateId(uuid)).thenReturn(null)
+            whenever(bankAccountJdbcRepository.save(any())).thenReturn(savedEntity)
+
+            postgresBankAccountRepository.upsert(aggregate)
+
+            verify(transactionRefJdbcRepository).deleteAllByBankAccountId(9L)
+            verify(transactionRefJdbcRepository, never()).saveAll(any<List<PostgresBankAccountTransactionRef>>())
+        }
 
     @Test
     fun `should return true when email exists`(): Unit =
         runBlocking {
-            // Given
             val email = Email("existing@example.com")
             whenever(bankAccountJdbcRepository.existsByEmail(email.value)).thenReturn(true)
 
-            // When
             val result = postgresBankAccountRepository.existsByEmail(email)
 
-            // Then
             assertThat(result).isTrue()
             verify(bankAccountJdbcRepository).existsByEmail(email.value)
         }
@@ -197,14 +228,11 @@ class PostgresBankAccountRepositoryTest {
     @Test
     fun `should return false when email does not exist`(): Unit =
         runBlocking {
-            // Given
             val email = Email("nonexistent@example.com")
             whenever(bankAccountJdbcRepository.existsByEmail(email.value)).thenReturn(false)
 
-            // When
             val result = postgresBankAccountRepository.existsByEmail(email)
 
-            // Then
             assertThat(result).isFalse()
             verify(bankAccountJdbcRepository).existsByEmail(email.value)
         }

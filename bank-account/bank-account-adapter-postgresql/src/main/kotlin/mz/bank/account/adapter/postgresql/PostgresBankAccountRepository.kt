@@ -9,6 +9,7 @@ import mz.bank.account.domain.Email
 import mz.shared.domain.AggregateId
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 /**
@@ -29,14 +30,20 @@ import java.util.UUID
 @Profile("postgres-persistence")
 internal class PostgresBankAccountRepository(
     private val repository: BankAccountJdbcRepository,
+    private val transactionRefRepository: BankAccountTransactionRefJdbcRepository,
 ) : BankAccountRepository {
     override suspend fun findById(aggregateId: AggregateId): BankAccount? =
         withContext(Dispatchers.IO) {
-            repository
-                .findByAggregateId(UUID.fromString(aggregateId.value))
-                ?.toBankAccount()
+            val account = repository.findByAggregateId(UUID.fromString(aggregateId.value))
+            if (account == null) {
+                null
+            } else {
+                val refs = transactionRefRepository.findAllByBankAccountId(account.id!!)
+                account.toBankAccount(refs)
+            }
         }
 
+    @Transactional
     override suspend fun upsert(aggregate: BankAccountAggregate): BankAccount =
         withContext(Dispatchers.IO) {
             val existing = repository.findByAggregateId(UUID.fromString(aggregate.account.aggregateId.value))
@@ -51,7 +58,18 @@ internal class PostgresBankAccountRepository(
                         versionOverride = aggregate.account.version - 1,
                     )
                 }
-            repository.save(entity).toBankAccount()
+            val saved = repository.save(entity)
+            val bankAccountId =
+                saved.id
+                    ?: throw IllegalStateException("Bank account id must not be null after save")
+
+            transactionRefRepository.deleteAllByBankAccountId(bankAccountId)
+            val refs = aggregate.toTransactionRefs(bankAccountId)
+            if (refs.isNotEmpty()) {
+                transactionRefRepository.saveAll(refs)
+            }
+
+            saved.toBankAccount(refs)
         }
 
     override suspend fun existsByEmail(email: Email): Boolean =
