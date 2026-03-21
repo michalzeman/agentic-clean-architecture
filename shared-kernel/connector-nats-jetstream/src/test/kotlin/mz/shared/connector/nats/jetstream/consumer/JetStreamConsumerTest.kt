@@ -15,7 +15,9 @@ import org.awaitility.kotlin.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.nio.charset.StandardCharsets
@@ -30,7 +32,8 @@ class JetStreamConsumerTest {
         GenericContainer("nats:2.10.7")
             .withExposedPorts(4222)
             .withCommand("--config", "/config/jetstream.conf")
-            .withFileSystemBind("/tmp/nats-jetstream.conf", "/config/jetstream.conf")
+            .withClasspathResourceMapping("nats-jetstream.conf", "/config/jetstream.conf", BindMode.READ_ONLY)
+            .waitingFor(Wait.forLogMessage(".*Server is ready.*", 1))
 
     private val streamName = "TEST_STREAM"
     private val subjectFilter = "test.subject.>"
@@ -242,7 +245,9 @@ class JetStreamConsumerTest {
             val payload = String(data, StandardCharsets.UTF_8)
             return if (payload.contains("Invalid data")) {
                 throw JetStreamMessageConversionException("Simulated deserialization error")
-            } else payload
+            } else {
+                payload
+            }
         }
 
         override val contentType: String = "text/plain"
