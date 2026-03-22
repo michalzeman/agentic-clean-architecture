@@ -21,12 +21,12 @@ class DefaultJetStreamHealthIndicator(
     private val logger = LoggerFactory.getLogger(DefaultJetStreamHealthIndicator::class.java)
 
     override fun checkHealth(): JetStreamHealthStatus {
-        val errors = mutableListOf<String>()
-        var connectionState = JetStreamHealthStatus.ConnectionState.DISCONNECTED
-        val streamStates = mutableListOf<JetStreamHealthStatus.StreamHealth>()
-        val consumerStates = mutableListOf<JetStreamHealthStatus.ConsumerHealth>()
+        return try {
+            val errors = mutableListOf<String>()
+            var connectionState = JetStreamHealthStatus.ConnectionState.DISCONNECTED
+            val streamStates = mutableListOf<JetStreamHealthStatus.StreamHealth>()
+            val consumerStates = mutableListOf<JetStreamHealthStatus.ConsumerHealth>()
 
-        try {
             val connection = connectionFactory.peekConnection()
             if (connection == null) {
                 errors.add("No connection established")
@@ -36,28 +36,38 @@ class DefaultJetStreamHealthIndicator(
                 if (connection.status == Connection.Status.CONNECTED) {
                     val jsm = connection.jetStreamManagement()
 
-                    streamStates.addAll(collectStreamHealth(jsm, errors))
-                    consumerStates.addAll(collectConsumerHealth(jsm, errors))
+                    val (healths, healthErrors) = collectStreamHealth(jsm)
+                    streamStates.addAll(healths)
+                    errors.addAll(healthErrors)
+
+                    val (collectedHealths, collectedErrors) = collectConsumerHealth(jsm)
+                    consumerStates.addAll(collectedHealths)
+                    errors.addAll(collectedErrors)
                 }
             }
+
+            val isHealthy =
+                connectionState == JetStreamHealthStatus.ConnectionState.CONNECTED &&
+                        errors.isEmpty() &&
+                        streamStates.all { it.isHealthy } &&
+                        consumerStates.all { it.isHealthy }
+            JetStreamHealthStatus(
+                isHealthy = isHealthy,
+                connectionState = connectionState,
+                streamStates = streamStates,
+                consumerStates = consumerStates,
+                errors = errors,
+            )
         } catch (e: Exception) {
             logger.error("Failed to check JetStream health", e)
-            errors.add("Connection error: ${e.message}")
+            val errors = listOf("Connection error: ${e.message}")
+
+            JetStreamHealthStatus(
+                isHealthy = false,
+                connectionState = JetStreamHealthStatus.ConnectionState.DISCONNECTED,
+                errors = errors,
+            )
         }
-
-        val isHealthy =
-            connectionState == JetStreamHealthStatus.ConnectionState.CONNECTED &&
-                errors.isEmpty() &&
-                streamStates.all { it.isHealthy } &&
-                consumerStates.all { it.isHealthy }
-
-        return JetStreamHealthStatus(
-            isHealthy = isHealthy,
-            connectionState = connectionState,
-            streamStates = streamStates,
-            consumerStates = consumerStates,
-            errors = errors,
-        )
     }
 
     private fun mapConnectionStatus(status: Connection.Status): JetStreamHealthStatus.ConnectionState =
@@ -68,109 +78,126 @@ class DefaultJetStreamHealthIndicator(
             else -> JetStreamHealthStatus.ConnectionState.FAILED
         }
 
-    private fun collectStreamHealth(
-        jsm: JetStreamManagement,
-        errors: MutableList<String>,
-    ): List<JetStreamHealthStatus.StreamHealth> {
-        val streamHealthList = mutableListOf<JetStreamHealthStatus.StreamHealth>()
+    private fun collectStreamHealth(jsm: JetStreamManagement): HealthResult<List<JetStreamHealthStatus.StreamHealth>> = try {
+            val streamNaˆmes = jsm.streamNames
 
-        try {
-            val streamNames = jsm.streamNames
-
-            for (streamName in streamNames) {
+            streamNames.map { streamName ->
                 try {
                     val streamInfo: StreamInfo = jsm.getStreamInfo(streamName)
                     val streamState = streamInfo.streamState
 
-                    streamHealthList.add(
-                        JetStreamHealthStatus.StreamHealth(
-                            streamName = streamName,
-                            isHealthy = streamState.msgCount >= 0,
-                            messageCount = streamState.msgCount,
-                            byteSize = streamState.byteCount,
-                            consumerCount = streamState.consumerCount.toInt(),
-                        ),
-                    )
+                    HealthResult(JetStreamHealthStatus.StreamHealth(
+                        streamName = streamName,
+                        isHealthy = streamState.msgCount >= 0,
+                        messageCount = streamState.msgCount,
+                        byteSize = streamState.byteCount,
+                        consumerCount = streamState.consumerCount.toInt(),
+                    ))
                 } catch (e: Exception) {
                     logger.warn("Failed to get stream info for: $streamName", e)
-                    errors.add("Stream '$streamName': ${e.message}")
-                    streamHealthList.add(
-                        JetStreamHealthStatus.StreamHealth(
-                            streamName = streamName,
-                            isHealthy = false,
-                            messageCount = -1,
-                            byteSize = -1,
-                            consumerCount = -1,
-                        ),
-                    )
+                    HealthResult(JetStreamHealthStatus.StreamHealth(
+                        streamName = streamName,
+                        isHealthy = false,
+                        messageCount = -1,
+                        byteSize = -1,
+                        consumerCount = -1,
+                    ), listOf("Stream '$streamName': ${e.message}"))
                 }
+            }.fold(HealthResult(emptyList())) { acc, healResult ->
+                HealthResult(
+                    result = acc.result + healResult.result,
+                    errors = acc.errors + healResult.errors,
+                )
             }
         } catch (e: Exception) {
             logger.error("Failed to list streams", e)
-            errors.add("Failed to list streams: ${e.message}")
+            val errors = listOf("Failed to list streams: ${e.message}")
+            HealthResult(emptyList(), errors)
         }
 
-        return streamHealthList
-    }
-
-    private fun collectConsumerHealth(
-        jsm: JetStreamManagement,
-        errors: MutableList<String>,
-    ): List<JetStreamHealthStatus.ConsumerHealth> {
-        val consumerHealthList = mutableListOf<JetStreamHealthStatus.ConsumerHealth>()
-
+    private fun collectConsumerHealth(jsm: JetStreamManagement): HealthResult<List<JetStreamHealthStatus.ConsumerHealth>> =
         try {
             val streamNames = jsm.streamNames
 
-            for (streamName in streamNames) {
-                try {
-                    val consumerNames = jsm.getConsumerNames(streamName)
-
-                    for (consumerName in consumerNames) {
-                        try {
-                            val consumerInfo: ConsumerInfo = jsm.getConsumerInfo(streamName, consumerName)
-                            val delivered = consumerInfo.delivered.consumerSequence
-                            val ackFloor = consumerInfo.ackFloor.consumerSequence
-                            val pendingCount = delivered - ackFloor
-
-                            consumerHealthList.add(
-                                JetStreamHealthStatus.ConsumerHealth(
-                                    streamName = streamName,
-                                    consumerName = consumerName,
-                                    isHealthy = pendingCount >= 0,
-                                    pendingCount = pendingCount.coerceAtLeast(0),
-                                    deliveredCount = delivered,
-                                    ackPendingCount = consumerInfo.numAckPending,
-                                ),
-                            )
-                        } catch (e: Exception) {
-                            logger.warn(
-                                "Failed to get consumer info for: $consumerName on stream: $streamName",
-                                e,
-                            )
-                            errors.add("Consumer '$consumerName' on '$streamName': ${e.message}")
-                            consumerHealthList.add(
-                                JetStreamHealthStatus.ConsumerHealth(
-                                    streamName = streamName,
-                                    consumerName = consumerName,
-                                    isHealthy = false,
-                                    pendingCount = -1,
-                                    deliveredCount = -1,
-                                    ackPendingCount = -1,
-                                ),
-                            )
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Failed to get consumers for stream: $streamName", e)
-                    errors.add("Stream '$streamName' consumers: ${e.message}")
+            streamNames
+                .map { streamName ->
+                    collectHealthByConsumerNames(jsm, streamName)
+                }.fold(HealthResult(emptyList())) { acc, healthResult ->
+                    HealthResult(
+                        result = acc.result + healthResult.result,
+                        errors = acc.errors + healthResult.errors,
+                    )
                 }
-            }
         } catch (e: Exception) {
             logger.error("Failed to collect consumer health", e)
-            errors.add("Failed to collect consumer health: ${e.message}")
+            val error = "Failed to collect consumer health: ${e.message}"
+            HealthResult(emptyList(), listOf(error))
         }
 
-        return consumerHealthList
-    }
+    private fun collectHealthByConsumerNames(
+        jsm: JetStreamManagement,
+        streamName: String,
+    ): HealthResult<List<JetStreamHealthStatus.ConsumerHealth>> =
+        try {
+            val consumerNames = jsm.getConsumerNames(streamName)
+            val healthResults =
+                consumerNames.map { consumerName ->
+                    collectHealthByConsumerName(streamName, jsm, consumerName)
+                }
+            healthResults.fold(HealthResult(emptyList())) { acc, healthResult ->
+                HealthResult(
+                    result = acc.result + healthResult.result,
+                    errors = acc.errors + healthResult.errors,
+                )
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to get consumer names for stream: $streamName", e)
+            val error = "Stream '$streamName' consumers: ${e.message}"
+            HealthResult(emptyList(), listOf(error))
+        }
+
+    private fun collectHealthByConsumerName(
+        streamName: String,
+        jsm: JetStreamManagement,
+        consumerName: String,
+    ): HealthResult<JetStreamHealthStatus.ConsumerHealth> =
+        try {
+            val consumerInfo: ConsumerInfo = jsm.getConsumerInfo(streamName, consumerName)
+            val delivered = consumerInfo.delivered.consumerSequence
+            val ackFloor = consumerInfo.ackFloor.consumerSequence
+            val pendingCount = delivered - ackFloor
+
+            HealthResult(
+                JetStreamHealthStatus.ConsumerHealth(
+                    streamName = streamName,
+                    consumerName = consumerName,
+                    isHealthy = pendingCount >= 0,
+                    pendingCount = pendingCount.coerceAtLeast(0),
+                    deliveredCount = delivered,
+                    ackPendingCount = consumerInfo.numAckPending,
+                ),
+            )
+        } catch (e: Exception) {
+            logger.warn(
+                "Failed to get consumer info for: $consumerName on stream: $streamName",
+                e,
+            )
+            val error = "Consumer '$consumerName' on '$streamName': ${e.message}"
+            HealthResult(
+                JetStreamHealthStatus.ConsumerHealth(
+                    streamName = streamName,
+                    consumerName = consumerName,
+                    isHealthy = false,
+                    pendingCount = -1,
+                    deliveredCount = -1,
+                    ackPendingCount = -1,
+                ),
+                listOf(error),
+            )
+        }
 }
+
+private data class HealthResult<T>(
+    val result: T,
+    val errors: List<String> = emptyList(),
+)
