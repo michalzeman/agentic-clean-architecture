@@ -20,8 +20,8 @@ class DefaultJetStreamHealthIndicator(
 ) : JetStreamHealthIndicator {
     private val logger = LoggerFactory.getLogger(DefaultJetStreamHealthIndicator::class.java)
 
-    override fun checkHealth(): JetStreamHealthStatus {
-        return try {
+    override fun checkHealth(): JetStreamHealthStatus =
+        try {
             val errors = mutableListOf<String>()
             var connectionState = JetStreamHealthStatus.ConnectionState.DISCONNECTED
             val streamStates = mutableListOf<JetStreamHealthStatus.StreamHealth>()
@@ -35,12 +35,13 @@ class DefaultJetStreamHealthIndicator(
 
                 if (connection.status == Connection.Status.CONNECTED) {
                     val jsm = connection.jetStreamManagement()
+                    val streamNames = jsm.streamNames
 
-                    val (healths, healthErrors) = collectStreamHealth(jsm)
+                    val (healths, healthErrors) = collectStreamHealth(jsm, streamNames)
                     streamStates.addAll(healths)
                     errors.addAll(healthErrors)
 
-                    val (collectedHealths, collectedErrors) = collectConsumerHealth(jsm)
+                    val (collectedHealths, collectedErrors) = collectConsumerHealth(jsm, streamNames)
                     consumerStates.addAll(collectedHealths)
                     errors.addAll(collectedErrors)
                 }
@@ -48,9 +49,9 @@ class DefaultJetStreamHealthIndicator(
 
             val isHealthy =
                 connectionState == JetStreamHealthStatus.ConnectionState.CONNECTED &&
-                        errors.isEmpty() &&
-                        streamStates.all { it.isHealthy } &&
-                        consumerStates.all { it.isHealthy }
+                    errors.isEmpty() &&
+                    streamStates.all { it.isHealthy } &&
+                    consumerStates.all { it.isHealthy }
             JetStreamHealthStatus(
                 isHealthy = isHealthy,
                 connectionState = connectionState,
@@ -68,7 +69,6 @@ class DefaultJetStreamHealthIndicator(
                 errors = errors,
             )
         }
-    }
 
     private fun mapConnectionStatus(status: Connection.Status): JetStreamHealthStatus.ConnectionState =
         when (status) {
@@ -78,30 +78,37 @@ class DefaultJetStreamHealthIndicator(
             else -> JetStreamHealthStatus.ConnectionState.FAILED
         }
 
-    private fun collectStreamHealth(jsm: JetStreamManagement): HealthResult<List<JetStreamHealthStatus.StreamHealth>> = try {
-            val streamNaˆmes = jsm.streamNames
-
-            streamNames.map { streamName ->
+    private fun collectStreamHealth(
+        jsm: JetStreamManagement,
+        streamNames: List<String>,
+    ): HealthResult<List<JetStreamHealthStatus.StreamHealth>> =
+        streamNames
+            .map { streamName ->
                 try {
                     val streamInfo: StreamInfo = jsm.getStreamInfo(streamName)
                     val streamState = streamInfo.streamState
 
-                    HealthResult(JetStreamHealthStatus.StreamHealth(
-                        streamName = streamName,
-                        isHealthy = streamState.msgCount >= 0,
-                        messageCount = streamState.msgCount,
-                        byteSize = streamState.byteCount,
-                        consumerCount = streamState.consumerCount.toInt(),
-                    ))
+                    HealthResult(
+                        JetStreamHealthStatus.StreamHealth(
+                            streamName = streamName,
+                            isHealthy = streamState.msgCount >= 0,
+                            messageCount = streamState.msgCount,
+                            byteSize = streamState.byteCount,
+                            consumerCount = streamState.consumerCount.toInt(),
+                        ),
+                    )
                 } catch (e: Exception) {
                     logger.warn("Failed to get stream info for: $streamName", e)
-                    HealthResult(JetStreamHealthStatus.StreamHealth(
-                        streamName = streamName,
-                        isHealthy = false,
-                        messageCount = -1,
-                        byteSize = -1,
-                        consumerCount = -1,
-                    ), listOf("Stream '$streamName': ${e.message}"))
+                    HealthResult(
+                        JetStreamHealthStatus.StreamHealth(
+                            streamName = streamName,
+                            isHealthy = false,
+                            messageCount = -1,
+                            byteSize = -1,
+                            consumerCount = -1,
+                        ),
+                        listOf("Stream '$streamName': ${e.message}"),
+                    )
                 }
             }.fold(HealthResult(emptyList())) { acc, healResult ->
                 HealthResult(
@@ -109,16 +116,12 @@ class DefaultJetStreamHealthIndicator(
                     errors = acc.errors + healResult.errors,
                 )
             }
-        } catch (e: Exception) {
-            logger.error("Failed to list streams", e)
-            val errors = listOf("Failed to list streams: ${e.message}")
-            HealthResult(emptyList(), errors)
-        }
 
-    private fun collectConsumerHealth(jsm: JetStreamManagement): HealthResult<List<JetStreamHealthStatus.ConsumerHealth>> =
+    private fun collectConsumerHealth(
+        jsm: JetStreamManagement,
+        streamNames: List<String>,
+    ): HealthResult<List<JetStreamHealthStatus.ConsumerHealth>> =
         try {
-            val streamNames = jsm.streamNames
-
             streamNames
                 .map { streamName ->
                     collectHealthByConsumerNames(jsm, streamName)
