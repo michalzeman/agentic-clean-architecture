@@ -1,7 +1,5 @@
 package mz.shared.connector.nats.jetstream.producer
 
-import mz.shared.connector.nats.jetstream.consumer.JetStreamMessage
-
 /**
  * Contract for JetStream message producers.
  *
@@ -17,10 +15,10 @@ interface JetStreamProducer<T> {
     /**
      * Publishes a message to JetStream.
      *
-     * @param message The message to publish, including subject, payload, and optional message ID for deduplication
+     * @param request The publish request, including subject, payload, and optional message ID for deduplication
      * @return Publish acknowledgment with sequence number
      */
-    suspend fun publish(message: JetStreamMessage<T>): PublishAck
+    suspend fun publish(request: JetStreamPublishRequest<T>): PublishAck
 
     /**
      * Publishes multiple messages in a batch for efficiency.
