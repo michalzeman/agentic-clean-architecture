@@ -4,6 +4,7 @@ dependencies {
     api(project(":bank-account:bank-account-domain"))
     api(project(":bank-account:bank-account-application"))
     api(project(":bank-account:bank-account-contract-proto"))
+    api(project(":bank-account:bank-account-adapter-redis-stream"))
     api(project(":bank-transaction:bank-transaction-contract-proto"))
     api(project(":shared-kernel:connector-nats-jetstream"))
     api(project(":shared-kernel:connector-nats-jetstream-starter"))
