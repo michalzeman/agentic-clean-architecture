@@ -1,0 +1,24 @@
+adapters:
+  nats-jetstream:
+    bank-account-events-stream: bank-account.event.bank-accounts
+    bank-account-events-subject: bank-account.events
+    bank-transaction-events-stream: bank-transaction.event.bank-transactions
+    bank-transaction-events-subject: bank-transaction.events
+    consumer-name: bank-account-consumer
+    consumer-group: bank-account-service
+
+# NATS JetStream connection configuration
+nats:
+  jetstream:
+    enabled: true
+    connection:
+      server-url: ${NATS_URL:nats://localhost:4222}
+    streams:
+      bank-account-events:
+        enabled: true
+        subjects:
+          - bank-account.events
+        storage-type: FILE
+        retention-policy: WORKQUEUE
+        max-messages: 100000
+        max-age: 7d
