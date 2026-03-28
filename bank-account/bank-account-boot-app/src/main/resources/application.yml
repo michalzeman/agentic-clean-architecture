@@ -10,6 +10,25 @@ management:
 spring:
   profiles:
     active: redis-persistence
+    group:
+      # All Redis (development/simple) - DEFAULT
+      redis-all:
+        - "redis-persistence"
+        - "redis-stream"
+      
+      # Production-grade (PostgreSQL + NATS)
+      postgres-nats:
+        - "postgres-persistence"
+        - "nats-jetstream"
+      
+      # Hybrid (Redis cache + NATS messaging)
+      hybrid:
+        - "redis-persistence"
+        - "nats-jetstream"
+
+      # PostgreSQL only (no messaging)
+      postgres-only:
+        - "postgres-persistence"
 
   application:
     name: bank-account-service

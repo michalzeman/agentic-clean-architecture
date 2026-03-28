@@ -11,6 +11,9 @@ dependencies {
     implementation(project(":bank-transaction:bank-transaction-adapter-postgresql"))
     implementation(project(":bank-transaction:bank-transaction-adapter-redis-stream"))
     implementation(project(":bank-transaction:bank-transaction-adapter-rest"))
+    if (project.hasProperty("messagingProfile") && project.property("messagingProfile") == "nats-jetstream") {
+        implementation(project(":bank-transaction:bank-transaction-adapter-nats-jetstream"))
+    }
     implementation(project(":shared-kernel:connector-redis-starter"))
     implementation(project(":shared-kernel:connector-postgresql-starter"))
 

@@ -1,9 +1,8 @@
 package mz.bank.account.adapter.nats.jetstream.mapper
 
 import mz.bank.account.adapter.redis.stream.BankAccountEventMapper
-import mz.bank.account.contract.proto.BankAccountEvent
-import mz.bank.account.domain.BankAccountEvent as DomainEvent
 import org.springframework.stereotype.Component
+import mz.bank.account.domain.BankAccountEvent as DomainEvent
 
 /**
  * Mapper for converting domain events to protobuf for JetStream publishing.
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Component
  */
 @Component
 class BankAccountEventToJetStreamMapper {
-
     /**
      * Converts a domain BankAccountEvent to protobuf bytes for JetStream.
      */
