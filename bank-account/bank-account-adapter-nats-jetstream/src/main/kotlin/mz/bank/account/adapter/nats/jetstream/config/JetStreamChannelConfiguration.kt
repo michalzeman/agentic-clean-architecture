@@ -1,7 +1,7 @@
 package mz.bank.account.adapter.nats.jetstream.config
 
 import mz.bank.account.adapter.nats.jetstream.BankAccountJetStreamProperties
-import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -23,7 +23,7 @@ class JetStreamChannelConfiguration {
      */
     @Bean
     fun outboundBankAccountJetStreamChannel(
-        @Qualifier("applicationIdentifier") applicationIdentifier: String,
+        @Value("\${application.identifier}") applicationIdentifier: String,
     ): MessageChannel =
         MessageChannels
             .publishSubscribe(

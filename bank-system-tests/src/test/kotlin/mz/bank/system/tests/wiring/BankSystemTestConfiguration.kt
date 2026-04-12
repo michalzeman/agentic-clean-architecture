@@ -4,10 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.system.tests.ServiceHealthChecker
 import mz.bank.transaction.contract.proto.BankTransactionEvent
+import mz.shared.connector.nats.NatsConnectionFactory
+import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumer
+import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumerBuilder
+import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -16,6 +21,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.dsl.QueueChannelSpec
 import org.springframework.messaging.MessageChannel
+import org.springframework.messaging.support.MessageBuilder
 import org.springframework.web.reactive.function.client.WebClient
 
 /**
@@ -39,6 +45,18 @@ data class TestProperties(
      */
     val adapterRedisStreamsBankTransaction: BankTransactionRedisStreamProperties
         get() = adapter.redisStreams.bankTransaction
+
+    /**
+     * Gets the bank account NATS JetStream properties from the nested adapter structure.
+     */
+    val adapterNatsJetStreamBankAccount: BankAccountNatsJetStreamProperties
+        get() = adapter.natsJetstream.bankAccount
+
+    /**
+     * Gets the bank transaction NATS JetStream properties from the nested adapter structure.
+     */
+    val adapterNatsJetStreamBankTransaction: BankTransactionNatsJetStreamProperties
+        get() = adapter.natsJetstream.bankTransaction
 }
 
 /**
@@ -46,6 +64,7 @@ data class TestProperties(
  */
 data class AdapterProperties(
     val redisStreams: RedisStreamsProperties,
+    val natsJetstream: NatsJetstreamProperties = NatsJetstreamProperties(),
 )
 
 /**
@@ -54,6 +73,14 @@ data class AdapterProperties(
 data class RedisStreamsProperties(
     val bankAccount: BankAccountRedisStreamProperties,
     val bankTransaction: BankTransactionRedisStreamProperties,
+)
+
+/**
+ * NATS JetStream configuration container.
+ */
+data class NatsJetstreamProperties(
+    val bankAccount: BankAccountNatsJetStreamProperties = BankAccountNatsJetStreamProperties(),
+    val bankTransaction: BankTransactionNatsJetStreamProperties = BankTransactionNatsJetStreamProperties(),
 )
 
 /**
@@ -72,6 +99,24 @@ data class BankTransactionRedisStreamProperties(
     val eventsStream: String,
     val eventsConsumerGroup: String,
     val eventsConsumerName: String,
+)
+
+/**
+ * Bank account NATS JetStream specific properties.
+ */
+data class BankAccountNatsJetStreamProperties(
+    val eventsStream: String = "bank-account.event.bank-accounts",
+    val eventsSubject: String = "bank-account.events",
+    val consumerName: String = "bank-account-consumer-system-tests",
+)
+
+/**
+ * Bank transaction NATS JetStream specific properties.
+ */
+data class BankTransactionNatsJetStreamProperties(
+    val eventsStream: String = "bank-transaction.event.bank-transactions",
+    val eventsSubject: String = "bank-transaction.events",
+    val consumerName: String = "bank-transaction-consumer-system-tests",
 )
 
 /**
@@ -127,6 +172,8 @@ class BankSystemTestConfiguration(
             serviceName = "bank-transaction-service",
         )
 
+    // ─── Redis channels ───────────────────────────────────────────────────────
+
     @Bean
     fun bankAccountEventsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
 
@@ -170,4 +217,100 @@ class BankSystemTestConfiguration(
             redisConnectionFactory = lettuceConnectionFactory,
             objectMapper = protobufObjectMapper,
         ).build()
+
+    // ─── NATS JetStream channels (active only when nats.jetstream.enabled=true) ──
+
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankAccountEventsNatsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
+
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankTransactionEventsNatsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
+
+    /**
+     * JetStream message converter for BankAccountEvent protobuf messages.
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankAccountEventJetStreamConverter(
+        @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
+    ): JetStreamMessageConverter<BankAccountEvent> =
+        object : JetStreamMessageConverter<BankAccountEvent> {
+            override val contentType: String = "application/protobuf"
+
+            override fun serialize(payload: BankAccountEvent): ByteArray = objectMapper.writeValueAsBytes(payload)
+
+            override fun deserialize(
+                data: ByteArray,
+                subject: String,
+                headers: Map<String, List<String>>,
+            ): BankAccountEvent = objectMapper.readValue(data, BankAccountEvent::class.java)
+        }
+
+    /**
+     * JetStream message converter for BankTransactionEvent protobuf messages.
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankTransactionEventJetStreamConverter(
+        @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
+    ): JetStreamMessageConverter<BankTransactionEvent> =
+        object : JetStreamMessageConverter<BankTransactionEvent> {
+            override val contentType: String = "application/protobuf"
+
+            override fun serialize(payload: BankTransactionEvent): ByteArray = objectMapper.writeValueAsBytes(payload)
+
+            override fun deserialize(
+                data: ByteArray,
+                subject: String,
+                headers: Map<String, List<String>>,
+            ): BankTransactionEvent = objectMapper.readValue(data, BankTransactionEvent::class.java)
+        }
+
+    /**
+     * NATS JetStream consumer for bank account events.
+     * Active only when nats.jetstream.enabled=true.
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankAccountEventsNatsConsumer(
+        connectionFactory: NatsConnectionFactory,
+        bankAccountEventJetStreamConverter: JetStreamMessageConverter<BankAccountEvent>,
+        bankAccountEventsNatsStreamChannel: MessageChannel,
+    ): JetStreamConsumer<BankAccountEvent> =
+        JetStreamConsumerBuilder<BankAccountEvent>(
+            streamName = testProperties.adapterNatsJetStreamBankAccount.eventsStream,
+            subject = testProperties.adapterNatsJetStreamBankAccount.eventsSubject,
+            consumerName = testProperties.adapterNatsJetStreamBankAccount.consumerName,
+        ).withConnectionFactory(connectionFactory)
+            .withConverter(bankAccountEventJetStreamConverter)
+            .withMessageHandler { message ->
+                bankAccountEventsNatsStreamChannel.send(
+                    MessageBuilder.withPayload(message.payload).build(),
+                )
+            }.build()
+
+    /**
+     * NATS JetStream consumer for bank transaction events.
+     * Active only when nats.jetstream.enabled=true.
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "true")
+    fun bankTransactionEventsNatsConsumer(
+        connectionFactory: NatsConnectionFactory,
+        bankTransactionEventJetStreamConverter: JetStreamMessageConverter<BankTransactionEvent>,
+        bankTransactionEventsNatsStreamChannel: MessageChannel,
+    ): JetStreamConsumer<BankTransactionEvent> =
+        JetStreamConsumerBuilder<BankTransactionEvent>(
+            streamName = testProperties.adapterNatsJetStreamBankTransaction.eventsStream,
+            subject = testProperties.adapterNatsJetStreamBankTransaction.eventsSubject,
+            consumerName = testProperties.adapterNatsJetStreamBankTransaction.consumerName,
+        ).withConnectionFactory(connectionFactory)
+            .withConverter(bankTransactionEventJetStreamConverter)
+            .withMessageHandler { message ->
+                bankTransactionEventsNatsStreamChannel.send(
+                    MessageBuilder.withPayload(message.payload).build(),
+                )
+            }.build()
 }

@@ -11,14 +11,14 @@ dependencies {
     implementation(project(":bank-account:bank-account-adapter-postgresql"))
     implementation(project(":bank-account:bank-account-adapter-redis-stream"))
     implementation(project(":bank-account:bank-account-adapter-rest"))
-    if (project.hasProperty("messagingProfile") && project.property("messagingProfile") == "nats-jetstream") {
+    val jetStreamGroups = listOf("hybrid", "postgres-nats")
+    val springProfileGroup = project.findProperty("springProfileGroup")?.toString() ?: "redis-all"
+    if (springProfileGroup in jetStreamGroups) {
         implementation(project(":bank-account:bank-account-adapter-nats-jetstream"))
+        implementation(project(":shared-kernel:connector-nats-jetstream-starter"))
     }
     implementation(project(":shared-kernel:connector-redis-starter"))
     implementation(project(":shared-kernel:connector-postgresql-starter"))
-    if (project.hasProperty("messagingProfile") && project.property("messagingProfile") == "nats-jetstream") {
-        implementation(project(":shared-kernel:connector-nats-jetstream-starter"))
-    }
 
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.springframework.boot:spring-boot-starter")

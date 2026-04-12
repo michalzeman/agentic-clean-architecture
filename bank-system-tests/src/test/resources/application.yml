@@ -8,6 +8,12 @@ spring:
       port: 6379
       database: 0
 
+nats:
+  jetstream:
+    enabled: ${NATS_JETSTREAM_ENABLED:false}
+    connection:
+      server-url: ${NATS_URL:nats://localhost:4222}
+
 bank-system-tests:
   account-service-url: "http://localhost:8080"
   transaction-service-url: "http://localhost:8081"
@@ -18,8 +24,16 @@ bank-system-tests:
         events-stream: bank-account.event.bank-accounts
         events-consumer-group: bank-account-service-systen-tests
         events-consumer-name: bank-account-consumer-systen-tests
-
       bank-transaction:
         events-stream: bank-transaction.event.bank-transactions
         events-consumer-group: bank-transaction-service-systen-tests
         events-consumer-name: bank-transaction-consumer-systen-tests
+    nats-jetstream:
+      bank-account:
+        events-stream: bank-account.event.bank-accounts
+        events-subject: bank-account.events
+        consumer-name: bank-account-consumer-system-tests
+      bank-transaction:
+        events-stream: bank-transaction.event.bank-transactions
+        events-subject: bank-transaction.events
+        consumer-name: bank-transaction-consumer-system-tests

@@ -34,6 +34,22 @@ services:
       retries: 10
       start_period: 10s
 
+  nats-db:
+    image: 'nats:2.10.7'
+    command: ["-c", "/etc/nats/nats-jetstream.conf"]
+    ports:
+      - '4222:4222'
+    volumes:
+      - ./nats-jetstream.conf:/etc/nats/nats-jetstream.conf:ro
+    profiles:
+      - system-tests
+    healthcheck:
+      test: ["CMD", "nats-server", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   bank-account-service:
     image: 'bank-account:latest'
     build:
@@ -46,14 +62,17 @@ services:
         condition: service_started
       postgres-db:
         condition: service_healthy
+      nats-db:
+        condition: service_started
     environment:
       - REDIS_DB=redis-db
       - POSTGRES_DB=postgres-db
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8080
-      - SPRING_PROFILES_ACTIVE=postgres-persistence
-      - NATS_JETSTREAM_ENABLED=false
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-redis-all}
+      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-false}
+      - NATS_URL=nats://nats-db:4222
     profiles:
       - system-tests
     healthcheck:
@@ -75,6 +94,8 @@ services:
         condition: service_started
       postgres-db:
         condition: service_healthy
+      nats-db:
+        condition: service_started
       bank-account-service:
         condition: service_healthy
     environment:
@@ -83,8 +104,9 @@ services:
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8081
-      - SPRING_PROFILES_ACTIVE=postgres-persistence
-      - NATS_JETSTREAM_ENABLED=false
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-redis-all}
+      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-false}
+      - NATS_URL=nats://nats-db:4222
     profiles:
       - system-tests
     healthcheck:

@@ -11,6 +11,9 @@ dependencies {
     // Spring context for configuration
     api("org.springframework:spring-context")
 
+    // Spring Boot autoconfigure for @ConfigurationProperties
+    api("org.springframework.boot:spring-boot-autoconfigure")
+
     // Logging
     api("org.slf4j:slf4j-api")
 

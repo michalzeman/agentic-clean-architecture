@@ -129,8 +129,15 @@ tasks.register<Exec>("dockerComposeUp") {
     dependsOn(":bank-account:bank-account-boot-app:bootJar")
     dependsOn(":bank-transaction:bank-transaction-boot-app:bootJar")
 
-    val persistenceProfile = project.findProperty("persistenceProfile")?.toString() ?: "redis-persistence"
-    environment("PERSISTENCE_PROFILE", persistenceProfile)
+    val springProfileGroup = project.findProperty("springProfileGroup")?.toString() ?: "redis-all"
+    val natsProfiles = listOf("hybrid", "postgres-nats")
+    val natsJetStreamEnabled = if (springProfileGroup in natsProfiles) "true" else "false"
+
+    // Pass environment variables to docker compose and its services
+    val envMap = environment.toMutableMap()
+    envMap["SPRING_PROFILE_GROUP"] = springProfileGroup
+    envMap["NATS_JETSTREAM_ENABLED"] = natsJetStreamEnabled
+    environment = envMap
 
     commandLine("docker", "compose", "--profile", "system-tests", "up", "-d", "--wait", "--build")
 }

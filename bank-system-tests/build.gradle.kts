@@ -13,6 +13,7 @@ dependencies {
     testImplementation("org.springframework.integration:spring-integration-redis")
 
     testImplementation(project(":shared-kernel:connector-redis-starter"))
+    testImplementation(project(":shared-kernel:connector-nats-jetstream-starter"))
     testImplementation(project(":shared-kernel:connector-system-tests"))
 
     testImplementation(project(":bank-account:bank-account-contract-proto"))
@@ -32,4 +33,10 @@ tasks.named<Test>("systemTest") {
     useJUnitPlatform {
         includeTags("systemChecks")
     }
+
+    val springProfileGroup = project.findProperty("springProfileGroup")?.toString() ?: "redis-all"
+    val natsProfiles = listOf("hybrid", "postgres-nats")
+    val natsJetStreamEnabled = if (springProfileGroup in natsProfiles) "true" else "false"
+    environment("NATS_JETSTREAM_ENABLED", natsJetStreamEnabled)
+    environment("NATS_URL", "nats://localhost:4222")
 }

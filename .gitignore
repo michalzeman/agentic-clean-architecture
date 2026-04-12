@@ -6,3 +6,4 @@
 /.worktrees/
 /worktrees/
 /docs/plans/**
+/.opencode/package-lock.json

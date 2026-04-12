@@ -12,8 +12,10 @@
 - **Test all**: `./gradlew test`
 - **Test single class**: `./gradlew :module-name:test --tests "fully.qualified.TestClassName"`
 - **Test single method**: `./gradlew :module-name:test --tests "fully.qualified.TestClassName.methodName"`
-- **System tests**: `./gradlew systemTest` (starts Docker Compose)
-- **System tests (PostgreSQL)**: `./gradlew systemTest -PpersistenceProfile=postgres-persistence`
+- **System tests (Redis — default)**: `./gradlew systemTest`
+- **System tests (PostgreSQL + Redis Streams)**: `./gradlew systemTest -PspringProfileGroup=postgres-only`
+- **System tests (Redis + NATS JetStream)**: `./gradlew systemTest -PspringProfileGroup=hybrid`
+- **System tests (PostgreSQL + NATS JetStream)**: `./gradlew systemTest -PspringProfileGroup=postgres-nats`
 - **Start infra only**: `./gradlew dockerComposeUp` / `./gradlew tearDownDockerCompose`
 - **Format check**: `./gradlew spotlessCheck`
 - **Format apply**: `./gradlew spotlessApply`

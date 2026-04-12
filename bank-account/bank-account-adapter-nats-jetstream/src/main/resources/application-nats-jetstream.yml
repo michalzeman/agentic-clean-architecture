@@ -7,8 +7,10 @@ adapters:
     consumer-name: bank-account-consumer
     consumer-group: bank-account-service
 
-# NATS JetStream connection configuration
+# NATS connection (used by NatsConnectionFactory via NatsConnectionProperties)
 nats:
+  connection:
+    server-url: ${NATS_URL:nats://localhost:4222}
   jetstream:
     enabled: true
     connection:
