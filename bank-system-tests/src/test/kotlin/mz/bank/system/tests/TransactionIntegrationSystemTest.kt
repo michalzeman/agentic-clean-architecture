@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.context.SpringBootTest
@@ -36,6 +37,7 @@ import java.util.UUID
     classes = [BankSystemTestConfiguration::class],
 )
 @TestInstance(Lifecycle.PER_CLASS)
+@DisabledIfEnvironmentVariable(named = "NATS_JETSTREAM_ENABLED", matches = "true")
 class TransactionIntegrationSystemTest {
     private val objectMapper = ObjectMapper()
 
