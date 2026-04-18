@@ -3,6 +3,7 @@ package mz.bank.account.adapter.redis.stream
 import mz.shared.connector.redis.RedisStreamPublisher
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Profile
 import org.springframework.integration.annotation.Poller
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.messaging.Message
@@ -17,6 +18,7 @@ private val logger = LoggerFactory.getLogger(RedisStreamBankAccountEventsPublish
  * to the configured Redis stream.
  */
 @Component
+@Profile("!nats-jetstream")
 class RedisStreamBankAccountEventsPublisher(
     private val bankAccountEventsRedisStreamPublisher: RedisStreamPublisher<ProtoBankAccountEvent>,
     @param:Value("\${adapters.redis.stream.poller-delay-ms:100}") private val pollerDelayMs: Long,

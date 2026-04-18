@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
 import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
@@ -24,6 +25,7 @@ import mz.bank.transaction.domain.BankTransactionEvent as DomainBankTransactionE
  * Handles transformation from domain events to protobuf events and publishing to Redis stream.
  */
 @Configuration
+@Profile("!nats-jetstream")
 @EnableConfigurationProperties(BankTransactionRedisStreamProperties::class)
 class OutboundBankTransactionRedisStreamConfiguration(
     @param:Value("\${application.identifier}")
