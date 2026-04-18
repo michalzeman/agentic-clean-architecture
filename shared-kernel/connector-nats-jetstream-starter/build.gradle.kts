@@ -13,5 +13,7 @@ dependencies {
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.nats:jnats-server-runner:${property("natsJavaClientVersion")}")
+    testImplementation("org.testcontainers:testcontainers:${property("testcontainersVersion")}")
+    testImplementation("org.testcontainers:junit-jupiter:${property("testcontainersJunitVersion")}")
+    testImplementation("org.awaitility:awaitility-kotlin")
 }

@@ -58,4 +58,16 @@ class JetStreamAutoConfiguration {
     @ConditionalOnMissingBean
     fun jetStreamHealthIndicator(connectionFactory: NatsConnectionFactory): JetStreamHealthIndicator =
         DefaultJetStreamHealthIndicator(connectionFactory)
+
+    /**
+     * Initializes JetStream streams at application startup.
+     *
+     * This bean runs at phase 0 (earliest), ensuring streams exist before
+     * consumers attempt to subscribe (which run at default phase).
+     */
+    @Bean
+    fun jetStreamStreamInitializer(
+        connectionFactory: NatsConnectionFactory,
+        properties: JetStreamProperties,
+    ): JetStreamStreamInitializer = JetStreamStreamInitializer(connectionFactory.getConnection(), properties)
 }

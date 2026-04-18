@@ -95,6 +95,7 @@ class JetStreamConsumerTest {
         val receivedMessages = CopyOnWriteArrayList<JetStreamMessage<String>>()
 
         val consumer = buildConsumer(receivedMessages)
+        consumer.start()
 
         publishMessage(connection, "test.subject.one", "Hello World")
 
@@ -115,6 +116,7 @@ class JetStreamConsumerTest {
         val receivedMessages = CopyOnWriteArrayList<JetStreamMessage<String>>()
 
         val consumer = buildConsumer(receivedMessages, "test-consumer-ack")
+        consumer.start()
 
         publishMessage(connection, "test.subject.two", "Message to ack")
 
@@ -136,6 +138,7 @@ class JetStreamConsumerTest {
         val receivedMessages = CopyOnWriteArrayList<JetStreamMessage<String>>()
 
         val consumer = buildConsumer(receivedMessages, "test-consumer-nak")
+        consumer.start()
 
         publishMessage(connection, "test.subject.three", "Message to nak")
 
@@ -157,6 +160,7 @@ class JetStreamConsumerTest {
         val receivedMessages = CopyOnWriteArrayList<JetStreamMessage<String>>()
 
         val consumer = buildConsumer(receivedMessages, "test-consumer-no-raw")
+        consumer.start()
 
         publishMessage(connection, "test.subject.four", "Test message")
 
@@ -194,6 +198,8 @@ class JetStreamConsumerTest {
                     receivedMessages.add(message)
                 }.withBatchSize(10)
                 .build()
+
+        consumer.start()
 
         publishMessage(connection, "test.subject.five", "Invalid data")
 

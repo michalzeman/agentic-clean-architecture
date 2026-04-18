@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import org.slf4j.LoggerFactory
+import org.springframework.context.SmartLifecycle
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -64,6 +65,13 @@ interface JetStreamConsumer<T> {
     suspend fun negativeAcknowledge(message: JetStreamMessage<T>)
 
     /**
+     * Starts the consumer (for use outside Spring context).
+     * In Spring-managed contexts, SmartLifecycle handles startup automatically.
+     * Call this manually when creating consumers directly via JetStreamConsumerBuilder.
+     */
+    fun start()
+
+    /**
      * Indicates if this consumer should be durable.
      * Durable consumers persist delivery state across restarts.
      */
@@ -98,7 +106,9 @@ class JetStreamConsumeException(
  *
  * This implementation uses pull-based message consumption which provides better
  * flow control and horizontal scaling capabilities compared to push consumers.
- * Consumption starts immediately when the consumer is created.
+ *
+ * Consumption starts via SmartLifecycle.start() at default phase (Int.MAX_VALUE),
+ * ensuring it runs AFTER all other beans including stream initialization (phase 0).
  *
  * @param T The type of message payload
  * @param consumerName Unique name for this consumer (used for durable consumer identification)
@@ -129,7 +139,8 @@ internal class DefaultJetStreamConsumer<T>(
     private val fetchIntervalMillis: Long = 100L,
     private val ackWaitSeconds: Long = 30L,
     private val maxDeliver: Int = 3,
-) : JetStreamConsumer<T> {
+) : JetStreamConsumer<T>,
+    SmartLifecycle {
     private val logger = LoggerFactory.getLogger(DefaultJetStreamConsumer::class.java)
 
     // Holds the subscription reference once initialized; null until first use
@@ -144,12 +155,42 @@ internal class DefaultJetStreamConsumer<T>(
 
     private val isRunning = AtomicBoolean(true)
 
+    private val consumerStarted = AtomicBoolean(false)
+
     // Tracks number of NAK failures to aid diagnosis of message storms
     private val nakFailureCount = AtomicLong(0)
 
-    init {
+    /**
+     * SmartLifecycle start() - starts message consumption.
+     * Called by Spring at application startup (default phase Int.MAX_VALUE),
+     * after all other beans including stream initialization (phase 0).
+     */
+    override fun start() {
+        if (consumerStarted.getAndSet(true)) {
+            logger.debug("Consumer already started: consumer={}", consumerName)
+            return
+        }
         startConsuming()
     }
+
+    /**
+     * SmartLifecycle stop() - stops message consumption and cleanup.
+     * Called by Spring during application shutdown.
+     */
+    override fun stop() {
+        stopConsuming()
+    }
+
+    /**
+     * SmartLifecycle isRunning() - checks if consumer is currently consuming.
+     */
+    override fun isRunning(): Boolean = isRunning.get()
+
+    /**
+     * SmartLifecycle getPhase() - defines startup/shutdown order.
+     * Using default (Int.MAX_VALUE) ensures this starts AFTER stream initialization (phase 0).
+     */
+    override fun getPhase(): Int = Int.MAX_VALUE
 
     /**
      * Creates the JetStream pull subscription with appropriate consumer configuration.
