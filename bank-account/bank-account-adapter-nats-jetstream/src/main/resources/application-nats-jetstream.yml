@@ -16,11 +16,11 @@ nats:
     connection:
       server-url: ${NATS_URL:nats://localhost:4222}
     streams:
-      bank-account-events:
-        enabled: true
-        subjects:
-          - bank-account.events
-        storage-type: FILE
-        retention-policy: WORKQUEUE
-        max-messages: 100000
-        max-age: 7d
+       bank-account-events:
+         enabled: true
+         subjects:
+           - bank-account.events
+         storage-type: FILE
+         retention-policy: LIMITS
+         max-messages: 100000
+         max-age: 7d

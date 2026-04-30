@@ -278,18 +278,22 @@ class BankSystemTestConfiguration(
         connectionFactory: NatsConnectionFactory,
         bankAccountEventJetStreamConverter: JetStreamMessageConverter<BankAccountEvent>,
         bankAccountEventsNatsStreamChannel: MessageChannel,
-    ): JetStreamConsumer<BankAccountEvent> =
-        JetStreamConsumerBuilder<BankAccountEvent>(
-            streamName = testProperties.adapterNatsJetStreamBankAccount.eventsStream,
-            subject = testProperties.adapterNatsJetStreamBankAccount.eventsSubject,
-            consumerName = testProperties.adapterNatsJetStreamBankAccount.consumerName,
-        ).withConnectionFactory(connectionFactory)
-            .withConverter(bankAccountEventJetStreamConverter)
-            .withMessageHandler { message ->
-                bankAccountEventsNatsStreamChannel.send(
-                    MessageBuilder.withPayload(message.payload).build(),
-                )
-            }.build()
+    ): JetStreamConsumer<BankAccountEvent> {
+        val consumer =
+            JetStreamConsumerBuilder<BankAccountEvent>(
+                streamName = testProperties.adapterNatsJetStreamBankAccount.eventsStream,
+                subject = testProperties.adapterNatsJetStreamBankAccount.eventsSubject,
+                consumerName = testProperties.adapterNatsJetStreamBankAccount.consumerName,
+            ).withConnectionFactory(connectionFactory)
+                .withConverter(bankAccountEventJetStreamConverter)
+                .withMessageHandler { message ->
+                    bankAccountEventsNatsStreamChannel.send(
+                        MessageBuilder.withPayload(message.payload).build(),
+                    )
+                }.build()
+        consumer.start()
+        return consumer
+    }
 
     /**
      * NATS JetStream consumer for bank transaction events.
@@ -301,16 +305,20 @@ class BankSystemTestConfiguration(
         connectionFactory: NatsConnectionFactory,
         bankTransactionEventJetStreamConverter: JetStreamMessageConverter<BankTransactionEvent>,
         bankTransactionEventsNatsStreamChannel: MessageChannel,
-    ): JetStreamConsumer<BankTransactionEvent> =
-        JetStreamConsumerBuilder<BankTransactionEvent>(
-            streamName = testProperties.adapterNatsJetStreamBankTransaction.eventsStream,
-            subject = testProperties.adapterNatsJetStreamBankTransaction.eventsSubject,
-            consumerName = testProperties.adapterNatsJetStreamBankTransaction.consumerName,
-        ).withConnectionFactory(connectionFactory)
-            .withConverter(bankTransactionEventJetStreamConverter)
-            .withMessageHandler { message ->
-                bankTransactionEventsNatsStreamChannel.send(
-                    MessageBuilder.withPayload(message.payload).build(),
-                )
-            }.build()
+    ): JetStreamConsumer<BankTransactionEvent> {
+        val consumer =
+            JetStreamConsumerBuilder<BankTransactionEvent>(
+                streamName = testProperties.adapterNatsJetStreamBankTransaction.eventsStream,
+                subject = testProperties.adapterNatsJetStreamBankTransaction.eventsSubject,
+                consumerName = testProperties.adapterNatsJetStreamBankTransaction.consumerName,
+            ).withConnectionFactory(connectionFactory)
+                .withConverter(bankTransactionEventJetStreamConverter)
+                .withMessageHandler { message ->
+                    bankTransactionEventsNatsStreamChannel.send(
+                        MessageBuilder.withPayload(message.payload).build(),
+                    )
+                }.build()
+        consumer.start()
+        return consumer
+    }
 }

@@ -32,9 +32,12 @@ import java.util.concurrent.atomic.AtomicReference
  * - No need for complex queue group configuration
  * - Durable consumers persist delivery state server-side
  *
+ * This interface extends [SmartLifecycle] to ensure Spring's LifecycleProcessor
+ * automatically manages consumer startup/shutdown via the [start]/[stop] contract.
+ *
  * @param T The type of message payload this consumer handles
  */
-interface JetStreamConsumer<T> {
+interface JetStreamConsumer<T> : SmartLifecycle {
     /**
      * The unique name of this consumer configuration.
      * Used to identify and share durable consumers across instances.
@@ -63,13 +66,6 @@ interface JetStreamConsumer<T> {
      * Use when processing fails and message should be retried.
      */
     suspend fun negativeAcknowledge(message: JetStreamMessage<T>)
-
-    /**
-     * Starts the consumer (for use outside Spring context).
-     * In Spring-managed contexts, SmartLifecycle handles startup automatically.
-     * Call this manually when creating consumers directly via JetStreamConsumerBuilder.
-     */
-    fun start()
 
     /**
      * Indicates if this consumer should be durable.
@@ -166,11 +162,13 @@ internal class DefaultJetStreamConsumer<T>(
      * after all other beans including stream initialization (phase 0).
      */
     override fun start() {
+        logger.info("Starting JetStream consumer: consumer={}, stream={}, subject={}", consumerName, streamName, subjectFilter)
         if (consumerStarted.getAndSet(true)) {
             logger.debug("Consumer already started: consumer={}", consumerName)
             return
         }
         startConsuming()
+        logger.info("JetStream consumer subscription created successfully: consumer={}", consumerName)
     }
 
     /**

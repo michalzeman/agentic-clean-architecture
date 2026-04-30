@@ -6,7 +6,6 @@ import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.shared.connector.nats.jetstream.producer.JetStreamProducer
 import mz.shared.connector.nats.jetstream.producer.JetStreamPublishRequest
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import mz.bank.transaction.domain.BankTransactionEvent as DomainEvent
 
 private val logger = LoggerFactory.getLogger(JetStreamBankTransactionEventsPublisher::class.java)
@@ -15,7 +14,6 @@ private val logger = LoggerFactory.getLogger(JetStreamBankTransactionEventsPubli
  * Service activator that publishes bank transaction domain events to NATS JetStream.
  * Converts domain events to protobuf and publishes to the configured stream.
  */
-@Component
 class JetStreamBankTransactionEventsPublisher(
     private val jetStreamProducer: JetStreamProducer<BankTransactionEvent>,
     private val mapper: BankTransactionEventToJetStreamMapper,

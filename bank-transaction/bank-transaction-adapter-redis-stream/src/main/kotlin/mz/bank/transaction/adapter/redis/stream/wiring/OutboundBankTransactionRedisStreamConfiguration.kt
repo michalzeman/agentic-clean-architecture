@@ -3,6 +3,7 @@ package mz.bank.transaction.adapter.redis.stream.wiring
 import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.transaction.adapter.redis.stream.BankTransactionEventMapper
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
+import mz.bank.transaction.adapter.redis.stream.RedisStreamBankTransactionEventsPublisher
 import mz.shared.connector.redis.RedisStreamPublisher
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import org.springframework.beans.factory.annotation.Qualifier
@@ -47,6 +48,16 @@ class OutboundBankTransactionRedisStreamConfiguration(
             streamKey = properties.bankTransactionEventsStream,
             reactiveRedisTemplate = reactiveRedisTemplate,
             redisMapRecordJsonSerializer = redisMapRecordProtobufSerializer,
+        )
+
+    @Bean
+    fun redisStreamBankTransactionEventsPublisher(
+        bankTransactionEventsRedisStreamPublisher: RedisStreamPublisher<ProtoBankTransactionEvent>,
+        @Value("\${adapters.redis.stream.poller-delay-ms:100}") pollerDelayMs: Long,
+    ): RedisStreamBankTransactionEventsPublisher =
+        RedisStreamBankTransactionEventsPublisher(
+            bankTransactionEventsRedisStreamPublisher = bankTransactionEventsRedisStreamPublisher,
+            pollerDelayMs = pollerDelayMs,
         )
 
     /**

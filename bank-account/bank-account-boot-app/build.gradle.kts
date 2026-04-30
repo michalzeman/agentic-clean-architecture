@@ -11,12 +11,8 @@ dependencies {
     implementation(project(":bank-account:bank-account-adapter-postgresql"))
     implementation(project(":bank-account:bank-account-adapter-redis-stream"))
     implementation(project(":bank-account:bank-account-adapter-rest"))
-    val jetStreamGroups = listOf("hybrid", "postgres-nats")
-    val springProfileGroup = project.findProperty("springProfileGroup")?.toString() ?: "redis-all"
-    if (springProfileGroup in jetStreamGroups) {
-        implementation(project(":bank-account:bank-account-adapter-nats-jetstream"))
-        implementation(project(":shared-kernel:connector-nats-jetstream-starter"))
-    }
+    implementation(project(":bank-account:bank-account-adapter-nats-jetstream"))
+    implementation(project(":shared-kernel:connector-nats-jetstream-starter"))
     implementation(project(":shared-kernel:connector-redis-starter"))
     implementation(project(":shared-kernel:connector-postgresql-starter"))
 

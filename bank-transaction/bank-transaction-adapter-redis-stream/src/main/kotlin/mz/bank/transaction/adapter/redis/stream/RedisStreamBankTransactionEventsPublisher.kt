@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Profile
 import org.springframework.integration.annotation.Poller
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.messaging.Message
-import org.springframework.stereotype.Component
 import mz.bank.transaction.contract.proto.BankTransactionEvent as ProtoBankTransactionEvent
 
 private val logger = LoggerFactory.getLogger(RedisStreamBankTransactionEventsPublisher::class.java)
@@ -17,7 +16,6 @@ private val logger = LoggerFactory.getLogger(RedisStreamBankTransactionEventsPub
  * Listens to the outboundBankTransactionRedisStreamChannel and publishes protobuf events
  * to the configured Redis stream.
  */
-@Component
 @Profile("!nats-jetstream")
 class RedisStreamBankTransactionEventsPublisher(
     private val bankTransactionEventsRedisStreamPublisher: RedisStreamPublisher<ProtoBankTransactionEvent>,

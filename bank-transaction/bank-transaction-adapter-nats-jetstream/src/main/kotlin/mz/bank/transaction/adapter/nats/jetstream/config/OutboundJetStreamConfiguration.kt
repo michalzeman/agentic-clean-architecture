@@ -14,6 +14,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.integration.annotation.ServiceActivator
+import org.springframework.integration.channel.PublishSubscribeChannel
+import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.stereotype.Component
 import mz.bank.transaction.domain.BankTransactionEvent as DomainBankTransactionEvent
 
@@ -47,6 +49,19 @@ class OutboundJetStreamConfiguration(
             mapper = mapper,
             properties = properties,
         )
+
+    /**
+     * Bridges domain events publish-subscribe channel to JetStream outbound channel.
+     * This flow connects the application layer's domain event publication to the JetStream adapter.
+     */
+    @Bean
+    fun outboundBankTransactionJetStreamFlow(
+        bankTransactionDomainEventsPublishSubscribeChannel: PublishSubscribeChannel,
+    ): IntegrationFlow =
+        IntegrationFlow
+            .from(bankTransactionDomainEventsPublishSubscribeChannel)
+            .channel("outboundBankTransactionJetStreamChannel")
+            .get()
 
     /**
      * ServiceActivator for routing outbound bank transaction domain events to JetStream.

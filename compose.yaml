@@ -41,8 +41,6 @@ services:
       - '4222:4222'
     volumes:
       - ./nats-jetstream.conf:/etc/nats/nats-jetstream.conf:ro
-    profiles:
-      - system-tests
     healthcheck:
       test: ["CMD", "nats-server", "--version"]
       interval: 5s

@@ -37,17 +37,21 @@ class InboundJetStreamConfiguration(
         connectionFactory: NatsConnectionFactory,
         bankTransactionEventJetStreamConverter: JetStreamMessageConverter<BankTransactionEvent>,
         inboundBankTransactionEventsChannel: MessageChannel,
-    ): JetStreamConsumer<BankTransactionEvent> =
-        JetStreamConsumerBuilder<BankTransactionEvent>(
-            streamName = properties.bankTransactionEventsStream,
-            subject = properties.bankTransactionEventsSubject,
-            consumerName = properties.consumerName,
-        ).withConnectionFactory(connectionFactory)
-            .withConverter(bankTransactionEventJetStreamConverter)
-            .withMessageHandler { message ->
-                val inboundEvent = message.payload.toInboundEvent()
-                inboundBankTransactionEventsChannel.send(
-                    MessageBuilder.withPayload(inboundEvent).build(),
-                )
-            }.build()
+    ): JetStreamConsumer<BankTransactionEvent> {
+        val consumer =
+            JetStreamConsumerBuilder<BankTransactionEvent>(
+                streamName = properties.bankTransactionEventsStream,
+                subject = properties.bankTransactionEventsSubject,
+                consumerName = properties.consumerName,
+            ).withConnectionFactory(connectionFactory)
+                .withConverter(bankTransactionEventJetStreamConverter)
+                .withMessageHandler { message ->
+                    val inboundEvent = message.payload.toInboundEvent()
+                    inboundBankTransactionEventsChannel.send(
+                        MessageBuilder.withPayload(inboundEvent).build(),
+                    )
+                }.build()
+        consumer.start()
+        return consumer
+    }
 }
