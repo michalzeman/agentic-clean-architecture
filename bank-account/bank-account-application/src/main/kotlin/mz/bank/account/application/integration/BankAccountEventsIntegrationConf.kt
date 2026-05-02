@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
+import org.springframework.integration.handler.LoggingHandler
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
 
@@ -61,7 +62,12 @@ class BankAccountEventsIntegrationConf(
     ): IntegrationFlow =
         IntegrationFlow
             .from(bankAccountDomainEventsChannel)
-            .log()
-            .channel(bankAccountDomainEventsPublishSubscribeChannel)
-            .get()
+            .log<BankAccountEvent>(LoggingHandler.Level.INFO, "mz.bank.account.tracing.pipeline") { m ->
+                val event = m.payload
+                "[Pipeline:Persistent] - eventType=${event::class.simpleName}, aggregateId=${event.aggregateId.value}"
+            }.channel(bankAccountDomainEventsPublishSubscribeChannel)
+            .log<BankAccountEvent>(LoggingHandler.Level.INFO, "mz.bank.account.tracing.pipeline") { m ->
+                val event = m.payload
+                "[Pipeline:Fanout] - eventType=${event::class.simpleName}, aggregateId=${event.aggregateId.value}"
+            }.get()
 }

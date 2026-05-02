@@ -33,7 +33,9 @@ class JetStreamBankAccountEventsPublisher(
             )
 
         logger.info(
-            "Publishing bank account event to JetStream: stream={}, subject={}",
+            "[Publisher:Boundary] - eventType={}, aggregateId={}, stream={}, subject={}",
+            event::class.simpleName,
+            event.aggregateId.value,
             properties.bankAccountEventsStream,
             properties.bankAccountEventsSubject,
         )

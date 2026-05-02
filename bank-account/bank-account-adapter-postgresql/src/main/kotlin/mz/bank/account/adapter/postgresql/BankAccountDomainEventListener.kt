@@ -2,6 +2,7 @@ package mz.bank.account.adapter.postgresql
 
 import mz.bank.account.domain.BankAccountEvent
 import mz.shared.domain.AGGREGATE_ID
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Profile
 import org.springframework.context.event.EventListener
 import org.springframework.messaging.MessageChannel
@@ -19,8 +20,11 @@ import org.springframework.stereotype.Component
 class BankAccountDomainEventListener(
     private val bankAccountDomainEventsChannel: MessageChannel,
 ) {
+    private val logger = LoggerFactory.getLogger(BankAccountDomainEventListener::class.java)
+
     @EventListener
     fun handle(event: BankAccountEvent) {
+        logger.info("[Emission] - eventType={}, aggregateId={}", event::class.simpleName, event.aggregateId.value)
         val message =
             MessageBuilder
                 .withPayload(event)

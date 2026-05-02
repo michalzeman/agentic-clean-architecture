@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Profile
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
+import org.springframework.integration.handler.LoggingHandler
+import org.springframework.messaging.Message
 import org.springframework.stereotype.Component
 import mz.bank.account.domain.BankAccountEvent as DomainBankAccountEvent
 
@@ -59,8 +61,10 @@ class OutboundJetStreamConfiguration(
     fun outboundBankAccountJetStreamFlow(bankAccountDomainEventsPublishSubscribeChannel: PublishSubscribeChannel): IntegrationFlow =
         IntegrationFlow
             .from(bankAccountDomainEventsPublishSubscribeChannel)
-            .log()
-            .channel("outboundBankAccountJetStreamChannel")
+            .log<Message<*>>(LoggingHandler.Level.INFO, "mz.bank.account.tracing.outbound") { m ->
+                val event = m.payload as DomainBankAccountEvent
+                "[Outbound:Entering] - eventType=${event::class.simpleName}, aggregateId=${event.aggregateId.value}"
+            }.channel("outboundBankAccountJetStreamChannel")
             .get()
 
     /**

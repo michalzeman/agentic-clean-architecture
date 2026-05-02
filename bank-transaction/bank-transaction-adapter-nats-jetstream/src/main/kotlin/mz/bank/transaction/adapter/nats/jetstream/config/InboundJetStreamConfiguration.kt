@@ -9,6 +9,7 @@ import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumer
 import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumerBuilder
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -27,6 +28,8 @@ import org.springframework.messaging.support.MessageBuilder
 class InboundJetStreamConfiguration(
     private val properties: BankTransactionJetStreamProperties,
 ) {
+    private val logger = LoggerFactory.getLogger(InboundJetStreamConfiguration::class.java)
+
     @Bean
     fun bankAccountEventJetStreamConverter(
         @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
@@ -46,7 +49,12 @@ class InboundJetStreamConfiguration(
             ).withConnectionFactory(connectionFactory)
                 .withConverter(bankAccountEventJetStreamConverter)
                 .withMessageHandler { message ->
-                    val inboundEvent = message.payload.toInboundEvent()
+                    val protoEvent = message.payload
+                    logger.info(
+                        "[Consumer:Boundary] - eventCase={}",
+                        protoEvent.eventCase,
+                    )
+                    val inboundEvent = protoEvent.toInboundEvent()
                     inboundBankAccountEventsChannel.send(
                         MessageBuilder.withPayload(inboundEvent).build(),
                     )
