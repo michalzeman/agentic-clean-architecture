@@ -1,6 +1,5 @@
 package mz.bank.account.adapter.nats.jetstream.config
 
-import kotlinx.coroutines.runBlocking
 import mz.bank.account.adapter.nats.jetstream.BankAccountJetStreamProperties
 import mz.bank.account.adapter.nats.jetstream.mapper.BankAccountEventJetStreamMessageConverter
 import mz.bank.account.adapter.nats.jetstream.mapper.BankAccountEventToJetStreamMapper
@@ -13,12 +12,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
-import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.integration.channel.PublishSubscribeChannel
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.handler.LoggingHandler
 import org.springframework.messaging.Message
-import org.springframework.stereotype.Component
 import mz.bank.account.domain.BankAccountEvent as DomainBankAccountEvent
 
 /**
@@ -66,21 +63,4 @@ class OutboundJetStreamConfiguration(
                 "[Outbound:Entering] - eventType=${event::class.simpleName}, aggregateId=${event.aggregateId.value}"
             }.channel("outboundBankAccountJetStreamChannel")
             .get()
-
-    /**
-     * ServiceActivator for routing outbound bank account domain events to JetStream.
-     * Defined as a separate component to avoid circular dependency with the publisher bean.
-     */
-    @Component
-    @Profile("nats-jetstream")
-    class OutboundEventHandler(
-        private val publisher: JetStreamBankAccountEventsPublisher,
-    ) {
-        @ServiceActivator(inputChannel = "outboundBankAccountJetStreamChannel")
-        fun handleOutboundEvent(event: DomainBankAccountEvent) {
-            runBlocking {
-                publisher.publish(event)
-            }
-        }
-    }
 }

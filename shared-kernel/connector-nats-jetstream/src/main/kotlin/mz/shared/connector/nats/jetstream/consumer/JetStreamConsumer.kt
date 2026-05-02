@@ -139,6 +139,10 @@ internal class DefaultJetStreamConsumer<T>(
     SmartLifecycle {
     private val logger = LoggerFactory.getLogger(DefaultJetStreamConsumer::class.java)
 
+    companion object {
+        private const val ERROR_BACKOFF_MULTIPLIER = 5L
+    }
+
     // Holds the subscription reference once initialized; null until first use
     private val subscriptionRef = AtomicReference<JetStreamSubscription?>(null)
 
@@ -273,7 +277,7 @@ internal class DefaultJetStreamConsumer<T>(
                 } catch (e: Exception) {
                     logger.error("Error during message consumption: consumer={}", consumerName, e)
                     // Brief delay before retry to avoid tight error loops
-                    delay(fetchIntervalMillis * 5)
+                    delay(fetchIntervalMillis * ERROR_BACKOFF_MULTIPLIER)
                 }
             }
         }
@@ -338,9 +342,14 @@ internal class DefaultJetStreamConsumer<T>(
             message.metaData()
                 ?: throw JetStreamConsumeException("Message metadata is null for subject: ${message.subject}")
 
-        // TODO: Implement proper header conversion when NATS client API is clearer
-        // For now, pass empty headers
-        val headers: Map<String, List<String>> = emptyMap()
+        val headers: Map<String, List<String>> =
+            message.headers?.let { natsHeaders ->
+                val result = mutableMapOf<String, List<String>>()
+                for (entry in natsHeaders.entrySet()) {
+                    result[entry.key] = entry.value.toList()
+                }
+                result
+            } ?: emptyMap()
 
         // Extract payload and deserialize
         val payload =
@@ -358,7 +367,6 @@ internal class DefaultJetStreamConsumer<T>(
             }
 
         // Get message ID from headers or generate one
-        // Note: Simplified header access - full implementation pending
         val messageIdValue = "$streamName-${metaData.streamSequence()}"
 
         return JetStreamMessage(

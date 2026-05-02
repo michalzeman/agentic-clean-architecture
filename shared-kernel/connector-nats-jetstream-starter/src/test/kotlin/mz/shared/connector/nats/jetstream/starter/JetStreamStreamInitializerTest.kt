@@ -72,6 +72,11 @@ class JetStreamStreamInitializerTest {
                         retentionPolicy = "LIMITS",
                         discardPolicy = "OLD",
                         maxMessages = 10000,
+                        maxBytes = 0L,
+                        maxAge = null,
+                        maxMessageSize = 0,
+                        maxConsumers = 0,
+                        duplicateWindow = java.time.Duration.ofMinutes(2),
                     ),
                 "test-stream-2" to
                     JetStreamProperties.StreamProperties(
@@ -81,12 +86,27 @@ class JetStreamStreamInitializerTest {
                         retentionPolicy = "LIMITS",
                         discardPolicy = "OLD",
                         maxMessages = 5000,
+                        maxBytes = 0L,
+                        maxAge = null,
+                        maxMessageSize = 0,
+                        maxConsumers = 0,
+                        duplicateWindow = java.time.Duration.ofMinutes(2),
                     ),
             )
         val properties =
             JetStreamProperties(
                 enabled = true,
+                connection =
+                    JetStreamProperties.ConnectionProperties(
+                        serverUrl = getNatsUrl(),
+                        connectionName = null,
+                        maxReconnects = 3,
+                        reconnectWaitMillis = 1000L,
+                        connectionTimeoutMillis = 5000L,
+                        pingIntervalMillis = 60000L,
+                    ),
                 streams = streamConfig,
+                consumers = emptyMap(),
             )
         val initializer = JetStreamStreamInitializer(connection, properties)
 
@@ -129,12 +149,27 @@ class JetStreamStreamInitializerTest {
                         retentionPolicy = "LIMITS",
                         discardPolicy = "OLD",
                         maxMessages = 10000,
+                        maxBytes = 0L,
+                        maxAge = null,
+                        maxMessageSize = 0,
+                        maxConsumers = 0,
+                        duplicateWindow = java.time.Duration.ofMinutes(2),
                     ),
             )
         val properties =
             JetStreamProperties(
                 enabled = true,
+                connection =
+                    JetStreamProperties.ConnectionProperties(
+                        serverUrl = getNatsUrl(),
+                        connectionName = null,
+                        maxReconnects = 3,
+                        reconnectWaitMillis = 1000L,
+                        connectionTimeoutMillis = 5000L,
+                        pingIntervalMillis = 60000L,
+                    ),
                 streams = streamConfig,
+                consumers = emptyMap(),
             )
         val initializer = JetStreamStreamInitializer(connection, properties)
 

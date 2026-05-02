@@ -29,7 +29,15 @@ class JetStreamBankAccountEventsPublisherTest {
     fun setUp() {
         jetStreamProducer = mock()
         mapper = BankAccountEventToJetStreamMapper()
-        properties = BankAccountJetStreamProperties()
+        properties =
+            BankAccountJetStreamProperties(
+                bankAccountEventsStream = "bank-account.event.bank-accounts",
+                bankAccountEventsSubject = "bank-account.event.bank-accounts.sub",
+                bankTransactionEventsStream = "bank-transaction.event.bank-transactions",
+                bankTransactionEventsSubject = "bank-transaction.event.bank-transactions.sub",
+                consumerName = "bank-account-consumer",
+                consumerGroup = "bank-account-service",
+            )
         publisher = JetStreamBankAccountEventsPublisher(jetStreamProducer, mapper, properties)
     }
 

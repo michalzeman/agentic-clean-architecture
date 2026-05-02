@@ -33,7 +33,9 @@ class JetStreamBankTransactionEventsPublisher(
             )
 
         logger.info(
-            "Publishing bank transaction event to JetStream: stream={}, subject={}",
+            "[Publisher:Boundary] - eventType={}, aggregateId={}, stream={}, subject={}",
+            event::class.simpleName,
+            event.aggregateId.value,
             properties.bankTransactionEventsStream,
             properties.bankTransactionEventsSubject,
         )
@@ -44,6 +46,7 @@ class JetStreamBankTransactionEventsPublisher(
     private fun generateMessageId(event: DomainEvent): String {
         val timestamp = event.updatedAt.toEpochMilli()
         val id = event.aggregateId.value
-        return "$timestamp-$id"
+        val nano = System.nanoTime()
+        return "$timestamp-$id-$nano"
     }
 }

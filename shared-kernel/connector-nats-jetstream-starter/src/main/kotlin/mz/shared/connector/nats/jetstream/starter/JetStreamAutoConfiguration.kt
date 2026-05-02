@@ -8,6 +8,7 @@ import mz.shared.connector.nats.NatsConnectionProperties
 import mz.shared.connector.nats.jetstream.DefaultJetStreamHealthIndicator
 import mz.shared.connector.nats.jetstream.JetStreamHealthIndicator
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -56,6 +57,7 @@ class JetStreamAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBean(NatsConnectionFactory::class)
     fun jetStreamHealthIndicator(connectionFactory: NatsConnectionFactory): JetStreamHealthIndicator =
         DefaultJetStreamHealthIndicator(connectionFactory)
 
@@ -66,6 +68,7 @@ class JetStreamAutoConfiguration {
      * consumers attempt to subscribe (which run at default phase).
      */
     @Bean
+    @ConditionalOnBean(NatsConnectionFactory::class)
     fun jetStreamStreamInitializer(
         connectionFactory: NatsConnectionFactory,
         properties: JetStreamProperties,

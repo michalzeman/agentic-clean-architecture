@@ -10,7 +10,7 @@ import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 class BankAccountEventJetStreamMessageConverter(
     private val objectMapper: ObjectMapper,
 ) : JetStreamMessageConverter<BankAccountEvent> {
-    override val contentType: String = "application/protobuf"
+    override val contentType: String = "application/x-protobuf"
 
     override fun serialize(payload: BankAccountEvent): ByteArray = objectMapper.writeValueAsBytes(payload)
 

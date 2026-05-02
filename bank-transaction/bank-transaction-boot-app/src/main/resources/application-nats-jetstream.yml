@@ -7,7 +7,6 @@ adapters:
     consumer-name: bank-transaction-consumer
     consumer-group: bank-transaction-service
 
-# NATS connection (used by NatsConnectionFactory via NatsConnectionProperties)
 nats:
   connection:
     server-url: ${NATS_URL:nats://localhost:4222}
@@ -15,20 +14,49 @@ nats:
     enabled: true
     connection:
       server-url: ${NATS_URL:nats://localhost:4222}
+      connection-name: null
+      max-reconnects: 10
+      reconnect-wait-millis: 2000
+      connection-timeout-millis: 5000
+      ping-interval-millis: 10000
     streams:
-       bank-account-events:
-         enabled: true
-         subjects:
-           - bank-account.events
-         storage-type: FILE
-         retention-policy: LIMITS
-         max-messages: 100000
-         max-age: 7d
-       bank-transaction-events:
-         enabled: true
-         subjects:
-           - bank-transaction.events
-         storage-type: FILE
-         retention-policy: LIMITS
-         max-messages: 100000
-         max-age: 7d
+      bank-account-events:
+        enabled: true
+        subjects:
+          - bank-account.events
+        storage-type: FILE
+        retention-policy: LIMITS
+        discard-policy: OLD
+        max-messages: 100000
+        max-bytes: -1
+        max-age: 7d
+        max-message-size: -1
+        max-consumers: -1
+        duplicate-window: 2m
+      bank-transaction-events:
+        enabled: true
+        subjects:
+          - bank-transaction.events
+        storage-type: FILE
+        retention-policy: LIMITS
+        discard-policy: OLD
+        max-messages: 100000
+        max-bytes: -1
+        max-age: 7d
+        max-message-size: -1
+        max-consumers: -1
+        duplicate-window: 2m
+    consumers:
+      bank-transaction-consumer:
+        enabled: true
+        stream-name: bank-transaction-events
+        filter-subject: null
+        deliver-policy: ALL
+        ack-policy: EXPLICIT
+        max-deliver: 3
+        max-ack-pending: 1000
+        max-waiting-pulls: 512
+        max-batch-size: 100
+        max-request-expires: 30s
+        replay-policy: INSTANT
+        durable: true

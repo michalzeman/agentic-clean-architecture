@@ -20,17 +20,23 @@ import mz.bank.account.contract.proto.BankAccountEvent as ProtoBankAccountEvent
 class OutboundJetStreamConfigurationTest {
     private lateinit var jetStreamProducer: JetStreamProducer<ProtoBankAccountEvent>
     private lateinit var publisher: mz.bank.account.adapter.nats.jetstream.outbound.JetStreamBankAccountEventsPublisher
-    private lateinit var configuration: OutboundJetStreamConfiguration.OutboundEventHandler
 
     @BeforeEach
     fun setUp() {
         jetStreamProducer = mock()
         val mapper = BankAccountEventToJetStreamMapper()
-        val properties = BankAccountJetStreamProperties()
+        val properties =
+            BankAccountJetStreamProperties(
+                bankAccountEventsStream = "bank-account.event.bank-accounts",
+                bankAccountEventsSubject = "bank-account.event.bank-accounts.sub",
+                bankTransactionEventsStream = "bank-transaction.event.bank-transactions",
+                bankTransactionEventsSubject = "bank-transaction.event.bank-transactions.sub",
+                consumerName = "bank-account-consumer",
+                consumerGroup = "bank-account-service",
+            )
         publisher =
             mz.bank.account.adapter.nats.jetstream.outbound
                 .JetStreamBankAccountEventsPublisher(jetStreamProducer, mapper, properties)
-        configuration = OutboundJetStreamConfiguration.OutboundEventHandler(publisher)
     }
 
     @Test
@@ -46,7 +52,7 @@ class OutboundJetStreamConfigurationTest {
             PublishAck(streamName = "test", sequenceNumber = 1L),
         )
 
-        configuration.handleOutboundEvent(event)
+        runBlocking { publisher.publish(event) }
 
         runBlocking { verify(jetStreamProducer).publish(any<JetStreamPublishRequest<ProtoBankAccountEvent>>()) }
     }

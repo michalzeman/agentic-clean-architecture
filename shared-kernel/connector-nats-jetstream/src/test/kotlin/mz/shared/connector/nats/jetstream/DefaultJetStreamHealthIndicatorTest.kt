@@ -223,8 +223,8 @@ class DefaultJetStreamHealthIndicatorTest {
 
         // Then
         assertThat(result.isHealthy).isFalse
-//        assertThat(result.streamStates).hasSize(1)
-        assertThat(result.streamStates.first().streamName).isEqualTo("healthy-stream")
+        assertThat(result.streamStates).hasSize(2)
+        assertThat(result.streamStates).anyMatch { it.streamName == "healthy-stream" && it.isHealthy }
         assertThat(result.errors).hasSize(1)
         assertThat(result.errors.first()).contains("missing-stream")
         assertThat(result.errors.first()).contains(errorMessage)
@@ -266,7 +266,7 @@ class DefaultJetStreamHealthIndicatorTest {
         // Then
         assertThat(result.isHealthy).isFalse()
         assertThat(result.streamStates).isEmpty()
-//        assertThat(result.errors).hasSize(1)
+        assertThat(result.errors).hasSize(1)
         assertThat(result.errors.first()).contains("Failed to list streams")
         assertThat(result.errors.first()).contains(errorMessage)
     }
@@ -330,7 +330,7 @@ class DefaultJetStreamHealthIndicatorTest {
 
         // Then
         assertThat(result.isHealthy).isFalse() // Unhealthy: any consumer error is treated as a health failure
-//        assertThat(result.consumerStates).hasSize(1)
+        assertThat(result.consumerStates).hasSize(2)
         assertThat(result.errors).hasSize(1)
         assertThat(result.errors.first()).contains("missing-consumer")
         assertThat(result.errors.first()).contains(errorMessage)

@@ -237,7 +237,7 @@ class BankSystemTestConfiguration(
         @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
     ): JetStreamMessageConverter<BankAccountEvent> =
         object : JetStreamMessageConverter<BankAccountEvent> {
-            override val contentType: String = "application/protobuf"
+            override val contentType: String = "application/x-protobuf"
 
             override fun serialize(payload: BankAccountEvent): ByteArray = objectMapper.writeValueAsBytes(payload)
 
@@ -257,7 +257,7 @@ class BankSystemTestConfiguration(
         @Qualifier("protobufObjectMapper") objectMapper: ObjectMapper,
     ): JetStreamMessageConverter<BankTransactionEvent> =
         object : JetStreamMessageConverter<BankTransactionEvent> {
-            override val contentType: String = "application/protobuf"
+            override val contentType: String = "application/x-protobuf"
 
             override fun serialize(payload: BankTransactionEvent): ByteArray = objectMapper.writeValueAsBytes(payload)
 

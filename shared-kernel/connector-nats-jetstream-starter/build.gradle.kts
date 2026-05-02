@@ -8,6 +8,9 @@ dependencies {
     // Spring Boot auto-configuration
     api("org.springframework.boot:spring-boot-autoconfigure")
 
+    // Validation
+    api("org.springframework.boot:spring-boot-starter-validation")
+
     // Spring integration
     api("org.springframework.integration:spring-integration-core")
 

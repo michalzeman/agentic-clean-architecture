@@ -41,7 +41,15 @@ class JetStreamAdapterIntegrationTest {
     @Test
     fun `should verify profile-based bean selection`() {
         // This test verifies that the adapter properties are correctly configured
-        val jetStreamProperties = BankAccountJetStreamProperties()
+        val jetStreamProperties =
+            BankAccountJetStreamProperties(
+                bankAccountEventsStream = "bank-account.event.bank-accounts",
+                bankAccountEventsSubject = "bank-account.event.bank-accounts.sub",
+                bankTransactionEventsStream = "bank-transaction.event.bank-transactions",
+                bankTransactionEventsSubject = "bank-transaction.event.bank-transactions.sub",
+                consumerName = "bank-account-consumer",
+                consumerGroup = "bank-account-service",
+            )
 
         assertThat(jetStreamProperties.bankAccountEventsStream).isEqualTo("bank-account.event.bank-accounts")
         assertThat(jetStreamProperties.bankTransactionEventsStream).isEqualTo("bank-transaction.event.bank-transactions")

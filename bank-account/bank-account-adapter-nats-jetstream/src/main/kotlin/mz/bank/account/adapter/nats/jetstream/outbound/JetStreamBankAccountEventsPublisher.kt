@@ -46,6 +46,7 @@ class JetStreamBankAccountEventsPublisher(
     private fun generateMessageId(event: DomainEvent): String {
         val timestamp = event.updatedAt.toEpochMilli()
         val id = event.aggregateId.value
-        return "$timestamp-$id"
+        val nano = System.nanoTime()
+        return "$timestamp-$id-$nano"
     }
 }

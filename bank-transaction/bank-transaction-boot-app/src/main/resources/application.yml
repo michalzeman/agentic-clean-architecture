@@ -9,7 +9,7 @@ management:
 
 spring:
   profiles:
-    active: redis-persistence
+    active: redis-all
     group:
       # All Redis (development/simple) - DEFAULT
       redis-all:
