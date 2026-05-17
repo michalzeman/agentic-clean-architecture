@@ -40,26 +40,22 @@ class InboundJetStreamConfiguration(
         connectionFactory: NatsConnectionFactory,
         bankAccountEventJetStreamConverter: JetStreamMessageConverter<BankAccountEvent>,
         inboundBankAccountEventsChannel: MessageChannel,
-    ): JetStreamConsumer<BankAccountEvent> {
-        val consumer =
-            JetStreamConsumerBuilder<BankAccountEvent>(
-                streamName = properties.bankAccountEventsStream,
-                subject = properties.bankAccountEventsSubject,
-                consumerName = properties.consumerName,
-            ).withConnectionFactory(connectionFactory)
-                .withConverter(bankAccountEventJetStreamConverter)
-                .withMessageHandler { message ->
-                    val protoEvent = message.payload
-                    logger.info(
-                        "[Consumer:Boundary] - eventCase={}",
-                        protoEvent.eventCase,
-                    )
-                    val inboundEvent = protoEvent.toInboundEvent()
+    ): JetStreamConsumer<BankAccountEvent> =
+        JetStreamConsumerBuilder<BankAccountEvent>(
+            streamName = properties.bankAccountEventsStream,
+            subject = properties.bankAccountEventsSubject,
+            consumerName = properties.consumerName,
+        ).withConnectionFactory(connectionFactory)
+            .withConverter(bankAccountEventJetStreamConverter)
+            .withAutoAck(true)
+            .withMessageHandler { message ->
+                val protoEvent = message.payload
+                logger.info("[Consumer:Boundary] - eventCase={}", protoEvent.eventCase)
+                val inboundEvent = protoEvent.toInboundEvent()
+                val sent =
                     inboundBankAccountEventsChannel.send(
                         MessageBuilder.withPayload(inboundEvent).build(),
                     )
-                }.build()
-        consumer.start()
-        return consumer
-    }
+                if (!sent) throw IllegalStateException("Channel rejected message: consumer=${properties.consumerName}")
+            }.build()
 }

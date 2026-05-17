@@ -141,7 +141,40 @@ class DefaultJetStreamConsumerUnitTest {
         assertThat(receivedMessages.first().headers).isEmpty()
     }
 
-    private fun createConsumer(onMessage: suspend (JetStreamMessage<String>) -> Unit = { }): DefaultJetStreamConsumer<String> =
+    @Test
+    fun `should ACK message when autoAck is enabled and handler succeeds`() {
+        val natsMessage = createNatsMessage()
+        whenever(subscription.fetch(any<Int>(), any<Duration>()))
+            .thenReturn(listOf(natsMessage))
+            .thenReturn(emptyList())
+        whenever(converter.deserialize(any(), any(), any())).thenReturn("payload")
+
+        consumer = createConsumer(autoAck = true)
+        consumer.start()
+        Thread.sleep(200)
+
+        verify(natsMessage).ack()
+    }
+
+    @Test
+    fun `should NAK message when autoAck is enabled and handler throws`() {
+        val natsMessage = createNatsMessage()
+        whenever(subscription.fetch(any<Int>(), any<Duration>()))
+            .thenReturn(listOf(natsMessage))
+            .thenReturn(emptyList())
+        whenever(converter.deserialize(any(), any(), any())).thenReturn("payload")
+
+        consumer = createConsumer(autoAck = true, onMessage = { throw RuntimeException("Handler failed") })
+        consumer.start()
+        Thread.sleep(200)
+
+        verify(natsMessage).nak()
+    }
+
+    private fun createConsumer(
+        autoAck: Boolean = false,
+        onMessage: suspend (JetStreamMessage<String>) -> Unit = { },
+    ): DefaultJetStreamConsumer<String> =
         DefaultJetStreamConsumer(
             consumerName = "test-consumer",
             streamName = "test-stream",
@@ -149,6 +182,7 @@ class DefaultJetStreamConsumerUnitTest {
             connectionFactory = connectionFactory,
             converter = converter,
             onMessage = onMessage,
+            autoAck = autoAck,
             fetchIntervalMillis = 50L,
         )
 

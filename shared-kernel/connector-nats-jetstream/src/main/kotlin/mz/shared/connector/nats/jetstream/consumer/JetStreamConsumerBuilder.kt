@@ -51,6 +51,8 @@ class JetStreamConsumerBuilder<T>(
 
     private var maxDeliver: Int = 3
 
+    private var autoAck: Boolean = false
+
     private var messageHandler: (suspend (JetStreamMessage<T>) -> Unit)? = null
 
     /**
@@ -119,6 +121,25 @@ class JetStreamConsumerBuilder<T>(
     }
 
     /**
+     * Enables or disables automatic acknowledgement.
+     *
+     * When enabled, the consumer automatically acknowledges (ACK) messages
+     * after the message handler completes successfully. If the handler throws
+     * an exception, the message is negatively acknowledged (NAK) to trigger
+     * redelivery.
+     *
+     * When disabled (default), the message handler is responsible for
+     * calling [JetStreamConsumer.acknowledge] or [JetStreamConsumer.negativeAcknowledge] explicitly.
+     *
+     * @param enabled `true` to enable auto-acknowledge, `false` for manual (default)
+     * @return this builder for fluent chaining
+     */
+    fun withAutoAck(enabled: Boolean): JetStreamConsumerBuilder<T> {
+        this.autoAck = enabled
+        return this
+    }
+
+    /**
      * Builds and returns the configured consumer.
      * Message consumption starts immediately upon building.
      */
@@ -141,6 +162,7 @@ class JetStreamConsumerBuilder<T>(
             connectionFactory = factory,
             converter = messageConverter,
             onMessage = handler,
+            autoAck = autoAck,
             batchSize = batchSize,
             isDurable = durable,
             maxAckPending = maxAckPending,

@@ -37,21 +37,20 @@ class InboundJetStreamConfiguration(
         connectionFactory: NatsConnectionFactory,
         bankTransactionEventJetStreamConverter: JetStreamMessageConverter<BankTransactionEvent>,
         inboundBankTransactionEventsChannel: MessageChannel,
-    ): JetStreamConsumer<BankTransactionEvent> {
-        val consumer =
-            JetStreamConsumerBuilder<BankTransactionEvent>(
-                streamName = properties.bankTransactionEventsStream,
-                subject = properties.bankTransactionEventsSubject,
-                consumerName = properties.consumerName,
-            ).withConnectionFactory(connectionFactory)
-                .withConverter(bankTransactionEventJetStreamConverter)
-                .withMessageHandler { message ->
-                    val inboundEvent = message.payload.toInboundEvent()
+    ): JetStreamConsumer<BankTransactionEvent> =
+        JetStreamConsumerBuilder<BankTransactionEvent>(
+            streamName = properties.bankTransactionEventsStream,
+            subject = properties.bankTransactionEventsSubject,
+            consumerName = properties.consumerName,
+        ).withConnectionFactory(connectionFactory)
+            .withConverter(bankTransactionEventJetStreamConverter)
+            .withAutoAck(true)
+            .withMessageHandler { message ->
+                val inboundEvent = message.payload.toInboundEvent()
+                val sent =
                     inboundBankTransactionEventsChannel.send(
                         MessageBuilder.withPayload(inboundEvent).build(),
                     )
-                }.build()
-        consumer.start()
-        return consumer
-    }
+                if (!sent) throw IllegalStateException("Channel rejected message: consumer=${properties.consumerName}")
+            }.build()
 }

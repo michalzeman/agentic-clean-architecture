@@ -128,6 +128,7 @@ internal class DefaultJetStreamConsumer<T>(
     private val connectionFactory: NatsConnectionFactory,
     private val converter: JetStreamMessageConverter<T>,
     private val onMessage: suspend (JetStreamMessage<T>) -> Unit,
+    private val autoAck: Boolean = false,
     private val batchSize: Int = 100,
     override val isDurable: Boolean = true,
     private val maxAckPending: Int = 1000,
@@ -299,6 +300,9 @@ internal class DefaultJetStreamConsumer<T>(
             val jetStreamMessage = convertMessage(message)
             try {
                 onMessage(jetStreamMessage)
+                if (autoAck) {
+                    message.ack()
+                }
             } catch (handlerEx: Exception) {
                 logger.error(
                     "Message handler failed: consumer={}, subject={}, seq={}",
