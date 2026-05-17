@@ -13,6 +13,52 @@ nats:
     enabled: ${NATS_JETSTREAM_ENABLED:false}
     connection:
       server-url: ${NATS_URL:nats://localhost:4222}
+      connection-name: null
+      max-reconnects: 10
+      reconnect-wait-millis: 2000
+      connection-timeout-millis: 5000
+      ping-interval-millis: 10000
+    streams:
+      - name: bank-account_event_bank-accounts
+        enabled: true
+        subjects:
+          - bank-account.events
+        storage-type: FILE
+        retention-policy: LIMITS
+        discard-policy: OLD
+        max-messages: 100000
+        max-bytes: -1
+        max-age: 7d
+        max-message-size: -1
+        max-consumers: -1
+        duplicate-window: 2m
+      - name: bank-transaction_event_bank-transactions
+        enabled: true
+        subjects:
+          - bank-transaction.events
+        storage-type: FILE
+        retention-policy: LIMITS
+        discard-policy: OLD
+        max-messages: 100000
+        max-bytes: -1
+        max-age: 7d
+        max-message-size: -1
+        max-consumers: -1
+        duplicate-window: 2m
+    consumers:
+      bank-transaction-consumer:
+        enabled: true
+        stream-name: bank-transaction_event_bank-transactions
+        filter-subject: null
+        deliver-policy: ALL
+        ack-policy: EXPLICIT
+        max-deliver: 3
+        max-ack-pending: 1000
+        max-waiting-pulls: 512
+        max-batch-size: 100
+        max-request-expires: 30s
+        replay-policy: ORIGINAL
+        durable: false
 
 bank-system-tests:
   account-service-url: "http://localhost:8080"
@@ -30,10 +76,24 @@ bank-system-tests:
         events-consumer-name: bank-transaction-consumer-systen-tests
     nats-jetstream:
       bank-account:
-        events-stream: bank-account.event.bank-accounts
+        events-stream: bank-account_event_bank-accounts
         events-subject: bank-account.events
         consumer-name: bank-account-consumer-system-tests
       bank-transaction:
-        events-stream: bank-transaction.event.bank-transactions
+        events-stream: bank-transaction_event_bank-transactions
         events-subject: bank-transaction.events
         consumer-name: bank-transaction-consumer-system-tests
+
+logging:
+  level:
+    root: INFO
+    mz.bank: TRACE
+    mz.bank.transaction: TRACE
+    mz.bank.account: TRACE
+    org.springframework.integration: TRACE
+    org.springframework.integration.channel: TRACE
+    org.springframework.integration.handler: TRACE
+    org.springframework.integration.endpoint: TRACE
+    org.springframework.jdbc: DEBUG
+    io.nats: DEBUG
+    org.springframework.messaging: DEBUG

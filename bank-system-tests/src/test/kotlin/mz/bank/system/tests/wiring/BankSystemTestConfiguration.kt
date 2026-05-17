@@ -291,7 +291,6 @@ class BankSystemTestConfiguration(
                         MessageBuilder.withPayload(message.payload).build(),
                     )
                 }.build()
-        consumer.start()
         return consumer
     }
 
@@ -318,7 +317,6 @@ class BankSystemTestConfiguration(
                         MessageBuilder.withPayload(message.payload).build(),
                     )
                 }.build()
-        consumer.start()
         return consumer
     }
 }

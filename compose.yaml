@@ -35,14 +35,14 @@ services:
       start_period: 10s
 
   nats-db:
-    image: 'nats:2.10.7'
+    image: 'nats:2.10.7-alpine'
     command: ["-c", "/etc/nats/nats-jetstream.conf"]
     ports:
       - '4222:4222'
     volumes:
       - ./nats-jetstream.conf:/etc/nats/nats-jetstream.conf:ro
     healthcheck:
-      test: ["CMD", "nats-server", "--version"]
+      test: ["CMD-SHELL", "nc -z localhost 4222 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -61,7 +61,7 @@ services:
       postgres-db:
         condition: service_healthy
       nats-db:
-        condition: service_started
+        condition: service_healthy
     environment:
       - REDIS_DB=redis-db
       - POSTGRES_DB=postgres-db
@@ -93,7 +93,7 @@ services:
       postgres-db:
         condition: service_healthy
       nats-db:
-        condition: service_started
+        condition: service_healthy
       bank-account-service:
         condition: service_healthy
     environment:

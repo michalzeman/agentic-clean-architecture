@@ -12,7 +12,7 @@ It contains:
 ## Prerequisites
 
 - **Java 21** (project uses Java 21 toolchain)
-- **Docker** (for Redis and system tests)
+- **Docker** (for Redis, PostgreSQL, NATS and system tests)
 - **Gradle** (wrapper included, no install needed)
 
 ## Quick Start
@@ -25,10 +25,17 @@ It contains:
 docker compose up -d
 
 # Run system tests (starts services in Docker, runs tests, tears down)
+# Default profile: Redis Streams messaging
 ./gradlew systemTest
 
-# run system tests with PostgreSQL persistence
-./gradlew systemTest -PpersistenceProfile=postgres-persistence
+# PostgreSQL persistence + NATS JetStream messaging
+./gradlew systemTest -PspringProfileGroup=postgres-nats
+
+# Redis persistence + NATS JetStream messaging
+./gradlew systemTest -PspringProfileGroup=hybrid
+
+# PostgreSQL persistence only (no messaging adapters)
+./gradlew systemTest -PspringProfileGroup=postgres-only
 ```
 
 Services (when running via `docker compose --profile system-tests up`):

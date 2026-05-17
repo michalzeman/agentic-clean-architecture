@@ -153,7 +153,7 @@ internal class DefaultJetStreamConsumer<T>(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val isRunning = AtomicBoolean(true)
+    private val isRunning = AtomicBoolean(false)
 
     private val consumerStarted = AtomicBoolean(false)
 
@@ -171,6 +171,7 @@ internal class DefaultJetStreamConsumer<T>(
             logger.debug("Consumer already started: consumer={}", consumerName)
             return
         }
+        isRunning.set(true)
         startConsuming()
         logger.info("JetStream consumer subscription created successfully: consumer={}", consumerName)
     }
@@ -296,7 +297,28 @@ internal class DefaultJetStreamConsumer<T>(
     private suspend fun handleMessageWithRedeliveryHandling(message: Message) {
         try {
             val jetStreamMessage = convertMessage(message)
-            onMessage(jetStreamMessage)
+            try {
+                onMessage(jetStreamMessage)
+            } catch (handlerEx: Exception) {
+                logger.error(
+                    "Message handler failed: consumer={}, subject={}, seq={}",
+                    consumerName,
+                    message.subject,
+                    message.metaData()?.streamSequence() ?: 0,
+                    handlerEx,
+                )
+                try {
+                    message.nak()
+                } catch (nakEx: Exception) {
+                    val totalNakFailures = nakFailureCount.incrementAndGet()
+                    logger.error(
+                        "Failed to NAK message after handler failure: consumer={}, totalNakFailures={}",
+                        consumerName,
+                        totalNakFailures,
+                        nakEx,
+                    )
+                }
+            }
         } catch (e: Exception) {
             logger.error(
                 "Failed to convert message: consumer={}, subject={}, seq={}",
@@ -344,11 +366,9 @@ internal class DefaultJetStreamConsumer<T>(
 
         val headers: Map<String, List<String>> =
             message.headers?.let { natsHeaders ->
-                val result = mutableMapOf<String, List<String>>()
-                for (entry in natsHeaders.entrySet()) {
-                    result[entry.key] = entry.value.toList()
+                natsHeaders.entrySet().associate { item ->
+                    item.key to item.value
                 }
-                result
             } ?: emptyMap()
 
         // Extract payload and deserialize

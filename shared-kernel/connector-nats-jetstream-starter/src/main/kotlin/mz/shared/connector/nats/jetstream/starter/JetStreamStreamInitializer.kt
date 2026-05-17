@@ -38,9 +38,9 @@ class JetStreamStreamInitializer(
 
         val jsm = connection.jetStreamManagement()
 
-        for ((streamName, streamConfig) in properties.streams) {
+        for (streamConfig in properties.streams) {
             if (!streamConfig.enabled) {
-                logger.debug("Stream {} is disabled, skipping", streamName)
+                logger.debug("Stream {} is disabled, skipping", streamConfig.name)
                 continue
             }
 
@@ -48,7 +48,7 @@ class JetStreamStreamInitializer(
                 val config =
                     StreamConfiguration
                         .builder()
-                        .name(streamName)
+                        .name(streamConfig.name)
                         .apply {
                             // Add subjects
                             if (streamConfig.subjects.isNotEmpty()) {
@@ -77,7 +77,7 @@ class JetStreamStreamInitializer(
                 jsm.addStream(config)
                 logger.info(
                     "Created JetStream stream: name={}, subjects={}, storage={}, retention={}",
-                    streamName,
+                    streamConfig.name,
                     streamConfig.subjects,
                     streamConfig.storageType,
                     streamConfig.retentionPolicy,
@@ -89,12 +89,12 @@ class JetStreamStreamInitializer(
                 ) {
                     logger.warn(
                         "JetStream stream already exists, skipping creation: name={}",
-                        streamName,
+                        streamConfig.name,
                     )
                 } else {
                     logger.error(
                         "Failed to create JetStream stream: name={}",
-                        streamName,
+                        streamConfig.name,
                         e,
                     )
                     throw e

@@ -1,8 +1,8 @@
 adapters:
   nats-jetstream:
-    bank-account-events-stream: bank-account.event.bank-accounts
+    bank-account-events-stream: bank-account_event_bank-accounts
     bank-account-events-subject: bank-account.events
-    bank-transaction-events-stream: bank-transaction.event.bank-transactions
+    bank-transaction-events-stream: bank-transaction_event_bank-transactions
     bank-transaction-events-subject: bank-transaction.events
     consumer-name: bank-account-consumer
     consumer-group: bank-account-service
@@ -20,10 +20,23 @@ nats:
       connection-timeout-millis: 5000
       ping-interval-millis: 10000
     streams:
-      bank-account-events:
+      - name: ${adapters.nats-jetstream.bank-account-events-stream}
         enabled: true
         subjects:
-          - bank-account.events
+          - ${adapters.nats-jetstream.bank-account-events-subject}
+        storage-type: FILE
+        retention-policy: LIMITS
+        discard-policy: OLD
+        max-messages: 100000
+        max-bytes: -1
+        max-age: 7d
+        max-message-size: -1
+        max-consumers: -1
+        duplicate-window: 2m
+      - name: ${adapters.nats-jetstream.bank-transaction-events-stream}
+        enabled: true
+        subjects:
+          - ${adapters.nats-jetstream.bank-transaction-events-subject}
         storage-type: FILE
         retention-policy: LIMITS
         discard-policy: OLD
@@ -36,7 +49,7 @@ nats:
     consumers:
       bank-account-consumer:
         enabled: true
-        stream-name: bank-account-events
+        stream-name: ${adapters.nats-jetstream.bank-account-events-stream}
         filter-subject: null
         deliver-policy: ALL
         ack-policy: EXPLICIT

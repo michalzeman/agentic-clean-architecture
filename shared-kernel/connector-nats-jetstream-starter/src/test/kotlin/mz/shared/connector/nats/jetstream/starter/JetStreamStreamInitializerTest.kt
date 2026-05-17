@@ -62,36 +62,36 @@ class JetStreamStreamInitializerTest {
             .hasMessageContaining("stream not found")
 
         // Create initializer with configured streams
-        val streamConfig =
-            mapOf(
-                "test-stream-1" to
-                    JetStreamProperties.StreamProperties(
-                        enabled = true,
-                        subjects = listOf("test.subject.one.*"),
-                        storageType = "FILE",
-                        retentionPolicy = "LIMITS",
-                        discardPolicy = "OLD",
-                        maxMessages = 10000,
-                        maxBytes = 0L,
-                        maxAge = null,
-                        maxMessageSize = 0,
-                        maxConsumers = 0,
-                        duplicateWindow = java.time.Duration.ofMinutes(2),
-                    ),
-                "test-stream-2" to
-                    JetStreamProperties.StreamProperties(
-                        enabled = true,
-                        subjects = listOf("test.subject.two.*"),
-                        storageType = "FILE",
-                        retentionPolicy = "LIMITS",
-                        discardPolicy = "OLD",
-                        maxMessages = 5000,
-                        maxBytes = 0L,
-                        maxAge = null,
-                        maxMessageSize = 0,
-                        maxConsumers = 0,
-                        duplicateWindow = java.time.Duration.ofMinutes(2),
-                    ),
+        val streamConfigs =
+            listOf(
+                JetStreamProperties.StreamConfiguration(
+                    name = "test-stream-1",
+                    enabled = true,
+                    subjects = listOf("test.subject.one.*"),
+                    storageType = "FILE",
+                    retentionPolicy = "LIMITS",
+                    discardPolicy = "OLD",
+                    maxMessages = 10000,
+                    maxBytes = 0L,
+                    maxAge = null,
+                    maxMessageSize = 0,
+                    maxConsumers = 0,
+                    duplicateWindow = java.time.Duration.ofMinutes(2),
+                ),
+                JetStreamProperties.StreamConfiguration(
+                    name = "test-stream-2",
+                    enabled = true,
+                    subjects = listOf("test.subject.two.*"),
+                    storageType = "FILE",
+                    retentionPolicy = "LIMITS",
+                    discardPolicy = "OLD",
+                    maxMessages = 5000,
+                    maxBytes = 0L,
+                    maxAge = null,
+                    maxMessageSize = 0,
+                    maxConsumers = 0,
+                    duplicateWindow = java.time.Duration.ofMinutes(2),
+                ),
             )
         val properties =
             JetStreamProperties(
@@ -105,8 +105,7 @@ class JetStreamStreamInitializerTest {
                         connectionTimeoutMillis = 5000L,
                         pingIntervalMillis = 60000L,
                     ),
-                streams = streamConfig,
-                consumers = emptyMap(),
+                streams = streamConfigs,
             )
         val initializer = JetStreamStreamInitializer(connection, properties)
 
@@ -139,22 +138,22 @@ class JetStreamStreamInitializerTest {
         jsm.addStream(existingStreamConfig)
 
         // Create initializer that includes the same stream name
-        val streamConfig =
-            mapOf(
-                "existing-stream" to
-                    JetStreamProperties.StreamProperties(
-                        enabled = true,
-                        subjects = listOf("existing.subject.*"),
-                        storageType = "FILE",
-                        retentionPolicy = "LIMITS",
-                        discardPolicy = "OLD",
-                        maxMessages = 10000,
-                        maxBytes = 0L,
-                        maxAge = null,
-                        maxMessageSize = 0,
-                        maxConsumers = 0,
-                        duplicateWindow = java.time.Duration.ofMinutes(2),
-                    ),
+        val streamConfigs =
+            listOf(
+                JetStreamProperties.StreamConfiguration(
+                    name = "existing-stream",
+                    enabled = true,
+                    subjects = listOf("existing.subject.*"),
+                    storageType = "FILE",
+                    retentionPolicy = "LIMITS",
+                    discardPolicy = "OLD",
+                    maxMessages = 10000,
+                    maxBytes = 0L,
+                    maxAge = null,
+                    maxMessageSize = 0,
+                    maxConsumers = 0,
+                    duplicateWindow = java.time.Duration.ofMinutes(2),
+                ),
             )
         val properties =
             JetStreamProperties(
@@ -168,8 +167,7 @@ class JetStreamStreamInitializerTest {
                         connectionTimeoutMillis = 5000L,
                         pingIntervalMillis = 60000L,
                     ),
-                streams = streamConfig,
-                consumers = emptyMap(),
+                streams = streamConfigs,
             )
         val initializer = JetStreamStreamInitializer(connection, properties)
 

@@ -6,16 +6,37 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.validation.annotation.Validated
 import java.time.Duration
 
+/**
+ * Configuration properties for NATS JetStream integration.
+ *
+ * These properties are loaded from the "nats.jetstream" prefix in the application configuration.
+ * Use this to configure the NATS connection, JetStream streams, and consumer settings.
+ *
+ * Example configuration:
+ * <pre>
+ * nats:
+ *   jetstream:
+ *     enabled: true
+ *     connection:
+ *       server-url: nats://localhost:4222
+ *       max-reconnects: 10
+ *     streams:
+ *       - name: events
+ *         subjects:
+ *           - my.subject
+ * </pre>
+ *
+ * @property enabled Whether JetStream is enabled
+ * @property connection Connection configuration for NATS
+ * @property streams List of stream configurations to create
+ */
 @Validated
 @ConfigurationProperties(prefix = "nats.jetstream")
 data class JetStreamProperties(
     val enabled: Boolean,
-    @NestedConfigurationProperty
+    @field:NestedConfigurationProperty
     val connection: ConnectionProperties,
-    @NestedConfigurationProperty
-    val streams: Map<String, StreamProperties>,
-    @NestedConfigurationProperty
-    val consumers: Map<String, ConsumerProperties>,
+    val streams: List<StreamConfiguration>,
 ) {
     data class ConnectionProperties(
         val serverUrl: String,
@@ -30,36 +51,18 @@ data class JetStreamProperties(
         val pingIntervalMillis: Long,
     )
 
-    data class StreamProperties(
-        val enabled: Boolean,
-        val subjects: List<String>,
-        val storageType: String,
-        val retentionPolicy: String,
-        val discardPolicy: String,
-        val maxMessages: Long,
-        val maxBytes: Long,
-        val maxAge: Duration?,
-        val maxMessageSize: Int,
-        val maxConsumers: Int,
-        val duplicateWindow: Duration,
-    )
-
-    data class ConsumerProperties(
-        val enabled: Boolean,
-        val streamName: String,
-        val filterSubject: String?,
-        val deliverPolicy: String,
-        val ackPolicy: String,
-        @field:Positive
-        val maxDeliver: Int,
-        @field:Positive
-        val maxAckPending: Int,
-        @field:Positive
-        val maxWaitingPulls: Int,
-        @field:Positive
-        val maxBatchSize: Int,
-        val maxRequestExpires: Duration,
-        val replayPolicy: String,
-        val durable: Boolean,
+    data class StreamConfiguration(
+        val name: String,
+        val enabled: Boolean = true,
+        val subjects: List<String> = emptyList(),
+        val storageType: String = "FILE",
+        val retentionPolicy: String = "LIMITS",
+        val discardPolicy: String = "OLD",
+        val maxMessages: Long = -1,
+        val maxBytes: Long = -1,
+        val maxAge: Duration? = null,
+        val maxMessageSize: Int = -1,
+        val maxConsumers: Int = -1,
+        val duplicateWindow: Duration = Duration.ofMinutes(2),
     )
 }
