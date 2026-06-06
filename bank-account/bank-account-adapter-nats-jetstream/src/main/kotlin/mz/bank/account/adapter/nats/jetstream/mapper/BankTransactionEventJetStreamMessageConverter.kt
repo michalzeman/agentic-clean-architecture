@@ -1,8 +1,8 @@
 package mz.bank.account.adapter.nats.jetstream.mapper
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
+import tools.jackson.databind.ObjectMapper
 
 class BankTransactionEventJetStreamMessageConverter(
     private val objectMapper: ObjectMapper,

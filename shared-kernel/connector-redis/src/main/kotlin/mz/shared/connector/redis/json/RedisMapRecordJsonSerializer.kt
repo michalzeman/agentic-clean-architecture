@@ -1,13 +1,13 @@
 package mz.shared.connector.redis.json
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.util.JsonFormat
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.StreamRecords
 import org.springframework.data.redis.connection.stream.StringRecord
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.MessageBuilder
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.ObjectMapper
 
 private const val PAYLOAD = "payload"
 

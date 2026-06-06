@@ -1,6 +1,5 @@
 package mz.bank.transaction.adapter.nats.jetstream.config
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.transaction.adapter.nats.jetstream.BankTransactionJetStreamProperties
 import mz.bank.transaction.adapter.nats.jetstream.inbound.toInboundEvent
@@ -17,6 +16,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.support.MessageBuilder
+import tools.jackson.databind.ObjectMapper
 
 /**
  * Configuration for inbound JetStream consumption.

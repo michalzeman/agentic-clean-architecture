@@ -17,7 +17,7 @@ dependencies {
     implementation("org.postgresql:postgresql")
 
     // Jackson for JSONB serialization
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")

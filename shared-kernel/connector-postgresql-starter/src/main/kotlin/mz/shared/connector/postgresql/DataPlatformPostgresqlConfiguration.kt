@@ -1,7 +1,5 @@
 package mz.shared.connector.postgresql
 
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -12,9 +10,10 @@ import org.springframework.core.serializer.Deserializer
 import org.springframework.core.serializer.Serializer
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider
-import org.springframework.integration.support.json.JacksonJsonUtils
+import org.springframework.integration.support.json.JacksonMessagingUtils
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.GenericMessage
+import tools.jackson.module.kotlin.KotlinModule
 import javax.sql.DataSource
 
 /**
@@ -47,10 +46,13 @@ class DataPlatformPostgresqlConfiguration {
         store.setChannelMessageStoreQueryProvider(PostgresChannelMessageStoreQueryProvider())
         store.setRegion("json")
 
-        // Build messaging-aware ObjectMapper with trusted packages
-        val objectMapper = JacksonJsonUtils.messagingAwareMapper(*properties.trustedPackages.toTypedArray())
-        objectMapper.registerModule(KotlinModule.Builder().build())
-        objectMapper.registerModule(JavaTimeModule())
+        // Build messaging-aware ObjectMapper with trusted packages and Kotlin support
+        val objectMapper =
+            JacksonMessagingUtils
+                .messagingAwareMapper(*properties.trustedPackages.toTypedArray())
+                .rebuild()
+                .addModule(KotlinModule.Builder().build())
+                .build()
 
         store.setSerializer(
             object : Serializer<Message<*>> {

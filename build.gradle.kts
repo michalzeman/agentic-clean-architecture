@@ -68,10 +68,10 @@ subprojects {
         implementation("io.grpc:grpc-stub:${property("protocGenGrpcJavaVersion")}")
         implementation("com.google.protobuf:protobuf-kotlin:${property("protobufProtocVersion")}")
         implementation("com.google.protobuf:protobuf-java-util:${property("protobufProtocVersion")}")
-        implementation("com.hubspot.jackson:jackson-datatype-protobuf:${property("jacksonDatatypeProtobufVersion")}")
+        implementation("com.hubspot.jackson:jackson3-datatype-protobuf:1.0.0")
 
         // Kotlin and Reactor
-        implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+        implementation("tools.jackson.module:jackson-module-kotlin")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
         implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
         implementation("org.jetbrains.kotlin:kotlin-reflect")

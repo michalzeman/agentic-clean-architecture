@@ -11,11 +11,10 @@ dependencies {
     // Spring Integration support
     api("org.springframework.integration:spring-integration-core")
 
-    // Liquibase for database migrations
-    api("org.liquibase:liquibase-core")
+    // Liquibase for database migrations (starter includes auto-configuration extracted in Spring Boot 4.0)
+    api("org.springframework.boot:spring-boot-starter-liquibase")
 
     // Jackson for JSON serialization support
-    api("com.fasterxml.jackson.core:jackson-databind")
-    api("com.fasterxml.jackson.module:jackson-module-kotlin")
-    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    api("tools.jackson.core:jackson-databind")
+    api("tools.jackson.module:jackson-module-kotlin")
 }

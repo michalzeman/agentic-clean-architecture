@@ -1,10 +1,9 @@
 package mz.shared.connector.redis.json
 
-import com.fasterxml.jackson.databind.Module
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import org.springframework.integration.support.json.JacksonJsonUtils
+import org.springframework.integration.support.json.JacksonMessagingUtils
+import tools.jackson.databind.JacksonModule
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.KotlinModule
 
 /**
  * Builder for creating messaging-aware ObjectMapper instances with customizable
@@ -37,9 +36,9 @@ class MessagingObjectMapperBuilder {
         )
 
     private val modules =
-        mutableListOf<Module>(
+        mutableListOf<JacksonModule>(
             KotlinModule.Builder().build(),
-            JavaTimeModule(),
+            // JavaTimeModule is built into Jackson 3, no need to register it explicitly
         )
 
     /**
@@ -70,7 +69,7 @@ class MessagingObjectMapperBuilder {
      * @param module The module to register
      * @return This builder for method chaining
      */
-    fun withModule(module: Module): MessagingObjectMapperBuilder {
+    fun withModule(module: JacksonModule): MessagingObjectMapperBuilder {
         modules.add(module)
         return this
     }
@@ -81,7 +80,7 @@ class MessagingObjectMapperBuilder {
      * @param modulesToAdd The modules to register
      * @return This builder for method chaining
      */
-    fun withModules(modulesToAdd: Collection<Module>): MessagingObjectMapperBuilder {
+    fun withModules(modulesToAdd: Collection<JacksonModule>): MessagingObjectMapperBuilder {
         modules.addAll(modulesToAdd)
         return this
     }
@@ -91,9 +90,8 @@ class MessagingObjectMapperBuilder {
      *
      * @return A messaging-aware ObjectMapper with all configured packages and modules
      */
-    fun build(): ObjectMapper {
-        val objectMapper = JacksonJsonUtils.messagingAwareMapper(*trustedPackages.toTypedArray())
-        modules.forEach { objectMapper.registerModule(it) }
-        return objectMapper
+    fun build(): JsonMapper {
+        val messagingAwareMapper = JacksonMessagingUtils.messagingAwareMapper(*trustedPackages.toTypedArray())
+        return messagingAwareMapper.rebuild().addModules(modules).build()
     }
 }

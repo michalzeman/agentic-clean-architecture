@@ -1,6 +1,5 @@
 package mz.bank.account.adapter.redis.stream.wiring
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.adapter.redis.stream.BankAccountEventMapper
 import mz.bank.account.adapter.redis.stream.BankAccountRedisStreamProperties
 import mz.bank.account.adapter.redis.stream.RedisStreamBankAccountEventsPublisher
@@ -18,6 +17,7 @@ import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.messaging.MessageChannel
+import tools.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent as ProtoBankAccountEvent
 import mz.bank.account.domain.BankAccountEvent as DomainBankAccountEvent
 

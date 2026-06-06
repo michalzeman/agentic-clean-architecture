@@ -1,10 +1,10 @@
 package mz.bank.account.adapter.nats.jetstream.mapper
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 
 @Component
 class BankAccountEventJetStreamMessageConverter(

@@ -24,11 +24,9 @@ dependencies {
 
     api(libs.redisson)
 
-    api("com.fasterxml.jackson.core:jackson-core")
-    api("com.fasterxml.jackson.core:jackson-databind")
-    api("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
-    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    api("com.fasterxml.jackson.module:jackson-module-kotlin")
+    api("tools.jackson.core:jackson-core")
+    api("tools.jackson.core:jackson-databind")
+    api("tools.jackson.module:jackson-module-kotlin")
 
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 }

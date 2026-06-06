@@ -1,6 +1,5 @@
 package mz.shared.connector.redis
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,6 +33,7 @@ import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.support.ErrorMessage
 import org.springframework.messaging.support.MessageBuilder
+import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 
 private val logger = LoggerFactory.getLogger(RedisStreamConsumer::class.java)
@@ -80,7 +80,7 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
     }
 
     private suspend fun sendToChannel(
-        message: Message<out Any?>,
+        message: Message<out Any>,
         record: MapRecord<String, String, String>,
     ) {
         if (lockProvider != null) {
@@ -97,7 +97,7 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
         }
     }
 
-    private fun mapRecordMessage(desRecord: Message<T>): Message<out Any?> =
+    private fun mapRecordMessage(desRecord: Message<T>): Message<out Any> =
         mapper
             ?.invoke(desRecord.payload)
             ?.let {

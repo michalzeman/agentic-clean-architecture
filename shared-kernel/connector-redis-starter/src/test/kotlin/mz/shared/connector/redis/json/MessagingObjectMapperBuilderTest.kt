@@ -1,12 +1,11 @@
 package mz.shared.connector.redis.json
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.Module
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.messaging.support.GenericMessage
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.JacksonModule
+import tools.jackson.module.kotlin.KotlinModule
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -41,7 +40,7 @@ class MessagingObjectMapperBuilderTest {
     }
 
     @Test
-    fun `should support Java time module by default`() {
+    fun `should support Java time by default in Jackson 3`() {
         val objectMapper = MessagingObjectMapperBuilder().build()
         val instant = Instant.parse("2024-01-15T10:30:00Z")
 
@@ -89,10 +88,10 @@ class MessagingObjectMapperBuilderTest {
 
     @Test
     fun `should add multiple custom modules`() {
-        val modules: List<Module> =
+        val modules: List<JacksonModule> =
             listOf(
                 KotlinModule.Builder().build(),
-                JavaTimeModule(),
+                // JavaTimeModule is built into Jackson 3
             )
 
         val objectMapper =
@@ -109,7 +108,6 @@ class MessagingObjectMapperBuilderTest {
             MessagingObjectMapperBuilder()
                 .withTrustedPackage("org.springframework.integration.gateway")
                 .withTrustedPackage("com.example.another")
-                .withModule(JavaTimeModule())
                 .withTrustedPackages(listOf("pkg1", "pkg2"))
                 .withModules(listOf(KotlinModule.Builder().build()))
                 .build()

@@ -33,7 +33,6 @@ dependencies {
     implementation("org.postgresql:postgresql")
 
     // Spring Cloud, Integration
-    implementation("org.springframework.cloud:spring-cloud-starter")
     implementation("org.springframework.integration:spring-integration-core")
     implementation("org.springframework.integration:spring-integration-redis")
 

@@ -1,7 +1,5 @@
 package mz.bank.system.tests
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.runBlocking
 import mz.bank.system.tests.wiring.BankSystemTestConfiguration
 import mz.shared.connector.system.tests.awaitMessages
@@ -19,6 +17,8 @@ import org.springframework.integration.channel.QueueChannel
 import org.springframework.messaging.Message
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBody
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -93,9 +93,9 @@ class TransactionCancellationIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            val sourceAccountId = sourceAccount.get("accountId").asText()
+            val sourceAccountId = sourceAccount.get("accountId").stringValue()
             assertThat(sourceAccountId).isNotNull
-            assertThat(BigDecimal(sourceAccount.get("balance").asText())).isEqualByComparingTo(sourceInitialBalance)
+            assertThat(sourceAccount.get("balance").decimalValue()).isEqualByComparingTo(sourceInitialBalance)
 
             // Create destination account
             val destAccountEmail = "cancel-dest-$testId-$timestamp@example.com"
@@ -111,9 +111,9 @@ class TransactionCancellationIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            val destAccountId = destAccount.get("accountId").asText()
+            val destAccountId = destAccount.get("accountId").stringValue()
             assertThat(destAccountId).isNotNull
-            assertThat(BigDecimal(destAccount.get("balance").asText())).isEqualByComparingTo(destInitialBalance)
+            assertThat(destAccount.get("balance").decimalValue()).isEqualByComparingTo(destInitialBalance)
 
             // Wait for account creation events to propagate
             bankAccountEventsChannel.awaitMessages(
@@ -147,11 +147,11 @@ class TransactionCancellationIntegrationSystemTest {
                         .awaitBody()
                 }
 
-            val transactionId = transaction.get("transactionId").asText()
+            val transactionId = transaction.get("transactionId").stringValue()
             assertThat(transactionId).isNotNull
-            assertThat(transaction.get("correlationId").asText()).isNotNull
-            assertThat(transaction.get("status").asText()).isEqualTo("CREATED")
-            assertThat(BigDecimal(transaction.get("amount").asText())).isEqualByComparingTo(transferAmount)
+            assertThat(transaction.get("correlationId").stringValue()).isNotNull
+            assertThat(transaction.get("status").stringValue()).isEqualTo("CREATED")
+            assertThat(transaction.get("amount").decimalValue()).isEqualByComparingTo(transferAmount)
 
             // Wait for account service to start processing the withdrawal
             // This ensures the account service has consumed the TransactionCreated event
@@ -178,8 +178,8 @@ class TransactionCancellationIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            assertThat(cancelledTransaction.get("transactionId").asText()).isEqualTo(transactionId)
-            assertThat(cancelledTransaction.get("status").asText()).isEqualTo("FAILED")
+            assertThat(cancelledTransaction.get("transactionId").stringValue()).isEqualTo(transactionId)
+            assertThat(cancelledTransaction.get("status").stringValue()).isEqualTo("FAILED")
 
             // Wait for TransactionRolledBack event
             val messages: List<Message<*>> =
@@ -213,8 +213,8 @@ class TransactionCancellationIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            assertThat(finalTransaction.get("transactionId").asText()).isEqualTo(transactionId)
-            assertThat(finalTransaction.get("status").asText()).isEqualTo("FAILED")
+            assertThat(finalTransaction.get("transactionId").stringValue()).isEqualTo(transactionId)
+            assertThat(finalTransaction.get("status").stringValue()).isEqualTo("FAILED")
 
             // Note: Account balance verification is not included in this test because
             // the account service processes events asynchronously and may be behind.
@@ -284,8 +284,8 @@ class TransactionCancellationIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            val sourceBalance = BigDecimal(sourceAccount.get("balance").asText())
-            val destBalance = BigDecimal(destAccount.get("balance").asText())
+            val sourceBalance = sourceAccount.get("balance").decimalValue()
+            val destBalance = destAccount.get("balance").decimalValue()
 
             if (sourceBalance.compareTo(expectedSourceBalance) == 0 &&
                 destBalance.compareTo(expectedDestBalance) == 0

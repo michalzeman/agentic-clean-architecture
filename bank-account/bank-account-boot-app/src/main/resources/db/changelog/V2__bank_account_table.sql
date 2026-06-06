@@ -1,5 +1,3 @@
-SET search_path TO "bank-account";
-
 CREATE TABLE IF NOT EXISTS bank_account (
     id               BIGSERIAL    PRIMARY KEY,
     aggregate_id     UUID         NOT NULL UNIQUE,

@@ -1,13 +1,9 @@
 package mz.shared.connector.redis
 
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
 import mz.shared.domain.LockProvider
 import org.redisson.api.RedissonClient
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
@@ -17,6 +13,8 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.serializer.RedisSerializationContext
 import org.springframework.data.redis.serializer.RedisSerializer
 import org.springframework.integration.redis.util.RedisLockRegistry
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.KotlinModule
 
 @AutoConfiguration
 class DataPlatformRedisConfiguration(
@@ -56,14 +54,5 @@ class DataPlatformRedisConfiguration(
     fun lockProvider(redisson: RedissonClient): LockProvider = RedisLockProvider(redisson)
 
     @Bean
-    fun jackson2ObjectMapperBuilderCustomizer(): Jackson2ObjectMapperBuilderCustomizer =
-        Jackson2ObjectMapperBuilderCustomizer { builder ->
-            builder.modules(
-                listOf(
-                    ProtobufModule(),
-                    KotlinModule.Builder().build(),
-                    JavaTimeModule(),
-                ),
-            )
-        }
+    fun objectMapper(): JsonMapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
 }

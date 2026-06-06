@@ -1,18 +1,10 @@
 package mz.shared.connector.redis
 
-import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.reactor.awaitSingle
-import kotlinx.coroutines.reactor.mono
-import kotlinx.coroutines.withContext
 import mz.shared.domain.LockProvider
 import org.redisson.api.RedissonClient
-import org.redisson.api.RedissonReactiveClient
 import org.slf4j.LoggerFactory
-import reactor.core.publisher.Mono
-import reactor.util.retry.Retry
-import java.time.Duration
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
@@ -21,47 +13,10 @@ private val logger = LoggerFactory.getLogger(RedisLockProvider::class.java)
 class RedisLockProvider(
     private val redissonClient: RedissonClient,
 ) : LockProvider {
-    private val redissonReactiveClient: RedissonReactiveClient = redissonClient.reactive()
-
     override suspend fun <T> withLock(
         keyLock: String,
         operation: suspend () -> T,
     ): T = withAsyncLock(keyLock, operation)
-
-    private suspend fun <T> withReactiveLock(
-        keyLock: String,
-        operation: suspend () -> T,
-    ): T =
-        withContext(IO) {
-            val lock = redissonReactiveClient.getLock(keyLock)
-
-            val threadId = Thread.currentThread().threadId()
-
-            val monoOperation =
-                mono {
-                    operation()
-                }
-
-            lock
-                .lock(10, TimeUnit.SECONDS)
-                .retryWhen(
-                    Retry
-                        .backoff(3, Duration.ofMillis(100))
-                        .maxBackoff(Duration.ofSeconds(1))
-                        .doBeforeRetry { signal ->
-                            logger.warn("Failed to acquire lock '$keyLock', attempt ${signal.totalRetries() + 1}/3", signal.failure())
-                        },
-                ).then(Mono.defer { monoOperation })
-                .doFinally {
-                    lock
-                        .unlock(threadId)
-                        .doOnError { error ->
-                            logger.error("Failed to unlock '$keyLock'", error)
-                        }.doOnSuccess {
-                            logger.debug("Successfully unlocked '$keyLock'")
-                        }.subscribe()
-                }.awaitSingle()
-        }
 
     /**
      * Async lock implementation using Redisson's CompletableFuture API.

@@ -1,5 +1,3 @@
-SET search_path TO "bank-transaction";
-
 CREATE TABLE IF NOT EXISTS bank_transaction (
     id               BIGSERIAL    PRIMARY KEY,
     aggregate_id     UUID         NOT NULL UNIQUE,

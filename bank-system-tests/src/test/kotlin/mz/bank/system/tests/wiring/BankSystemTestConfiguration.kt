@@ -1,6 +1,5 @@
 package mz.bank.system.tests.wiring
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.system.tests.ServiceHealthChecker
 import mz.bank.transaction.contract.proto.BankTransactionEvent
@@ -23,6 +22,7 @@ import org.springframework.integration.dsl.QueueChannelSpec
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.support.MessageBuilder
 import org.springframework.web.reactive.function.client.WebClient
+import tools.jackson.databind.ObjectMapper
 
 /**
  * Configuration properties for bank system tests.
@@ -64,7 +64,7 @@ data class TestProperties(
  */
 data class AdapterProperties(
     val redisStreams: RedisStreamsProperties,
-    val natsJetstream: NatsJetstreamProperties = NatsJetstreamProperties(),
+    val natsJetstream: NatsJetstreamProperties,
 )
 
 /**
@@ -79,8 +79,8 @@ data class RedisStreamsProperties(
  * NATS JetStream configuration container.
  */
 data class NatsJetstreamProperties(
-    val bankAccount: BankAccountNatsJetStreamProperties = BankAccountNatsJetStreamProperties(),
-    val bankTransaction: BankTransactionNatsJetStreamProperties = BankTransactionNatsJetStreamProperties(),
+    val bankAccount: BankAccountNatsJetStreamProperties,
+    val bankTransaction: BankTransactionNatsJetStreamProperties,
 )
 
 /**
@@ -105,18 +105,18 @@ data class BankTransactionRedisStreamProperties(
  * Bank account NATS JetStream specific properties.
  */
 data class BankAccountNatsJetStreamProperties(
-    val eventsStream: String = "bank-account.event.bank-accounts",
-    val eventsSubject: String = "bank-account.events",
-    val consumerName: String = "bank-account-consumer-system-tests",
+    val eventsStream: String,
+    val eventsSubject: String,
+    val consumerName: String,
 )
 
 /**
  * Bank transaction NATS JetStream specific properties.
  */
 data class BankTransactionNatsJetStreamProperties(
-    val eventsStream: String = "bank-transaction.event.bank-transactions",
-    val eventsSubject: String = "bank-transaction.events",
-    val consumerName: String = "bank-transaction-consumer-system-tests",
+    val eventsStream: String,
+    val eventsSubject: String,
+    val consumerName: String,
 )
 
 /**

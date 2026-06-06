@@ -68,8 +68,8 @@ services:
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8080
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-redis-all}
-      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-false}
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-postgres-nats}
+      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-true}
       - NATS_URL=nats://nats-db:4222
     profiles:
       - system-tests
@@ -102,8 +102,8 @@ services:
       - POSTGRES_USER=bank_user
       - POSTGRES_PASSWORD=bank_pass
       - SERVER_PORT=8081
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-redis-all}
-      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-false}
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-postgres-nats}
+      - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-true}
       - NATS_URL=nats://nats-db:4222
     profiles:
       - system-tests

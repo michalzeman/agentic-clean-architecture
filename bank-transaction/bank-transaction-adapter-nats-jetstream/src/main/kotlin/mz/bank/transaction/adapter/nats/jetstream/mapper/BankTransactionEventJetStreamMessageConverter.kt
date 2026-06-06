@@ -1,10 +1,10 @@
 package mz.bank.transaction.adapter.nats.jetstream.mapper
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.transaction.contract.proto.BankTransactionEvent
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 
 /**
  * JetStream message converter for BankTransactionEvent using Jackson protobuf ObjectMapper.

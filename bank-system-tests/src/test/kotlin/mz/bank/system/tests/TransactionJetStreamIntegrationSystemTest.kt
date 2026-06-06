@@ -1,7 +1,5 @@
 package mz.bank.system.tests
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.runBlocking
 import mz.bank.system.tests.wiring.BankSystemTestConfiguration
 import mz.shared.connector.system.tests.awaitMessages
@@ -19,6 +17,8 @@ import org.springframework.integration.channel.QueueChannel
 import org.springframework.messaging.Message
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBody
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -95,7 +95,7 @@ class TransactionJetStreamIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            val sourceAccountId = sourceAccount.get("accountId").asText()
+            val sourceAccountId = sourceAccount.get("accountId").stringValue()
             assertThat(sourceAccountId).isNotNull
             assertThat(BigDecimal(sourceAccount.get("balance").asText())).isEqualByComparingTo(sourceInitialBalance)
 
@@ -112,7 +112,7 @@ class TransactionJetStreamIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            val destAccountId = destAccount.get("accountId").asText()
+            val destAccountId = destAccount.get("accountId").stringValue()
             assertThat(destAccountId).isNotNull
             assertThat(BigDecimal(destAccount.get("balance").asText())).isEqualByComparingTo(destInitialBalance)
 
@@ -148,10 +148,10 @@ class TransactionJetStreamIntegrationSystemTest {
                         .awaitBody()
                 }
 
-            val transactionId = transaction.get("transactionId").asText()
+            val transactionId = transaction.get("transactionId").stringValue()
             assertThat(transactionId).isNotNull
-            assertThat(transaction.get("correlationId").asText()).isNotNull
-            assertThat(transaction.get("status").asText()).isEqualTo("CREATED")
+            assertThat(transaction.get("correlationId").stringValue()).isNotNull
+            assertThat(transaction.get("status").stringValue()).isEqualTo("CREATED")
             assertThat(BigDecimal(transaction.get("amount").asText())).isEqualByComparingTo(transferAmount)
 
             val messages: List<Message<*>> =
@@ -184,8 +184,8 @@ class TransactionJetStreamIntegrationSystemTest {
                     .retrieve()
                     .awaitBody()
 
-            assertThat(finalTransaction.get("transactionId").asText()).isEqualTo(transactionId)
-            assertThat(finalTransaction.get("status").asText()).isEqualTo("FINISHED")
+            assertThat(finalTransaction.get("transactionId").stringValue()).isEqualTo(transactionId)
+            assertThat(finalTransaction.get("status").stringValue()).isEqualTo("FINISHED")
             assertThat(finalTransaction.get("moneyWithdrawn").asBoolean()).isEqualTo(true)
             assertThat(finalTransaction.get("moneyDeposited").asBoolean()).isEqualTo(true)
 
@@ -200,23 +200,23 @@ class TransactionJetStreamIntegrationSystemTest {
                 )
 
             val expectedSourceBalance = sourceInitialBalance.subtract(transferAmount)
-            assertThat(finalSourceAccount.get("accountId").asText()).isEqualTo(sourceAccountId)
+            assertThat(finalSourceAccount.get("accountId").stringValue()).isEqualTo(sourceAccountId)
             assertThat(BigDecimal(finalSourceAccount.get("balance").asText())).isEqualByComparingTo(expectedSourceBalance)
 
             val expectedDestBalance = destInitialBalance.add(transferAmount)
-            assertThat(finalDestAccount.get("accountId").asText()).isEqualTo(destAccountId)
+            assertThat(finalDestAccount.get("accountId").stringValue()).isEqualTo(destAccountId)
             assertThat(BigDecimal(finalDestAccount.get("balance").asText())).isEqualByComparingTo(expectedDestBalance)
 
             val sourceFinishedTxns =
                 finalSourceAccount
                     .get("finishedTransactions")
-                    ?.map { it.asText() }
+                    ?.map { it.stringValue() }
                     ?.toSet() ?: emptySet()
 
             val destFinishedTxns =
                 finalDestAccount
                     .get("finishedTransactions")
-                    ?.map { it.asText() }
+                    ?.map { it.stringValue() }
                     ?.toSet() ?: emptySet()
 
             assertThat(sourceFinishedTxns).contains(transactionId)
@@ -253,13 +253,13 @@ class TransactionJetStreamIntegrationSystemTest {
             val sourceFinishedTxns =
                 sourceAccount
                     .get("finishedTransactions")
-                    ?.map { it.asText() }
+                    ?.map { it.stringValue() }
                     ?.toSet() ?: emptySet()
 
             val destFinishedTxns =
                 destAccount
                     .get("finishedTransactions")
-                    ?.map { it.asText() }
+                    ?.map { it.stringValue() }
                     ?.toSet() ?: emptySet()
 
             if (sourceFinishedTxns.contains(transactionId) && destFinishedTxns.contains(transactionId)) {

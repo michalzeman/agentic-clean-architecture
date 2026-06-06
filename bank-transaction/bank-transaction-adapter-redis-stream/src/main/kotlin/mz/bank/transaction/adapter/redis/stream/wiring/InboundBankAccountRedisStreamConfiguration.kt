@@ -1,6 +1,5 @@
 package mz.bank.transaction.adapter.redis.stream.wiring
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
 import mz.bank.transaction.adapter.redis.stream.inbound.toAccountEvent
@@ -14,6 +13,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.messaging.MessageChannel
+import tools.jackson.databind.ObjectMapper
 
 /**
  * Configuration for inbound Redis stream consumption of bank account events.

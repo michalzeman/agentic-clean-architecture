@@ -1,12 +1,12 @@
 package mz.shared.connector.redis.protobuf
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.Message
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.StreamRecords
 import org.springframework.data.redis.connection.stream.StringRecord
 import org.springframework.messaging.support.MessageBuilder
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.ObjectMapper
 import java.util.Base64
 import org.springframework.messaging.Message as SpringMessage
 

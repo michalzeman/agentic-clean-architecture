@@ -46,7 +46,7 @@ spring:
     password: ${POSTGRES_PASSWORD:bank_pass}
     driver-class-name: org.postgresql.Driver
     hikari:
-      schema: bank-transaction
+      schema: bank_transaction
       maximum-pool-size: 20
       minimum-idle: 5
       connection-timeout: 20000
@@ -57,8 +57,8 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-bank-transaction.xml
-    default-schema: public
     liquibase-schema: public
+    default-schema: bank_transaction
 
 server:
   port: 8081

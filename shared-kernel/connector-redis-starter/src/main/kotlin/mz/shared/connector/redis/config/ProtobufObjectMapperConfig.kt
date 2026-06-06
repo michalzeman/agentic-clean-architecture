@@ -1,15 +1,15 @@
 package mz.shared.connector.redis.config
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.hubspot.jackson.datatype.protobuf.ProtobufModule
+import com.hubspot.jackson3.datatype.protobuf.ProtobufModule
 import mz.shared.connector.redis.json.MessagingObjectMapperBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import tools.jackson.databind.ObjectMapper
 
 /**
- * Auto-configuration for Protobuf ObjectMapper used by Redis Stream serialization.
- * Provides a pre-configured ObjectMapper for protobuf message serialization/deserialization.
+ * Auto-configuration for ObjectMapper used by Redis Stream serialization.
+ * Provides a pre-configured messaging-aware ObjectMapper for serialization/deserialization.
  *
  * This ObjectMapper is used by:
  * - RedisMapRecordJsonSerializer for stream record serialization
@@ -17,7 +17,6 @@ import org.springframework.context.annotation.Configuration
  * - RedisStreamPublisher for serializing outgoing messages
  *
  * The ObjectMapper is configured with:
- * - ProtobufModule for protobuf message support
  * - KotlinModule for Kotlin data class support
  * - Messaging-aware mapper configuration for Spring Integration compatibility
  *
@@ -33,7 +32,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class ProtobufObjectMapperConfig {
     /**
-     * Creates a messaging-aware ObjectMapper for protobuf serialization.
+     * Creates a messaging-aware ObjectMapper for serialization.
      * Only created if no bean named "protobufObjectMapper" exists.
      */
     @Bean("protobufObjectMapper")
