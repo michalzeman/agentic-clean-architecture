@@ -22,6 +22,9 @@ dependencies {
     // lettuce redis driver
     api("io.lettuce:lettuce-core")
 
+    // connection pooling for lettuce
+    api("org.apache.commons:commons-pool2:2.12.0")
+
     api(libs.redisson)
 
     api("tools.jackson.core:jackson-core")

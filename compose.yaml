@@ -5,6 +5,12 @@ services:
       - '6379:6379'
     volumes:
       - redis-db-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   redisinsight:
     image: 'redis/redisinsight:latest'
@@ -57,7 +63,7 @@ services:
       - '8080:8080'
     depends_on:
       redis-db:
-        condition: service_started
+        condition: service_healthy
       postgres-db:
         condition: service_healthy
       nats-db:
@@ -89,7 +95,7 @@ services:
       - '8081:8081'
     depends_on:
       redis-db:
-        condition: service_started
+        condition: service_healthy
       postgres-db:
         condition: service_healthy
       nats-db:

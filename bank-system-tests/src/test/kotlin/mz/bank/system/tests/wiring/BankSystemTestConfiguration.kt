@@ -175,9 +175,11 @@ class BankSystemTestConfiguration(
     // ─── Redis channels ───────────────────────────────────────────────────────
 
     @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "false", matchIfMissing = true)
     fun bankAccountEventsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
 
     @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "false", matchIfMissing = true)
     fun bankTransactionEventsStreamChannel(): QueueChannelSpec = MessageChannels.queue()
 
     /**
@@ -185,6 +187,7 @@ class BankSystemTestConfiguration(
      * Consumes AccountCreated events from the bank-account service stream.
      */
     @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "false", matchIfMissing = true)
     fun bankAccountEventsRedisStreamConsumer(
         bankAccountEventsStreamChannel: MessageChannel,
         @Qualifier("protobufObjectMapper") protobufObjectMapper: ObjectMapper,
@@ -204,6 +207,7 @@ class BankSystemTestConfiguration(
      * Consumes protobuf BankTransactionEvent events from the bank-transaction service stream.
      */
     @Bean
+    @ConditionalOnProperty(prefix = "nats.jetstream", name = ["enabled"], havingValue = "false", matchIfMissing = true)
     fun bankTransactionEventsRedisStreamConsumer(
         bankTransactionEventsStreamChannel: MessageChannel,
         @Qualifier("protobufObjectMapper") protobufObjectMapper: ObjectMapper,
