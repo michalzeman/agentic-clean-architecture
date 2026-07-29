@@ -52,7 +52,7 @@ class BankSystemIntegrationTest {
             val health =
                 accountServiceWebClient
                     .get()
-                    .uri("/actuator/health")
+                    .uri("/actuator/health/readiness")
                     .retrieve()
                     .bodyToMono(Map::class.java)
                     .awaitSingle()
@@ -68,7 +68,7 @@ class BankSystemIntegrationTest {
             val health =
                 transactionServiceWebClient
                     .get()
-                    .uri("/actuator/health")
+                    .uri("/actuator/health/readiness")
                     .retrieve()
                     .bodyToMono(Map::class.java)
                     .awaitSingle()

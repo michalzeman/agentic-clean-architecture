@@ -1,5 +1,6 @@
 dependencies {
     api(project(":shared-kernel:connector-redis"))
+    api("org.springframework.boot:spring-boot-health")
     api(libs.redisson.spring.starter)
 
     implementation("org.springframework.boot:spring-boot-autoconfigure")

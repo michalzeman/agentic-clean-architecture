@@ -6,6 +6,7 @@ import io.nats.client.Message
 import io.nats.client.PullSubscribeOptions
 import io.nats.client.api.ConsumerConfiguration
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -152,7 +153,13 @@ internal class DefaultJetStreamConsumer<T>(
         createSubscription().also { subscriptionRef.set(it) }
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.IO +
+                CoroutineExceptionHandler { _, t ->
+                    logger.error("JetStream consumer '{}' terminated unexpectedly", consumerName, t)
+                },
+        )
 
     private val isRunning = AtomicBoolean(false)
 
@@ -248,39 +255,55 @@ internal class DefaultJetStreamConsumer<T>(
      */
     private fun startConsuming() {
         scope.launch {
-            logger.debug("Starting message consumption: consumer={}", consumerName)
+            try {
+                consumeMessages()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Error) {
+                isRunning.set(false)
+                throw e
+            }
+        }
+    }
 
-            // Ensure subscription is initialized
-            val sub = subscription
+    private suspend fun CoroutineScope.consumeMessages() {
+        logger.debug("Starting message consumption: consumer={}", consumerName)
 
-            while (isActive && isRunning.get()) {
-                try {
-                    // Fetch messages from JetStream
-                    val messages =
-                        withContext(Dispatchers.IO) {
-                            sub.fetch(batchSize, Duration.ofMillis(maxWaitMillis))
-                        }.takeIf { it != null }
-                            ?: emptyList()
+        // Ensure subscription is initialized
+        val sub = subscription
 
-                    if (messages.isEmpty()) {
-                        // No messages available, wait before next fetch
-                        delay(fetchIntervalMillis)
-                        continue
-                    }
+        while (isActive && isRunning.get()) {
+            try {
+                // Fetch messages from JetStream
+                val messages =
+                    withContext(Dispatchers.IO) {
+                        sub.fetch(batchSize, Duration.ofMillis(maxWaitMillis))
+                    }.takeIf { it != null }
+                        ?: emptyList()
 
-                    logger.debug("Fetched {} messages from stream {}", messages.size, streamName)
-
-                    // Process each message
-                    processMessages(messages)
-                } catch (e: CancellationException) {
-                    // Normal cancellation, exit cleanly
-                    logger.debug("Message consumption cancelled: consumer={}", consumerName)
-                    throw e
-                } catch (e: Exception) {
-                    logger.error("Error during message consumption: consumer={}", consumerName, e)
-                    // Brief delay before retry to avoid tight error loops
-                    delay(fetchIntervalMillis * ERROR_BACKOFF_MULTIPLIER)
+                if (messages.isEmpty()) {
+                    // No messages available, wait before next fetch
+                    delay(fetchIntervalMillis)
+                    continue
                 }
+
+                logger.debug("Fetched {} messages from stream {}", messages.size, streamName)
+
+                // Process each message
+                processMessages(messages)
+            } catch (e: CancellationException) {
+                // Normal cancellation, exit cleanly
+                logger.debug("Message consumption cancelled: consumer={}", consumerName)
+                throw e
+            } catch (e: Exception) {
+                logger.error(
+                    "Error during message consumption: consumer={}",
+                    consumerName,
+                    e,
+                )
+
+                // Brief delay before retry to avoid tight error loops
+                delay(fetchIntervalMillis * ERROR_BACKOFF_MULTIPLIER)
             }
         }
     }

@@ -11,6 +11,9 @@ dependencies {
     // Validation
     api("org.springframework.boot:spring-boot-starter-validation")
 
+    // Spring Boot health for health indicator registration
+    api("org.springframework.boot:spring-boot-health")
+
     // Spring integration
     api("org.springframework.integration:spring-integration-core")
 

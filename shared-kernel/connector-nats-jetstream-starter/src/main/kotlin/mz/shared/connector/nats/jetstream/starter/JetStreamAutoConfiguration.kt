@@ -5,16 +5,22 @@ import mz.shared.connector.nats.DefaultNatsConnectionHealthIndicator
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.NatsConnectionHealthIndicator
 import mz.shared.connector.nats.NatsConnectionProperties
+import mz.shared.connector.nats.NatsHealthIndicator
 import mz.shared.connector.nats.jetstream.DefaultJetStreamHealthIndicator
 import mz.shared.connector.nats.jetstream.JetStreamHealthIndicator
+import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumer
+import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumerHealthIndicator
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
 
 /**
  * Spring Boot auto-configuration for NATS JetStream.
@@ -50,6 +56,27 @@ class JetStreamAutoConfiguration {
     @ConditionalOnMissingBean
     fun natsConnectionHealthIndicator(connectionFactory: NatsConnectionFactory): NatsConnectionHealthIndicator =
         DefaultNatsConnectionHealthIndicator(connectionFactory)
+
+    /**
+     * Provides Spring Boot health contributor with id "nats"
+     * for actuator readiness/liveness probes.
+     */
+    @Bean
+    @Profile("nats-jetstream")
+    @ConditionalOnMissingBean
+    @ConditionalOnEnabledHealthIndicator("nats")
+    fun natsHealthIndicator(delegate: NatsConnectionHealthIndicator): NatsHealthIndicator = NatsHealthIndicator(delegate)
+
+    /**
+     * Provides Spring Boot health contributor with id "jetStreamConsumer"
+     * for monitoring consumer liveness via actuator readiness probes.
+     */
+    @Bean
+    @Profile("nats-jetstream")
+    @ConditionalOnMissingBean
+    @ConditionalOnEnabledHealthIndicator("jetStreamConsumer")
+    fun jetStreamConsumerHealthIndicator(consumers: ObjectProvider<JetStreamConsumer<*>>): JetStreamConsumerHealthIndicator =
+        JetStreamConsumerHealthIndicator(consumers)
 
     /**
      * Provides JetStream health indicator for monitoring connection

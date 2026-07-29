@@ -25,6 +25,8 @@ dependencies {
     // connection pooling for lettuce
     api("org.apache.commons:commons-pool2:2.12.0")
 
+    api("org.springframework.boot:spring-boot-health")
+
     api(libs.redisson)
 
     api("tools.jackson.core:jackson-core")

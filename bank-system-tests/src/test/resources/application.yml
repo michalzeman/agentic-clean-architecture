@@ -69,7 +69,7 @@ nats:
 bank-system-tests:
   account-service-url: "http://localhost:8080"
   transaction-service-url: "http://localhost:8081"
-  health-endpoint: "/actuator/health"
+  health-endpoint: "/actuator/health/readiness"
   adapter:
     redis-streams:
       bank-account:

@@ -4,9 +4,13 @@ import io.lettuce.core.api.StatefulConnection
 import mz.shared.domain.LockProvider
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig
 import org.redisson.api.RedissonClient
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Profile
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration
@@ -75,4 +79,16 @@ class DataPlatformRedisConfiguration(
 
     @Bean
     fun objectMapper(): JsonMapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
+
+    @Bean
+    @ConditionalOnMissingBean(name = ["redisHealthIndicator", "redisHealthContributor"])
+    @ConditionalOnEnabledHealthIndicator("redis")
+    fun redisHealthIndicator(connectionFactory: LettuceConnectionFactory): RedisHealthIndicator = RedisHealthIndicator(connectionFactory)
+
+    @Bean
+    @Profile("!nats-jetstream")
+    @ConditionalOnMissingBean
+    @ConditionalOnEnabledHealthIndicator("redisStreamConsumer")
+    fun redisStreamConsumerHealthIndicator(consumers: ObjectProvider<RedisStreamConsumer<*, *>>): RedisStreamConsumerHealthIndicator =
+        RedisStreamConsumerHealthIndicator(consumers)
 }

@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":shared-kernel:connector-nats-jetstream-starter"))
     implementation(project(":shared-kernel:connector-redis-starter"))
     implementation(project(":shared-kernel:connector-postgresql-starter"))
+    implementation(project(":shared-kernel:connector-health"))
 
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.springframework.boot:spring-boot-starter")

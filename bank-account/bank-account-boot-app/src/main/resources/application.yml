@@ -3,9 +3,12 @@ management:
     web:
       exposure:
         include: health,info
-  health:
-    db:
-      enabled: false
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: readinessState,db,redis,springIntegration
 
 spring:
   profiles:
@@ -97,3 +100,25 @@ adapters:
       bank-transaction-events-stream: bank-transaction.event.bank-transactions
       bank-transaction-events-consumer-group: bank-account-service
       bank-transaction-events-consumer-name: bank-account-consumer
+---
+spring:
+  config:
+    activate:
+      on-profile: "nats-jetstream"
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db,redis,springIntegration,nats,jetStreamConsumer
+---
+spring:
+  config:
+    activate:
+      on-profile: "!nats-jetstream"
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db,redis,springIntegration,redisStreamConsumer

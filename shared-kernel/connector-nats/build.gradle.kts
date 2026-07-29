@@ -14,6 +14,9 @@ dependencies {
     // Spring Boot autoconfigure for @ConfigurationProperties
     api("org.springframework.boot:spring-boot-autoconfigure")
 
+    // Spring Boot health for HealthIndicator
+    api("org.springframework.boot:spring-boot-health")
+
     // Logging
     api("org.slf4j:slf4j-api")
 
@@ -27,5 +30,4 @@ dependencies {
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.nats:jnats-server-runner:${property("natsJavaClientVersion")}")
 }

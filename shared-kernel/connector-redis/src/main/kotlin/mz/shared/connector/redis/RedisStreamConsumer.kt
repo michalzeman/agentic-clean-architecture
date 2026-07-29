@@ -19,6 +19,7 @@ import mz.shared.domain.AGGREGATE_ID
 import mz.shared.domain.LockProvider
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.DisposableBean
+import org.springframework.context.SmartLifecycle
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.connection.stream.Consumer
 import org.springframework.data.redis.connection.stream.MapRecord
@@ -35,6 +36,7 @@ import org.springframework.messaging.support.ErrorMessage
 import org.springframework.messaging.support.MessageBuilder
 import tools.jackson.databind.ObjectMapper
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val logger = LoggerFactory.getLogger(RedisStreamConsumer::class.java)
 
@@ -48,12 +50,34 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
     val reactiveRedisTemplate: ReactiveRedisTemplate<String, *>,
     val consumer: Consumer,
     private val lockProvider: LockProvider? = null,
-) : DisposableBean {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+) : DisposableBean,
+    SmartLifecycle {
+    private val lifecycleLock = Any()
+    private var scope: CoroutineScope? = null
+    private val running = AtomicBoolean(false)
 
-    init {
-        scope.launch { startConsumer() }
+    override fun start() {
+        synchronized(lifecycleLock) {
+            if (running.compareAndSet(false, true)) {
+                val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+                scope = newScope
+                newScope.launch { startConsumer() }
+            }
+        }
     }
+
+    override fun stop() {
+        synchronized(lifecycleLock) {
+            if (running.compareAndSet(true, false)) {
+                scope?.cancel()
+                scope = null
+            }
+        }
+    }
+
+    override fun isRunning(): Boolean = running.get()
+
+    override fun destroy() = stop()
 
     private suspend fun startConsumer(): Unit =
         recordStream
@@ -117,11 +141,6 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
             errorChannel?.send(ErrorMessage(RuntimeException("Sending to the channel timeout"), message))
             throw RuntimeException("Sending to the channel timeout")
         }
-    }
-
-    override fun destroy() {
-        logger.info("Stopping Redis Stream Consumer")
-        scope.cancel()
     }
 }
 

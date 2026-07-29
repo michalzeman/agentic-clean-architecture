@@ -9,6 +9,7 @@ import io.nats.client.impl.Headers
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import org.assertj.core.api.Assertions.assertThat
+import org.awaitility.kotlin.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -169,6 +170,16 @@ class DefaultJetStreamConsumerUnitTest {
         Thread.sleep(200)
 
         verify(natsMessage).nak()
+    }
+
+    @Test
+    fun `should set isRunning to false when consume loop fails`() {
+        whenever(subscription.fetch(any<Int>(), any<Duration>())).thenThrow(AssertionError("fetch boom"))
+
+        consumer = createConsumer()
+        consumer.start()
+
+        await.atMost(Duration.ofSeconds(5)).until { !consumer.isRunning() }
     }
 
     private fun createConsumer(

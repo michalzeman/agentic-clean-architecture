@@ -12,6 +12,9 @@ dependencies {
     // Spring context
     api("org.springframework:spring-context")
 
+    // Spring Boot health for health indicator
+    api("org.springframework.boot:spring-boot-health")
+
     // Coroutines support
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")

@@ -29,7 +29,7 @@ class ServiceHealthChecker(
      * @throws IllegalStateException if the service does not become healthy within the max wait time
      */
     suspend fun waitForService(
-        maxWaitDuration: Duration = Duration.ofSeconds(60),
+        maxWaitDuration: Duration = Duration.ofSeconds(120),
         pollInterval: Duration = Duration.ofSeconds(2),
     ) {
         val startTime = System.currentTimeMillis()
@@ -83,7 +83,7 @@ class ServiceHealthChecker(
  * Extension function to wait for multiple services to be healthy.
  */
 suspend fun List<ServiceHealthChecker>.waitForAllServices(
-    maxWaitDuration: Duration = Duration.ofSeconds(60),
+    maxWaitDuration: Duration = Duration.ofSeconds(120),
     pollInterval: Duration = Duration.ofSeconds(2),
 ) = coroutineScope {
     this@waitForAllServices

@@ -80,11 +80,11 @@ services:
     profiles:
       - system-tests
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/readiness"]
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
   bank-transaction-service:
     image: 'bank-transaction:latest'
@@ -114,11 +114,11 @@ services:
     profiles:
       - system-tests
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/readiness"]
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
 volumes:
   redis-db-data:
