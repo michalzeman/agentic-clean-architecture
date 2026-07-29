@@ -2,6 +2,7 @@ package mz.shared.connector.redis
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import mz.shared.domain.LockAcquisitionException
 import mz.shared.domain.LockProvider
 import org.redisson.api.RedissonClient
 import org.slf4j.LoggerFactory
@@ -44,7 +45,7 @@ class RedisLockProvider(
             } catch (e: Exception) {
                 if (attempt == maxAttempts - 1) {
                     logger.error("Failed to acquire lock '$keyLock' after $maxAttempts attempts", e)
-                    throw e
+                    throw LockAcquisitionException("Failed to acquire lock '$keyLock' after $maxAttempts attempts", e)
                 }
                 val backoffMs = (100L shl attempt).coerceAtMost(1000L)
                 logger.warn("Failed to acquire lock '$keyLock', attempt ${attempt + 1}/$maxAttempts", e)

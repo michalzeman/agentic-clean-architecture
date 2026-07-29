@@ -163,6 +163,27 @@ class BankTransactionAggregateTest {
             .hasMessageContaining("does not match transaction's toAccountId")
     }
 
+    // ==================== Finish Transaction Tests ====================
+
+    @Test
+    fun `should return same aggregate when finish is called on already finished transaction`() {
+        // Given - Create a transaction that is already FINISHED
+        var aggregate = createTestAggregate()
+        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
+        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+
+        val cmd = createFinishCommand(aggregate)
+
+        // When - Call finishBankTransaction again (idempotent)
+        val result = aggregate.finishBankTransaction(cmd)
+
+        // Then - Should return the same aggregate with no new events emitted
+        assertThat(result).isSameAs(aggregate)
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+        assertThat(result.domainEvents).isEqualTo(aggregate.domainEvents)
+    }
+
     // ==================== Cancel Transaction Tests ====================
 
     @Test
@@ -391,5 +412,13 @@ class BankTransactionAggregateTest {
             fromAccountId = aggregate.bankTransaction.fromAccountId,
             toAccountId = aggregate.bankTransaction.toAccountId,
             amount = aggregate.bankTransaction.amount,
+        )
+
+    private fun createFinishCommand(aggregate: BankTransactionAggregate): BankTransactionCommand.FinishBankTransaction =
+        BankTransactionCommand.FinishBankTransaction(
+            aggregateId = aggregate.bankTransaction.aggregateId,
+            correlationId = aggregate.bankTransaction.correlationId,
+            fromAccountId = aggregate.bankTransaction.fromAccountId,
+            toAccountId = aggregate.bankTransaction.toAccountId,
         )
 }

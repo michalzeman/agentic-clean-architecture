@@ -155,6 +155,13 @@ data class BankTransactionAggregate(
      * Completes the transaction after both withdraw and deposit are done.
      */
     fun finishBankTransaction(cmd: BankTransactionCommand.FinishBankTransaction): BankTransactionAggregate {
+        // Idempotent: if already finished, return this with no new events.
+        // Both source and dest accounts emit TransactionFinished, each triggering a FinishBankTransaction command.
+        // The second invocation is expected and should be a silent no-op.
+        if (bankTransaction.status == BankTransactionStatus.FINISHED) {
+            return this
+        }
+
         require(bankTransaction.status != BankTransactionStatus.FAILED) {
             "Cannot finish a failed transaction"
         }

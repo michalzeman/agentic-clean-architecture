@@ -74,12 +74,12 @@ bank-system-tests:
     redis-streams:
       bank-account:
         events-stream: bank-account.event.bank-accounts
-        events-consumer-group: bank-account-service-systen-tests
-        events-consumer-name: bank-account-consumer-systen-tests
+        events-consumer-group: bank-account-service-system-tests
+        events-consumer-name: bank-account-consumer-system-tests
       bank-transaction:
         events-stream: bank-transaction.event.bank-transactions
-        events-consumer-group: bank-transaction-service-systen-tests
-        events-consumer-name: bank-transaction-consumer-systen-tests
+        events-consumer-group: bank-transaction-service-system-tests
+        events-consumer-name: bank-transaction-consumer-system-tests
     nats-jetstream:
       bank-account:
         events-stream: bank-account_event_bank-accounts

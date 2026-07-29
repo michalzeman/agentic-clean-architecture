@@ -1,5 +1,6 @@
 package mz.bank.system.tests
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import mz.bank.system.tests.wiring.BankSystemTestConfiguration
 import mz.shared.connector.system.tests.awaitMessages
@@ -153,30 +154,40 @@ class TransactionCancellationIntegrationSystemTest {
             assertThat(transaction.get("status").stringValue()).isEqualTo("CREATED")
             assertThat(transaction.get("amount").decimalValue()).isEqualByComparingTo(transferAmount)
 
-            // Wait for account service to start processing the withdrawal
-            // This ensures the account service has consumed the TransactionCreated event
-            bankAccountEventsChannel.awaitMessages(
-                maxDelayMillis = 30000,
-                pollIntervalMillis = 500,
-                assertion = { msgs: List<Message<*>> ->
-                    msgs.any { msg: Message<*> ->
-                        val payload = msg.payload as? mz.bank.account.contract.proto.BankAccountEvent
-                        payload?.hasTransferWithdrawalStarted() == true &&
-                            payload.transferWithdrawalStarted.transactionId == transactionId
-                    }
-                },
+            // Wait for the transaction to confirm money withdrawal by polling
+            // the transaction REST API directly. This is more reliable than waiting
+            // for events through the message channel because it avoids event pipeline
+            // latency (Redis stream → consumer → queue channel) during which the saga
+            // can progress further and finish the transaction.
+            pollForTransactionWithWithdrawn(
+                transactionId = transactionId,
+                maxRetries = 60,
+                delayMillis = 500,
             )
 
-            // Cancel the transaction (before it finishes)
+            // Cancel the transaction (before it finishes).
+            // Retry once on 503 (lock acquisition failure) with a 2-second delay.
+            // Do NOT retry on 400 (already finished) — that means the race was lost.
             val cancelRequest = buildCancelTransactionRequest(sourceAccountId, destAccountId, transferAmount)
             val cancelledTransaction: JsonNode =
-                transactionServiceWebClient
-                    .post()
-                    .uri("/api/v1/transactions/{transactionId}/cancel", transactionId)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(cancelRequest)
-                    .retrieve()
-                    .awaitBody()
+                try {
+                    transactionServiceWebClient
+                        .post()
+                        .uri("/api/v1/transactions/{transactionId}/cancel", transactionId)
+                        .header("Content-Type", "application/json")
+                        .bodyValue(cancelRequest)
+                        .retrieve()
+                        .awaitBody()
+                } catch (e: org.springframework.web.reactive.function.client.WebClientResponseException.ServiceUnavailable) {
+                    delay(2000)
+                    transactionServiceWebClient
+                        .post()
+                        .uri("/api/v1/transactions/{transactionId}/cancel", transactionId)
+                        .header("Content-Type", "application/json")
+                        .bodyValue(cancelRequest)
+                        .retrieve()
+                        .awaitBody()
+                }
 
             assertThat(cancelledTransaction.get("transactionId").stringValue()).isEqualTo(transactionId)
             assertThat(cancelledTransaction.get("status").stringValue()).isEqualTo("FAILED")
