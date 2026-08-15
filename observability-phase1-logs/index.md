@@ -1,0 +1,1 @@
+- [2026-08-14](2026-08-14-step1-connector-module.md) — completed Step 1 connector-observability module. Next: Step 2.
