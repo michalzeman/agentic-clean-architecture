@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":shared-kernel:connector-redis-starter"))
     implementation(project(":shared-kernel:connector-postgresql-starter"))
     implementation(project(":shared-kernel:connector-health"))
+    implementation(project(":shared-kernel:connector-observability"))
 
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.springframework.boot:spring-boot-starter")
@@ -40,4 +41,7 @@ dependencies {
     // Test dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.integration:spring-integration-test")
+    testImplementation("org.testcontainers:testcontainers:${property("testcontainersVersion")}")
+    testImplementation("org.testcontainers:postgresql:${property("testcontainersJunitVersion")}")
+    testImplementation("org.testcontainers:junit-jupiter:${property("testcontainersJunitVersion")}")
 }
