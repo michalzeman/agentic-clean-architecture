@@ -42,9 +42,10 @@ services:
 
   nats-db:
     image: 'nats:2.10.7-alpine'
-    command: ["-c", "/etc/nats/nats-jetstream.conf"]
+    command: ["-c", "/etc/nats/nats-jetstream.conf", "-m", "8222"]
     ports:
       - '4222:4222'
+      - '8222:8222'
     volumes:
       - ./nats-jetstream.conf:/etc/nats/nats-jetstream.conf:ro
     healthcheck:
@@ -119,6 +120,57 @@ services:
       timeout: 3s
       retries: 10
       start_period: 60s
+
+  prometheus:
+    image: 'prom/prometheus:v3.5.0'
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: 'grafana/grafana:12.0.0'
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  redis-exporter:
+    image: 'oliver006/redis_exporter:v1.5.2'
+    container_name: redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis-db:6379
+    depends_on:
+      - redis-db
+
+  postgres-exporter:
+    image: 'prometheuscommunity/postgres-exporter:v0.17.1'
+    container_name: postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://bank_user:bank_pass@postgres-db:5432/bank_db?sslmode=disable
+    depends_on:
+      - postgres-db
+
+  nats-exporter:
+    image: 'natsio/prometheus-nats-exporter:0.14.0'
+    container_name: nats-exporter
+    # -jsz takes an optional JetStream account filter; "" means all accounts.
+    # Without this empty arg, the flag parser consumes the next flag as the filter value.
+    command: ["-varz", "-jsz", "", "-connz", "-routez", "-subz", "http://nats-db:8222"]
+    ports:
+      - "7777:7777"
+    depends_on:
+      - nats-db
 
 volumes:
   redis-db-data:

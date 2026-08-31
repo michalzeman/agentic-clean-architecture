@@ -290,10 +290,17 @@ class BankSystemTestConfiguration(
                 consumerName = testProperties.adapterNatsJetStreamBankAccount.consumerName,
             ).withConnectionFactory(connectionFactory)
                 .withConverter(bankAccountEventJetStreamConverter)
+                .withAutoAck(true)
                 .withMessageHandler { message ->
-                    bankAccountEventsNatsStreamChannel.send(
-                        MessageBuilder.withPayload(message.payload).build(),
-                    )
+                    val sent =
+                        bankAccountEventsNatsStreamChannel.send(
+                            MessageBuilder.withPayload(message.payload).build(),
+                        )
+                    if (!sent) {
+                        throw IllegalStateException(
+                            "Channel rejected message: consumer=${testProperties.adapterNatsJetStreamBankAccount.consumerName}",
+                        )
+                    }
                 }.build()
         return consumer
     }
@@ -316,10 +323,17 @@ class BankSystemTestConfiguration(
                 consumerName = testProperties.adapterNatsJetStreamBankTransaction.consumerName,
             ).withConnectionFactory(connectionFactory)
                 .withConverter(bankTransactionEventJetStreamConverter)
+                .withAutoAck(true)
                 .withMessageHandler { message ->
-                    bankTransactionEventsNatsStreamChannel.send(
-                        MessageBuilder.withPayload(message.payload).build(),
-                    )
+                    val sent =
+                        bankTransactionEventsNatsStreamChannel.send(
+                            MessageBuilder.withPayload(message.payload).build(),
+                        )
+                    if (!sent) {
+                        throw IllegalStateException(
+                            "Channel rejected message: consumer=${testProperties.adapterNatsJetStreamBankTransaction.consumerName}",
+                        )
+                    }
                 }.build()
         return consumer
     }

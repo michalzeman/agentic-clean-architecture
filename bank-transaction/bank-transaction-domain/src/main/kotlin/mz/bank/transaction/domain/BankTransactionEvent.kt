@@ -81,6 +81,7 @@ sealed class BankTransactionEvent {
         val fromAccountId: AggregateId,
         val toAccountId: AggregateId,
         val amount: BigDecimal,
+        val reason: TransactionRollbackReason = TransactionRollbackReason.UNKNOWN,
     ) : BankTransactionEvent()
 
     /**

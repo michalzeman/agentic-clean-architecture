@@ -227,6 +227,46 @@ class BankTransactionAggregateTest {
             .hasMessageContaining("Cannot cancel a finished transaction")
     }
 
+    @Test
+    fun `should set rollback reason to MANUAL_CANCEL when cancellation command carries MANUAL_CANCEL`() {
+        // Given
+        val aggregate = createTestAggregate()
+        val cmd = createCancelCommand(aggregate).copy(reason = TransactionRollbackReason.MANUAL_CANCEL)
+
+        // When
+        val result = aggregate.cancelBankTransaction(cmd)
+
+        // Then
+        assertThat(result.bankTransaction.rollbackReason).isEqualTo(TransactionRollbackReason.MANUAL_CANCEL)
+    }
+
+    @Test
+    fun `should default rollback reason to UNKNOWN when cancellation command omits reason`() {
+        // Given
+        val aggregate = createTestAggregate()
+        val cmd = createCancelCommand(aggregate)
+
+        // When
+        val result = aggregate.cancelBankTransaction(cmd)
+
+        // Then
+        assertThat(result.bankTransaction.rollbackReason).isEqualTo(TransactionRollbackReason.UNKNOWN)
+    }
+
+    @Test
+    fun `should set rollback reason on BankTransactionRolledBack event`() {
+        // Given
+        val aggregate = createTestAggregate()
+        val cmd = createCancelCommand(aggregate).copy(reason = TransactionRollbackReason.MANUAL_CANCEL)
+
+        // When
+        val result = aggregate.cancelBankTransaction(cmd)
+
+        // Then
+        val rolledBackEvent = result.domainEvents.filterIsInstance<BankTransactionEvent.BankTransactionRolledBack>().first()
+        assertThat(rolledBackEvent.reason).isEqualTo(TransactionRollbackReason.MANUAL_CANCEL)
+    }
+
     // ==================== Event Sourcing Tests ====================
 
     @Test
@@ -320,6 +360,7 @@ class BankTransactionAggregateTest {
         assertThat(failedAggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(failedAggregate.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(failedAggregate.bankTransaction.moneyDeposited).isFalse()
+        assertThat(failedAggregate.bankTransaction.rollbackReason).isEqualTo(TransactionRollbackReason.UNKNOWN)
         assertThat(failedAggregate.bankTransaction.version).isEqualTo(3L)
         assertThat(failedAggregate.domainEvents).isEmpty()
     }

@@ -20,6 +20,7 @@ data class BankTransaction(
     val version: Long = 0L,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
+    val rollbackReason: TransactionRollbackReason? = null,
 ) {
     init {
         require(amount > BigDecimal.ZERO) { "BankTransaction amount must be positive" }

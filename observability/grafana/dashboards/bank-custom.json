@@ -1,0 +1,69 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Transfer Completed by Outcome",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" } }
+    },
+    {
+      "type": "piechart",
+      "title": "Transfer Rolled Back by Reason",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Account Operation by Op + Outcome",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "stacking": { "mode": "normal", "group": "A" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Server Requests p95 by Service",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Spring Integration Channel Send Duration p95",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Spring Integration Channel Send Total",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["bank", "phase1"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Bank Custom (Phase 1)",
+  "uid": "bank-custom-phase1",
+  "version": 0,
+  "weekStart": ""
+}

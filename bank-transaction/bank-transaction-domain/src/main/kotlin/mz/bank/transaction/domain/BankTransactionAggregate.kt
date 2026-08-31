@@ -64,6 +64,7 @@ data class BankTransactionAggregate(
                         status = BankTransactionStatus.FAILED,
                         version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
+                        rollbackReason = event.reason,
                     )
                 }
                 is BankTransactionEvent.BankTransactionWithdrawRolledBack -> {
@@ -228,6 +229,7 @@ data class BankTransactionAggregate(
                 fromAccountId = cmd.fromAccountId,
                 toAccountId = cmd.toAccountId,
                 amount = cmd.amount,
+                reason = cmd.reason,
             ),
         )
 
