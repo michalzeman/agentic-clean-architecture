@@ -6,6 +6,9 @@ import kotlinx.coroutines.supervisorScope
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountCommand
+import mz.bank.account.domain.BankAccountOperation
+import mz.shared.connector.observability.ObservabilityMeters
+import mz.shared.connector.observability.OperationOutcome
 import mz.shared.domain.LockProvider
 import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.Poller
@@ -24,7 +27,21 @@ class BankAccountCommandHandler(
     private val bankAccountRepository: BankAccountRepository,
     private val lockProvider: LockProvider,
     private val createBankAccountUseCase: CreateBankAccountUseCase,
+    private val observabilityMeters: ObservabilityMeters,
 ) {
+    private suspend fun <T> withOperationMeter(
+        op: BankAccountOperation,
+        block: suspend () -> T,
+    ): T =
+        try {
+            val result = block()
+            observabilityMeters.accountOperation(op.name.lowercase(), OperationOutcome.OK)
+            result
+        } catch (e: Exception) {
+            observabilityMeters.accountOperation(op.name.lowercase(), OperationOutcome.FAIL)
+            throw e
+        }
+
     /**
      * Handles a BankAccountCommand and returns the updated BankAccount.
      * Uses distributed locking to ensure consistency.
@@ -44,36 +61,46 @@ class BankAccountCommandHandler(
         }
 
     private suspend fun handleCreate(command: BankAccountCommand.CreateAccount): BankAccount =
-        lockProvider.withLock(command.email.value) {
-            createBankAccountUseCase.execute(command)
+        withOperationMeter(BankAccountOperation.CREATE) {
+            lockProvider.withLock(command.email.value) {
+                createBankAccountUseCase.execute(command)
+            }
         }
 
     private suspend fun handleDeposit(command: BankAccountCommand.DepositMoney): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).deposit(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.DEPOSIT) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).deposit(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun handleWithdraw(command: BankAccountCommand.WithdrawMoney): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).withdraw(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.WITHDRAW) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).withdraw(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun handleWithdrawForTransfer(command: BankAccountCommand.WithdrawForTransfer): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).withdrawForTransfer(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.TRANSFER_WITHDRAW) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).withdrawForTransfer(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun handleDepositFromTransfer(command: BankAccountCommand.DepositFromTransfer): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).depositFromTransfer(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.TRANSFER_DEPOSIT) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).depositFromTransfer(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun handleFinishTransactions(command: BankAccountCommand.FinishTransactions): BankAccount =
@@ -88,28 +115,34 @@ class BankAccountCommandHandler(
         }
 
     private suspend fun handleFinishTransaction(command: BankAccountCommand.FinishTransaction): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            if (command.transactionId in account.openedTransactions) {
-                val aggregate = BankAccountAggregate(account).finishTransaction(command)
-                bankAccountRepository.upsert(aggregate)
-            } else {
-                account
+        withOperationMeter(BankAccountOperation.FINISH) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                if (command.transactionId in account.openedTransactions) {
+                    val aggregate = BankAccountAggregate(account).finishTransaction(command)
+                    bankAccountRepository.upsert(aggregate)
+                } else {
+                    account
+                }
             }
         }
 
     private suspend fun handleRollbackWithdrawForTransfer(command: BankAccountCommand.RollbackWithdrawForTransfer): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).rollbackWithdrawForTransfer(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.ROLLBACK_WITHDRAW) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).rollbackWithdrawForTransfer(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun handleRollbackDepositFromTransfer(command: BankAccountCommand.RollbackDepositFromTransfer): BankAccount =
-        lockProvider.withLock(command.aggregateId.value) {
-            val account = findAccountOrThrow(command.aggregateId)
-            val aggregate = BankAccountAggregate(account).rollbackDepositFromTransfer(command)
-            bankAccountRepository.upsert(aggregate)
+        withOperationMeter(BankAccountOperation.ROLLBACK_DEPOSIT) {
+            lockProvider.withLock(command.aggregateId.value) {
+                val account = findAccountOrThrow(command.aggregateId)
+                val aggregate = BankAccountAggregate(account).rollbackDepositFromTransfer(command)
+                bankAccountRepository.upsert(aggregate)
+            }
         }
 
     private suspend fun findAccountOrThrow(aggregateId: mz.shared.domain.AggregateId): BankAccount =

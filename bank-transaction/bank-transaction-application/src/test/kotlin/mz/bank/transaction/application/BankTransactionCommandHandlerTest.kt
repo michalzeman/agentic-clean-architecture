@@ -1,5 +1,6 @@
 package mz.bank.transaction.application
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.runBlocking
 import mz.bank.transaction.application.transaction.BankTransactionCommandHandler
 import mz.bank.transaction.application.transaction.BankTransactionRepository
@@ -9,6 +10,7 @@ import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
 import mz.bank.transaction.domain.BankTransactionEvent
 import mz.bank.transaction.domain.BankTransactionStatus
+import mz.shared.connector.observability.ObservabilityMeters
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -29,13 +31,21 @@ class BankTransactionCommandHandlerTest {
     private lateinit var createTransactionUseCase: CreateTransactionUseCase
     private lateinit var lockProvider: LockProvider
     private lateinit var commandHandler: BankTransactionCommandHandler
+    private lateinit var meterRegistry: SimpleMeterRegistry
 
     @BeforeEach
     fun setUp() {
         bankTransactionRepository = mock()
         createTransactionUseCase = mock()
         lockProvider = FakeLockProvider()
-        commandHandler = BankTransactionCommandHandler(bankTransactionRepository, lockProvider, createTransactionUseCase)
+        meterRegistry = SimpleMeterRegistry()
+        commandHandler =
+            BankTransactionCommandHandler(
+                bankTransactionRepository,
+                lockProvider,
+                createTransactionUseCase,
+                ObservabilityMeters(meterRegistry),
+            )
     }
 
     // ==================== CreateBankTransaction Tests ====================
@@ -78,6 +88,7 @@ class BankTransactionCommandHandlerTest {
             val existingTransaction =
                 createBankTransaction(
                     aggregateId = aggregateId,
+                    moneyDeposited = true,
                     status = BankTransactionStatus.CREATED,
                 )
             val command =
@@ -90,6 +101,7 @@ class BankTransactionCommandHandlerTest {
                 createBankTransaction(
                     aggregateId = aggregateId,
                     moneyWithdrawn = true,
+                    moneyDeposited = true,
                     status = BankTransactionStatus.CREATED,
                     version = 1L,
                 )
@@ -104,6 +116,46 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.moneyWithdrawn).isTrue()
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
+
+            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            assertThat(okCounter).isNotNull
+            assertThat(okCounter!!.count()).isEqualTo(1.0)
+        }
+
+    @Test
+    fun `should not increment transfer completed when validate withdraw does not finish transaction`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-withdraw-no-finish")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyDeposited = false,
+                    status = BankTransactionStatus.CREATED,
+                )
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-001"),
+                    correlationId = "corr-withdraw-no-finish",
+                )
+            val expectedTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = true,
+                    moneyDeposited = false,
+                    status = BankTransactionStatus.CREATED,
+                    version = 1L,
+                )
+
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.moneyWithdrawn).isTrue()
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
+            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
         }
 
     @Test
@@ -165,6 +217,46 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.moneyDeposited).isTrue()
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
+
+            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            assertThat(okCounter).isNotNull
+            assertThat(okCounter!!.count()).isEqualTo(1.0)
+        }
+
+    @Test
+    fun `should not increment transfer completed when validate deposit does not finish transaction`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-deposit-no-finish")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = false,
+                    status = BankTransactionStatus.CREATED,
+                )
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-002"),
+                    correlationId = "corr-dep-no-finish",
+                )
+            val expectedTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = false,
+                    moneyDeposited = true,
+                    status = BankTransactionStatus.CREATED,
+                    version = 1L,
+                )
+
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(expectedTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.moneyDeposited).isTrue()
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository).upsert(any())
+            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
         }
 
     // ==================== FinishBankTransaction Tests ====================
@@ -207,6 +299,10 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.status).isEqualTo(BankTransactionStatus.FINISHED)
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
+
+            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            assertThat(okCounter).isNotNull
+            assertThat(okCounter!!.count()).isEqualTo(1.0)
         }
 
     // ==================== CancelBankTransaction Tests ====================
@@ -248,6 +344,10 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
+
+            val rollbackCounter = meterRegistry.find("bank.transfer.rolled_back").tag("reason", "unknown").counter()
+            assertThat(rollbackCounter).isNotNull
+            assertThat(rollbackCounter!!.count()).isEqualTo(1.0)
         }
 
     // ==================== Late Confirmation Ack Tests ====================
@@ -368,6 +468,38 @@ class BankTransactionCommandHandlerTest {
 
             assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
             verify(bankTransactionRepository, never()).upsert(any())
+
+            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
+        }
+
+    @Test
+    fun `should increment transfer completed with outcome fail when upsert throws`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-finish-fail")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = true,
+                    moneyDeposited = true,
+                    status = BankTransactionStatus.CREATED,
+                )
+            val command =
+                BankTransactionCommand.FinishBankTransaction(
+                    aggregateId = aggregateId,
+                    correlationId = "corr-finish-fail",
+                    fromAccountId = AggregateId("acc-001"),
+                    toAccountId = AggregateId("acc-002"),
+                )
+
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenThrow(IllegalStateException("db down"))
+
+            assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
+                .isInstanceOf(IllegalStateException::class.java)
+
+            val failCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "fail").counter()
+            assertThat(failCounter).isNotNull
+            assertThat(failCounter!!.count()).isEqualTo(1.0)
         }
 
     // ==================== Helper Methods ====================

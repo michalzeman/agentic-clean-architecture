@@ -38,4 +38,13 @@ class ObservabilityAutoConfigurationTest {
                 assertThat(ctx).doesNotHaveBean(PrometheusMeterRegistry::class.java)
             }
     }
+
+    @Test
+    fun `should register ObservabilityMeters bean when meter registry present`() {
+        contextRunner
+            .withPropertyValues("management.prometheus.metrics.export.enabled=true")
+            .run { ctx ->
+                assertThat(ctx).hasSingleBean(ObservabilityMeters::class.java)
+            }
+    }
 }

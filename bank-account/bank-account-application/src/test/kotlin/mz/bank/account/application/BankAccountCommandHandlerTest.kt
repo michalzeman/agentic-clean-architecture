@@ -1,9 +1,11 @@
 package mz.bank.account.application
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.runBlocking
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountCommand
 import mz.bank.account.domain.Email
+import mz.shared.connector.observability.ObservabilityMeters
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -24,13 +26,21 @@ class BankAccountCommandHandlerTest {
     private lateinit var lockProvider: LockProvider
     private lateinit var createBankAccountUseCase: CreateBankAccountUseCase
     private lateinit var commandHandler: BankAccountCommandHandler
+    private lateinit var meterRegistry: SimpleMeterRegistry
 
     @BeforeEach
     fun setUp() {
         bankAccountRepository = mock()
         lockProvider = FakeLockProvider()
         createBankAccountUseCase = CreateBankAccountUseCase(bankAccountRepository)
-        commandHandler = BankAccountCommandHandler(bankAccountRepository, lockProvider, createBankAccountUseCase)
+        meterRegistry = SimpleMeterRegistry()
+        commandHandler =
+            BankAccountCommandHandler(
+                bankAccountRepository,
+                lockProvider,
+                createBankAccountUseCase,
+                ObservabilityMeters(meterRegistry),
+            )
     }
 
     // ==================== CreateAccount Tests ====================
@@ -105,6 +115,15 @@ class BankAccountCommandHandlerTest {
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("150.00"))
             verify(bankAccountRepository).findById(aggregateId)
             verify(bankAccountRepository).upsert(any())
+
+            val counter =
+                meterRegistry
+                    .find("bank.account.operation")
+                    .tag("op", "deposit")
+                    .tag("outcome", "ok")
+                    .counter()
+            assertThat(counter).isNotNull
+            assertThat(counter!!.count()).isEqualTo(1.0)
         }
 
     @Test
@@ -170,6 +189,28 @@ class BankAccountCommandHandlerTest {
                 .hasMessageContaining("not found")
         }
 
+    @Test
+    fun `should increment account operation with op withdraw and outcome fail when balance insufficient`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("acc-withdraw-fail-test")
+            val existingAccount = createBankAccount(aggregateId, BigDecimal("100.00"))
+            val command = BankAccountCommand.WithdrawMoney(aggregateId = aggregateId, amount = BigDecimal("500.00"))
+
+            whenever(bankAccountRepository.findById(aggregateId)).thenReturn(existingAccount)
+
+            assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
+                .isInstanceOf(IllegalArgumentException::class.java)
+
+            val counter =
+                meterRegistry
+                    .find("bank.account.operation")
+                    .tag("op", "withdraw")
+                    .tag("outcome", "fail")
+                    .counter()
+            assertThat(counter).isNotNull
+            assertThat(counter!!.count()).isEqualTo(1.0)
+        }
+
     // ==================== WithdrawForTransfer Tests ====================
 
     @Test
@@ -201,6 +242,15 @@ class BankAccountCommandHandlerTest {
             // Then
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("125.00"))
             assertThat(result.openedTransactions).contains("txn-001")
+
+            val counter =
+                meterRegistry
+                    .find("bank.account.operation")
+                    .tag("op", "transfer_withdraw")
+                    .tag("outcome", "ok")
+                    .counter()
+            assertThat(counter).isNotNull
+            assertThat(counter!!.count()).isEqualTo(1.0)
         }
 
     // ==================== DepositFromTransfer Tests ====================

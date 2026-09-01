@@ -7,52 +7,178 @@
   "links": [],
   "panels": [
     {
-      "type": "stat",
+      "id": 1,
       "title": "Transfer Completed by Outcome",
+      "type": "stat",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" } }
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (bank_transfer_completed_total)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "type": "piechart",
-      "title": "Transfer Rolled Back by Reason",
+      "id": 2,
+      "title": "Transfer Completion Rate",
+      "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" } }
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(bank_transfer_completed_total[5m]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "type": "timeseries",
-      "title": "Account Operation by Op + Outcome",
+      "id": 3,
+      "title": "Rollbacks by Reason",
+      "type": "stat",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "stacking": { "mode": "normal", "group": "A" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (bank_transfer_rolled_back_total)",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
     },
     {
+      "id": 4,
+      "title": "Rollback Share by Reason",
+      "type": "piechart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (bank_transfer_rolled_back_total)",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Account Operations by Op + Outcome",
       "type": "timeseries",
-      "title": "HTTP Server Requests p95 by Service",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": {
+        "stacking": { "mode": "normal", "group": "A" },
+        "legend": { "displayMode": "list", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (op, outcome) (rate(bank_account_operation_total[5m]))",
+          "legendFormat": "{{op}} / {{outcome}}",
+          "refId": "A"
+        }
+      ]
     },
     {
+      "id": 6,
+      "title": "HTTP p95 by Service",
       "type": "timeseries",
-      "title": "Spring Integration Channel Send Duration p95",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
     },
     {
+      "id": 7,
+      "title": "Channel Producer Avg Duration",
       "type": "timeseries",
-      "title": "Spring Integration Channel Send Total",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-      "targets": [ { "expr": "", "legend": "", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (spring_integration_name) (rate(spring_integration_producer_seconds_sum[5m])) / sum by (spring_integration_name) (rate(spring_integration_producer_seconds_count[5m]))",
+          "legendFormat": "{{spring_integration_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Channel Producer Send Rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (spring_integration_name) (rate(spring_integration_producer_seconds_count[5m]))",
+          "legendFormat": "{{spring_integration_name}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "refresh": "10s",
@@ -64,6 +190,6 @@
   "timezone": "browser",
   "title": "Bank Custom (Phase 1)",
   "uid": "bank-custom-phase1",
-  "version": 0,
+  "version": 2,
   "weekStart": ""
 }

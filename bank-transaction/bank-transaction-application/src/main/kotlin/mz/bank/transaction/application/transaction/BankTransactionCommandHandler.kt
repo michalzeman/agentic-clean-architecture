@@ -3,6 +3,9 @@ package mz.bank.transaction.application.transaction
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
+import mz.bank.transaction.domain.BankTransactionEvent
+import mz.shared.connector.observability.ObservabilityMeters
+import mz.shared.connector.observability.OperationOutcome
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
 import org.slf4j.LoggerFactory
@@ -20,6 +23,7 @@ class BankTransactionCommandHandler(
     private val bankTransactionRepository: BankTransactionRepository,
     private val lockProvider: LockProvider,
     private val createTransactionUseCase: CreateTransactionUseCase,
+    private val observabilityMeters: ObservabilityMeters,
 ) {
     private val logger = LoggerFactory.getLogger(BankTransactionCommandHandler::class.java)
 
@@ -70,31 +74,53 @@ class BankTransactionCommandHandler(
     }
 
     private suspend fun handleValidateWithdraw(command: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransaction =
-        lockProvider.withLock(command.aggregateId.value) {
-            val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
-            val aggregate = BankTransactionAggregate(bankTransaction).validateMoneyWithdraw(command)
-            persistWhenChanged(bankTransaction, aggregate)
+        handleValidation(command.aggregateId) { bankTransaction ->
+            BankTransactionAggregate(bankTransaction).validateMoneyWithdraw(command)
         }
 
     private suspend fun handleValidateDeposit(command: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransaction =
-        lockProvider.withLock(command.aggregateId.value) {
-            val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
-            val aggregate = BankTransactionAggregate(bankTransaction).validateMoneyDeposit(command)
-            persistWhenChanged(bankTransaction, aggregate)
+        handleValidation(command.aggregateId) { bankTransaction ->
+            BankTransactionAggregate(bankTransaction).validateMoneyDeposit(command)
+        }
+
+    private suspend fun handleValidation(
+        aggregateId: AggregateId,
+        validate: (BankTransaction) -> BankTransactionAggregate,
+    ): BankTransaction =
+        lockProvider.withLock(aggregateId.value) {
+            val bankTransaction = findBankTransactionOrThrow(aggregateId)
+            val aggregate = validate(bankTransaction)
+            val result = persistWhenChanged(bankTransaction, aggregate)
+            if (aggregate.domainEvents.any { it is BankTransactionEvent.BankTransactionFinished }) {
+                observabilityMeters.transferCompleted(OperationOutcome.OK)
+            }
+            result
         }
 
     private suspend fun handleFinish(command: BankTransactionCommand.FinishBankTransaction): BankTransaction =
         lockProvider.withLock(command.aggregateId.value) {
-            val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
-            val aggregate = BankTransactionAggregate(bankTransaction).finishBankTransaction(command)
-            persistWhenChanged(bankTransaction, aggregate)
+            try {
+                val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
+                val aggregate = BankTransactionAggregate(bankTransaction).finishBankTransaction(command)
+                val result = persistWhenChanged(bankTransaction, aggregate)
+                if (aggregate.domainEvents.isNotEmpty()) {
+                    observabilityMeters.transferCompleted(OperationOutcome.OK)
+                }
+                result
+            } catch (e: Exception) {
+                // Any exception during a finish attempt counts as outcome=fail — consistent with the account-side wrapper.
+                observabilityMeters.transferCompleted(OperationOutcome.FAIL)
+                throw e
+            }
         }
 
     private suspend fun handleCancel(command: BankTransactionCommand.CancelBankTransaction): BankTransaction =
         lockProvider.withLock(command.aggregateId.value) {
             val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
             val aggregate = BankTransactionAggregate(bankTransaction).cancelBankTransaction(command)
-            bankTransactionRepository.upsert(aggregate)
+            val result = bankTransactionRepository.upsert(aggregate)
+            observabilityMeters.transferRolledBack(command.reason.name.lowercase())
+            result
         }
 
     private suspend fun persistWhenChanged(

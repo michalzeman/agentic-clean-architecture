@@ -16,4 +16,7 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+
+    // Observability business counters (ObservabilityMeters helper)
+    implementation(project(":shared-kernel:connector-observability"))
 }
