@@ -31,4 +31,13 @@
         <comment>bank_account aggregate table for postgres-persistence profile</comment>
     </changeSet>
 
+    <!-- ChangeSet 4: Add aggregate_version for domain event-count separate from optimistic-lock version -->
+    <changeSet id="4" author="migration-team">
+        <sqlFile path="V3__bank_account_aggregate_version.sql"
+                 relativeToChangelogFile="true"
+                 splitStatements="true"
+                 stripComments="true"/>
+        <comment>aggregate_version column for domain event-count; existing version column becomes @Version token</comment>
+    </changeSet>
+
 </databaseChangeLog>

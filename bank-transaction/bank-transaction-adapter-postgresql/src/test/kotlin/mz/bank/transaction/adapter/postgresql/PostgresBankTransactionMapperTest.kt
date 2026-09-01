@@ -35,8 +35,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("1000.00"),
                 moneyWithdrawn = true,
                 moneyDeposited = true,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = BankTransactionStatus.FINISHED.name,
-                version = 3L,
+                aggregateVersion = 3L,
                 createdAt = now.minusSeconds(3600),
                 updatedAt = now,
             )
@@ -75,8 +77,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = BankTransactionStatus.INITIALIZED.name,
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -107,8 +111,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("200.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = BankTransactionStatus.FAILED.name,
-                version = 5L,
+                aggregateVersion = 5L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -170,7 +176,7 @@ class PostgresBankTransactionMapperTest {
         assertThat(postgresBankTransaction.moneyWithdrawn).isTrue()
         assertThat(postgresBankTransaction.moneyDeposited).isFalse()
         assertThat(postgresBankTransaction.status).isEqualTo(BankTransactionStatus.CREATED.name)
-        assertThat(postgresBankTransaction.version).isEqualTo(2L)
+        assertThat(postgresBankTransaction.aggregateVersion).isEqualTo(2L)
         assertThat(postgresBankTransaction.createdAt).isEqualTo(now.minusSeconds(7200))
         assertThat(postgresBankTransaction.updatedAt).isEqualTo(now)
     }
@@ -340,8 +346,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = BankTransactionStatus.CREATED.name,
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -390,8 +398,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = false,
                 moneyDeposited = false,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = BankTransactionStatus.CREATED.name,
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -438,8 +448,10 @@ class PostgresBankTransactionMapperTest {
                 amount = BigDecimal("100.00"),
                 moneyWithdrawn = withdrawn,
                 moneyDeposited = deposited,
+                withdrawCompensated = false,
+                depositCompensated = false,
                 status = status.name,
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -468,5 +480,130 @@ class PostgresBankTransactionMapperTest {
                 Arguments.of(BankTransactionStatus.FAILED, false, true),
                 Arguments.of(BankTransactionStatus.FAILED, true, true),
             )
+    }
+
+    // ==================== Multi-event Version Mapping Tests ====================
+
+    @Test
+    fun `should map aggregateVersion as-is when domain advanced by 2 events`() {
+        val aggregateId = AggregateId(UUID.randomUUID().toString())
+        val now = Instant.now()
+        val bankTransaction =
+            BankTransaction(
+                aggregateId = aggregateId,
+                correlationId = "corr-multi2",
+                fromAccountId = AggregateId(UUID.randomUUID().toString()),
+                toAccountId = AggregateId(UUID.randomUUID().toString()),
+                amount = BigDecimal("100.00"),
+                moneyWithdrawn = true,
+                moneyDeposited = false,
+                withdrawCompensated = true,
+                status = BankTransactionStatus.FAILED,
+                version = 3L,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
+
+        val entity = aggregate.toPostgresBankTransaction()
+
+        assertThat(entity.aggregateVersion).isEqualTo(3L)
+    }
+
+    @Test
+    fun `should map aggregateVersion as-is when domain advanced by 3 events`() {
+        val aggregateId = AggregateId(UUID.randomUUID().toString())
+        val now = Instant.now()
+        val bankTransaction =
+            BankTransaction(
+                aggregateId = aggregateId,
+                correlationId = "corr-multi3",
+                fromAccountId = AggregateId(UUID.randomUUID().toString()),
+                toAccountId = AggregateId(UUID.randomUUID().toString()),
+                amount = BigDecimal("200.00"),
+                moneyWithdrawn = false,
+                moneyDeposited = false,
+                withdrawCompensated = true,
+                depositCompensated = true,
+                status = BankTransactionStatus.FAILED,
+                version = 4L,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
+
+        val entity = aggregate.toPostgresBankTransaction()
+
+        assertThat(entity.aggregateVersion).isEqualTo(4L)
+    }
+
+    @Test
+    fun `should carry existingVersion forward for update path`() {
+        val aggregateId = AggregateId(UUID.randomUUID().toString())
+        val now = Instant.now()
+        val bankTransaction =
+            BankTransaction(
+                aggregateId = aggregateId,
+                correlationId = "corr-lock",
+                fromAccountId = AggregateId(UUID.randomUUID().toString()),
+                toAccountId = AggregateId(UUID.randomUUID().toString()),
+                amount = BigDecimal("50.00"),
+                version = 3L,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
+
+        val entity = aggregate.toPostgresBankTransaction(existingId = 1L, existingVersion = 5L)
+
+        assertThat(entity.aggregateVersion).isEqualTo(3L)
+        assertThat(entity.version).isEqualTo(5L)
+    }
+
+    // ==================== Compensation Flag Round-trip Tests ====================
+
+    @Test
+    fun `should preserve compensation flags in entity round trip`() {
+        val bankTransaction =
+            createBankTransaction(withdrawCompensated = true, depositCompensated = false)
+        val aggregate = BankTransactionAggregate(bankTransaction)
+
+        val entity = aggregate.toPostgresBankTransaction()
+        val domain = entity.toBankTransaction()
+
+        assertThat(domain.withdrawCompensated).isTrue()
+        assertThat(domain.depositCompensated).isFalse()
+        assertThat(domain.status).isEqualTo(BankTransactionStatus.FAILED)
+    }
+
+    @Test
+    fun `should default compensation flags to false for new transactions`() {
+        val bankTransaction =
+            createBankTransaction(withdrawCompensated = false, depositCompensated = false)
+        val aggregate = BankTransactionAggregate(bankTransaction)
+
+        val domain = aggregate.toPostgresBankTransaction().toBankTransaction()
+
+        assertThat(domain.withdrawCompensated).isFalse()
+        assertThat(domain.depositCompensated).isFalse()
+    }
+
+    private fun createBankTransaction(
+        withdrawCompensated: Boolean,
+        depositCompensated: Boolean,
+    ): BankTransaction {
+        val now = Instant.now()
+        return BankTransaction(
+            aggregateId = AggregateId("550e8400-e29b-41d4-a716-446655440001"),
+            correlationId = "corr-mapper",
+            fromAccountId = AggregateId("550e8400-e29b-41d4-a716-446655440002"),
+            toAccountId = AggregateId("550e8400-e29b-41d4-a716-446655440003"),
+            amount = BigDecimal("100.00"),
+            withdrawCompensated = withdrawCompensated,
+            depositCompensated = depositCompensated,
+            status = BankTransactionStatus.FAILED,
+            createdAt = now,
+            updatedAt = now,
+        )
     }
 }

@@ -9,6 +9,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -41,7 +42,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = id,
                     email = "test@example.com",
                     amount = BigDecimal("200.00"),
-                    version = 2L,
+                    aggregateVersion = 2L,
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -105,7 +106,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "new@example.com",
                     amount = BigDecimal("500.00"),
-                    version = 0L,
+                    aggregateVersion = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -148,7 +149,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "existing@example.com",
                     amount = BigDecimal("500.00"),
-                    version = 2L,
+                    aggregateVersion = 2L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now.minusSeconds(100),
                 )
@@ -158,7 +159,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "existing@example.com",
                     amount = BigDecimal("750.00"),
-                    version = 3L,
+                    aggregateVersion = 3L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
                 )
@@ -172,9 +173,64 @@ class PostgresBankAccountRepositoryTest {
             assertThat(result.amount).isEqualByComparingTo(BigDecimal("750.00"))
             assertThat(result.version).isEqualTo(3L)
             assertThat(result.finishedTransactions).containsExactly("txn-done-1")
-            verify(bankAccountJdbcRepository).save(any())
+            val captor = argumentCaptor<PostgresBankAccount>()
+            verify(bankAccountJdbcRepository).save(captor.capture())
+            assertThat(captor.firstValue.version).isEqualTo(existingEntity.version)
+            assertThat(captor.firstValue.aggregateVersion).isEqualTo(3L)
             verify(transactionRefJdbcRepository).deleteAllByBankAccountId(5L)
             verify(transactionRefJdbcRepository).saveAll(any<List<PostgresBankAccountTransactionRef>>())
+        }
+
+    @Test
+    fun `should pass aggregateVersion as-is and carry existingVersion on update`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId(UUID.randomUUID().toString())
+            val uuid = UUID.fromString(aggregateId.value)
+            val now = Instant.now()
+            val bankAccount =
+                BankAccount(
+                    aggregateId = aggregateId,
+                    email = Email("lock@example.com"),
+                    amount = BigDecimal("750.00"),
+                    finishedTransactions = setOf("txn-done-1"),
+                    version = 3L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now,
+                )
+            val aggregate = BankAccountAggregate(bankAccount, emptyList())
+            val existingEntity =
+                PostgresBankAccount(
+                    id = 5L,
+                    aggregateId = uuid,
+                    email = "lock@example.com",
+                    amount = BigDecimal("500.00"),
+                    aggregateVersion = 2L,
+                    version = 4L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now.minusSeconds(100),
+                )
+            val savedEntity =
+                PostgresBankAccount(
+                    id = 5L,
+                    aggregateId = uuid,
+                    email = "lock@example.com",
+                    amount = BigDecimal("750.00"),
+                    aggregateVersion = 3L,
+                    version = 4L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now,
+                )
+            whenever(bankAccountJdbcRepository.findByAggregateId(uuid)).thenReturn(existingEntity)
+            whenever(bankAccountJdbcRepository.save(any())).thenReturn(savedEntity)
+            whenever(transactionRefJdbcRepository.saveAll(any<List<PostgresBankAccountTransactionRef>>())).thenAnswer { it.arguments[0] }
+
+            val result = postgresBankAccountRepository.upsert(aggregate)
+
+            assertThat(result.version).isEqualTo(3L)
+            val captor = argumentCaptor<PostgresBankAccount>()
+            verify(bankAccountJdbcRepository).save(captor.capture())
+            assertThat(captor.firstValue.version).isEqualTo(4L) // existing token carried
+            assertThat(captor.firstValue.aggregateVersion).isEqualTo(3L) // domain version as-is
         }
 
     @Test
@@ -199,7 +255,7 @@ class PostgresBankAccountRepositoryTest {
                     aggregateId = uuid,
                     email = "empty@example.com",
                     amount = BigDecimal("10.00"),
-                    version = 0L,
+                    aggregateVersion = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )

@@ -43,7 +43,7 @@
 - **Spring Integration**: Persistent JDBC-backed (PostgreSQL) message channels via `JdbcChannelMessageStore`; Redis Streams or NATS JetStream as broker transport, ServiceActivators, PublishSubscribe for domain events
 - **Saga pattern**: `BankTransactionAggregate` orchestrates distributed transfers (withdraw → deposit → finish); compensates via `TransactionRolledBack` on cancellation
 - **Pluggable persistence**: `redis-persistence` (default) or `postgres-persistence` Spring profiles; each service has both `adapter-redis` and `adapter-postgresql` modules — swap by changing `SPRING_PROFILES_ACTIVE`
-- **DB migrations**: Liquibase manages PostgreSQL schema; changelogs at `resources/db/changelog/db.changelog-*.xml` in each boot-app
+- **DB migrations**: Liquibase manages PostgreSQL schema; changelogs at `resources/db/changelog/db.changelog-*.xml` in each service's `*-adapter-postgresql` module
 - **Shared kernel modules**:
   - `shared-domain` — base types (`AggregateId`, `LockProvider`)
   - `connector-redis` / `connector-redis-starter` — Redis Streams, Spring Integration, Redisson lock provider

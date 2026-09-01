@@ -1,0 +1,14 @@
+spring:
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-bank-account.xml
+    liquibase-schema: public
+    default-schema: bank_account
+  datasource:
+    hikari:
+      schema: bank_account
+
+app:
+  integration:
+    postgresql:
+      enabled: false

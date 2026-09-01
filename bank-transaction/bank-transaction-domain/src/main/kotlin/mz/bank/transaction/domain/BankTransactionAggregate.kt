@@ -70,6 +70,7 @@ data class BankTransactionAggregate(
                 is BankTransactionEvent.BankTransactionWithdrawRolledBack -> {
                     bankTransaction.copy(
                         moneyWithdrawn = false,
+                        withdrawCompensated = true,
                         version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
@@ -77,6 +78,7 @@ data class BankTransactionAggregate(
                 is BankTransactionEvent.BankTransactionDepositRolledBack -> {
                     bankTransaction.copy(
                         moneyDeposited = false,
+                        depositCompensated = true,
                         version = bankTransaction.version + 1,
                         updatedAt = event.updatedAt,
                     )
@@ -90,8 +92,10 @@ data class BankTransactionAggregate(
      * Validates that money was withdrawn from the source account.
      */
     fun validateMoneyWithdraw(cmd: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransactionAggregate {
-        require(bankTransaction.status != BankTransactionStatus.FINISHED && bankTransaction.status != BankTransactionStatus.FAILED) {
-            "Cannot validate withdraw for bankTransaction in status ${bankTransaction.status}"
+        when (bankTransaction.status) {
+            BankTransactionStatus.FINISHED -> return copy(domainEvents = emptyList())
+            BankTransactionStatus.FAILED -> return compensateLateWithdrawal(cmd)
+            BankTransactionStatus.INITIALIZED, BankTransactionStatus.CREATED -> Unit
         }
         require(cmd.accountId == bankTransaction.fromAccountId) {
             "AccountId ${cmd.accountId.value} does not match transaction's fromAccountId ${bankTransaction.fromAccountId.value}"
@@ -120,12 +124,30 @@ data class BankTransactionAggregate(
         return applyEvent(event).copy(domainEvents = listOf(event))
     }
 
+    private fun compensateLateWithdrawal(cmd: BankTransactionCommand.ValidateBankTransactionMoneyWithdraw): BankTransactionAggregate {
+        if (bankTransaction.withdrawCompensated) {
+            return copy(domainEvents = emptyList())
+        }
+        val event =
+            BankTransactionEvent.BankTransactionWithdrawRolledBack(
+                aggregateId = cmd.aggregateId,
+                correlationId = cmd.correlationId,
+                updatedAt = Instant.now(),
+                fromAccountId = bankTransaction.fromAccountId,
+                toAccountId = bankTransaction.toAccountId,
+                amount = bankTransaction.amount,
+            )
+        return applyEvent(event).copy(domainEvents = listOf(event))
+    }
+
     /**
      * Validates that money was deposited to the destination account.
      */
     fun validateMoneyDeposit(cmd: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransactionAggregate {
-        require(bankTransaction.status != BankTransactionStatus.FINISHED && bankTransaction.status != BankTransactionStatus.FAILED) {
-            "Cannot validate deposit for bankTransaction in status ${bankTransaction.status}"
+        when (bankTransaction.status) {
+            BankTransactionStatus.FINISHED -> return copy(domainEvents = emptyList())
+            BankTransactionStatus.FAILED -> return compensateLateDeposit(cmd)
+            BankTransactionStatus.INITIALIZED, BankTransactionStatus.CREATED -> Unit
         }
         require(cmd.accountId == bankTransaction.toAccountId) {
             "AccountId ${cmd.accountId.value} does not match transaction's toAccountId ${bankTransaction.toAccountId.value}"
@@ -152,6 +174,22 @@ data class BankTransactionAggregate(
         return applyEvent(event).copy(domainEvents = listOf(event))
     }
 
+    private fun compensateLateDeposit(cmd: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransactionAggregate {
+        if (bankTransaction.depositCompensated) {
+            return copy(domainEvents = emptyList())
+        }
+        val event =
+            BankTransactionEvent.BankTransactionDepositRolledBack(
+                aggregateId = cmd.aggregateId,
+                correlationId = cmd.correlationId,
+                updatedAt = Instant.now(),
+                fromAccountId = bankTransaction.fromAccountId,
+                toAccountId = bankTransaction.toAccountId,
+                amount = bankTransaction.amount,
+            )
+        return applyEvent(event).copy(domainEvents = listOf(event))
+    }
+
     /**
      * Completes the transaction after both withdraw and deposit are done.
      */
@@ -163,8 +201,8 @@ data class BankTransactionAggregate(
             return this
         }
 
-        require(bankTransaction.status != BankTransactionStatus.FAILED) {
-            "Cannot finish a failed transaction"
+        if (bankTransaction.status == BankTransactionStatus.FAILED) {
+            return copy(domainEvents = emptyList())
         }
         require(bankTransaction.moneyWithdrawn && bankTransaction.moneyDeposited) {
             "Cannot finish transaction: both withdraw and deposit must be completed"

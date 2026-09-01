@@ -16,6 +16,8 @@ data class BankTransaction(
     val amount: BigDecimal,
     val moneyWithdrawn: Boolean = false,
     val moneyDeposited: Boolean = false,
+    val withdrawCompensated: Boolean = false,
+    val depositCompensated: Boolean = false,
     val status: BankTransactionStatus = BankTransactionStatus.INITIALIZED,
     val version: Long = 0L,
     val createdAt: Instant = Instant.now(),

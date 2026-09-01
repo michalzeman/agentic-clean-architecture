@@ -66,24 +66,28 @@ class BankTransactionAggregateTest {
     }
 
     @Test
-    fun `should fail to validate withdraw when transaction is in invalid status`() {
-        // Test finished transaction
+    fun `should acknowledge or compensate late withdraw confirmation on terminal states`() {
+        // FINISHED — ack with empty events, state unchanged
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
         aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
 
-        assertThatThrownBy { aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate)) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot validate withdraw for bankTransaction in status")
+        val finishedResult = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+        assertThat(finishedResult.domainEvents).isEmpty()
+        assertThat(finishedResult.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+        assertThat(finishedResult.bankTransaction.moneyWithdrawn).isTrue()
 
-        // Test failed transaction
+        // FAILED — emit compensation event, set withdrawCompensated flag
         aggregate = createTestAggregate()
         aggregate = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
 
-        assertThatThrownBy { aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate)) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot validate withdraw for bankTransaction in status")
+        val failedResult = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+        assertThat(failedResult.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+        assertThat(failedResult.bankTransaction.withdrawCompensated).isTrue()
+        assertThat(failedResult.domainEvents).hasSize(1)
+        assertThat(failedResult.domainEvents.first())
+            .isInstanceOf(BankTransactionEvent.BankTransactionWithdrawRolledBack::class.java)
     }
 
     @Test
@@ -132,17 +136,20 @@ class BankTransactionAggregateTest {
     }
 
     @Test
-    fun `should fail to validate deposit when transaction is finished`() {
+    fun `should acknowledge late deposit confirmation on finished transaction`() {
         // Given - Create, validate withdraw, then validate deposit (which auto-finishes)
         var aggregate = createTestAggregate()
         aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
         aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
 
-        // When & Then
-        assertThatThrownBy { aggregate.validateMoneyDeposit(createDepositCommand(aggregate)) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Cannot validate deposit for bankTransaction in status")
+        // When - late deposit confirmation arrives
+        val result = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
+
+        // Then - ack with empty events, state unchanged
+        assertThat(result.domainEvents).isEmpty()
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+        assertThat(result.bankTransaction.moneyDeposited).isTrue()
     }
 
     @Test
@@ -418,6 +425,97 @@ class BankTransactionAggregateTest {
         assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
         assertThat(aggregate.bankTransaction.moneyWithdrawn).isFalse()
         assertThat(aggregate.bankTransaction.moneyDeposited).isFalse()
+    }
+
+    // ==================== Late Confirmation Compensation Tests ====================
+
+    @Test
+    fun `should emit withdraw compensation when late withdraw confirmation arrives on failed transaction`() {
+        val aggregate = createTestAggregate()
+        val failed = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+
+        val result = failed.validateMoneyWithdraw(createWithdrawCommand(failed))
+
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+        assertThat(result.bankTransaction.withdrawCompensated).isTrue()
+        assertThat(result.domainEvents).hasSize(1)
+        assertThat(result.domainEvents.first())
+            .isInstanceOf(BankTransactionEvent.BankTransactionWithdrawRolledBack::class.java)
+    }
+
+    @Test
+    fun `should not emit second withdraw compensation when confirmation is redelivered`() {
+        val aggregate = createTestAggregate()
+        val failed = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+        val compensated = failed.validateMoneyWithdraw(createWithdrawCommand(failed))
+
+        val result = compensated.validateMoneyWithdraw(createWithdrawCommand(compensated))
+
+        assertThat(result.domainEvents).isEmpty()
+        assertThat(result.bankTransaction.withdrawCompensated).isTrue()
+    }
+
+    @Test
+    fun `should emit deposit compensation when late deposit confirmation arrives on failed transaction`() {
+        val aggregate = createTestAggregate()
+        val failed = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+
+        val result = failed.validateMoneyDeposit(createDepositCommand(failed))
+
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+        assertThat(result.bankTransaction.depositCompensated).isTrue()
+        assertThat(result.domainEvents).hasSize(1)
+        assertThat(result.domainEvents.first())
+            .isInstanceOf(BankTransactionEvent.BankTransactionDepositRolledBack::class.java)
+    }
+
+    @Test
+    fun `should not emit second deposit compensation when confirmation is redelivered`() {
+        val aggregate = createTestAggregate()
+        val failed = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+        val compensated = failed.validateMoneyDeposit(createDepositCommand(failed))
+
+        val result = compensated.validateMoneyDeposit(createDepositCommand(compensated))
+
+        assertThat(result.domainEvents).isEmpty()
+        assertThat(result.bankTransaction.depositCompensated).isTrue()
+    }
+
+    @Test
+    fun `should acknowledge late withdraw confirmation on finished transaction`() {
+        var aggregate = createTestAggregate()
+        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+        aggregate = aggregate.validateMoneyDeposit(createDepositCommand(aggregate))
+        assertThat(aggregate.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+
+        val result = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+
+        assertThat(result.domainEvents).isEmpty()
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FINISHED)
+    }
+
+    @Test
+    fun `should acknowledge finish on failed transaction`() {
+        val aggregate = createTestAggregate()
+        val failed = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+
+        val result = failed.finishBankTransaction(createFinishCommand(failed))
+
+        assertThat(result.domainEvents).isEmpty()
+        assertThat(result.bankTransaction.status).isEqualTo(BankTransactionStatus.FAILED)
+    }
+
+    @Test
+    fun `should mark withdraw compensated when cancel rolls back confirmed withdraw`() {
+        var aggregate = createTestAggregate()
+        aggregate = aggregate.validateMoneyWithdraw(createWithdrawCommand(aggregate))
+
+        val result = aggregate.cancelBankTransaction(createCancelCommand(aggregate))
+
+        assertThat(result.bankTransaction.withdrawCompensated).isTrue()
+        assertThat(result.domainEvents).hasSize(2)
+        assertThat(result.domainEvents[0])
+            .isInstanceOf(BankTransactionEvent.BankTransactionWithdrawRolledBack::class.java)
     }
 
     // ==================== Helper Methods ====================

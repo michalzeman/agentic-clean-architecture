@@ -31,4 +31,22 @@
         <comment>bank_transaction and account_view tables for postgres-persistence profile</comment>
     </changeSet>
 
+    <!-- ChangeSet 4: Compensation idempotency flags for late phase confirmations -->
+    <changeSet id="4" author="migration-team">
+        <sqlFile path="V3__bank_transaction_compensation_flags.sql"
+                 relativeToChangelogFile="true"
+                 splitStatements="true"
+                 stripComments="true"/>
+        <comment>Compensation flags on bank_transaction for late-confirm idempotency</comment>
+    </changeSet>
+
+    <!-- ChangeSet 5: Add aggregate_version for domain event-count separate from optimistic-lock version -->
+    <changeSet id="5" author="migration-team">
+        <sqlFile path="V4__bank_transaction_aggregate_version.sql"
+                 relativeToChangelogFile="true"
+                 splitStatements="true"
+                 stripComments="true"/>
+        <comment>aggregate_version column for domain event-count; existing version column becomes @Version token</comment>
+    </changeSet>
+
 </databaseChangeLog>

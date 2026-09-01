@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -48,8 +49,10 @@ class PostgresBankTransactionRepositoryTest {
                     amount = BigDecimal("500.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = false,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
                     status = BankTransactionStatus.CREATED.name,
-                    version = 1L,
+                    aggregateVersion = 1L,
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -121,8 +124,10 @@ class PostgresBankTransactionRepositoryTest {
                     amount = BigDecimal("750.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
                     status = BankTransactionStatus.CREATED.name,
-                    version = 0L,
+                    aggregateVersion = 0L,
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -175,8 +180,10 @@ class PostgresBankTransactionRepositoryTest {
                     amount = BigDecimal("1000.00"),
                     moneyWithdrawn = false,
                     moneyDeposited = false,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
                     status = BankTransactionStatus.CREATED.name,
-                    version = 2L,
+                    aggregateVersion = 2L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now.minusSeconds(100),
                 )
@@ -190,8 +197,10 @@ class PostgresBankTransactionRepositoryTest {
                     amount = BigDecimal("1000.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = true,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
                     status = BankTransactionStatus.FINISHED.name,
-                    version = 5L,
+                    aggregateVersion = 5L,
                     createdAt = now.minusSeconds(3600),
                     updatedAt = now,
                 )
@@ -207,7 +216,86 @@ class PostgresBankTransactionRepositoryTest {
             assertThat(result.moneyWithdrawn).isTrue()
             assertThat(result.moneyDeposited).isTrue()
             assertThat(result.version).isEqualTo(5L)
-            verify(bankTransactionJdbcRepository).save(any())
+            val captor = argumentCaptor<PostgresBankTransaction>()
+            verify(bankTransactionJdbcRepository).save(captor.capture())
+            assertThat(captor.firstValue.version).isEqualTo(existingEntity.version)
+            assertThat(captor.firstValue.aggregateVersion).isEqualTo(5L)
+        }
+
+    @Test
+    fun `should pass aggregateVersion as-is and carry version token on multi-event update`(): Unit =
+        runBlocking {
+            // Given — simulate cancel: domain version advanced by 3 events (V2→V5)
+            val aggregateId = AggregateId(UUID.randomUUID().toString())
+            val uuid = UUID.fromString(aggregateId.value)
+            val fromAccountUUID = UUID.randomUUID()
+            val toAccountUUID = UUID.randomUUID()
+            val now = Instant.now()
+            val bankTransaction =
+                BankTransaction(
+                    aggregateId = aggregateId,
+                    correlationId = "corr-cancel",
+                    fromAccountId = AggregateId(fromAccountUUID.toString()),
+                    toAccountId = AggregateId(toAccountUUID.toString()),
+                    amount = BigDecimal("500.00"),
+                    moneyWithdrawn = false,
+                    moneyDeposited = false,
+                    withdrawCompensated = true,
+                    depositCompensated = true,
+                    status = BankTransactionStatus.FAILED,
+                    version = 5L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now,
+                )
+            val aggregate = BankTransactionAggregate(bankTransaction, emptyList())
+            val existingEntity =
+                PostgresBankTransaction(
+                    id = 3L,
+                    aggregateId = uuid,
+                    correlationId = "corr-cancel",
+                    fromAccountId = fromAccountUUID,
+                    toAccountId = toAccountUUID,
+                    amount = BigDecimal("500.00"),
+                    moneyWithdrawn = true,
+                    moneyDeposited = true,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
+                    status = BankTransactionStatus.CREATED.name,
+                    aggregateVersion = 2L,
+                    version = 7L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now.minusSeconds(100),
+                )
+            val savedEntity =
+                PostgresBankTransaction(
+                    id = 3L,
+                    aggregateId = uuid,
+                    correlationId = "corr-cancel",
+                    fromAccountId = fromAccountUUID,
+                    toAccountId = toAccountUUID,
+                    amount = BigDecimal("500.00"),
+                    moneyWithdrawn = false,
+                    moneyDeposited = false,
+                    withdrawCompensated = true,
+                    depositCompensated = true,
+                    status = BankTransactionStatus.FAILED.name,
+                    aggregateVersion = 5L,
+                    version = 7L,
+                    createdAt = now.minusSeconds(3600),
+                    updatedAt = now,
+                )
+            whenever(bankTransactionJdbcRepository.findByAggregateId(uuid)).thenReturn(existingEntity)
+            whenever(bankTransactionJdbcRepository.save(any())).thenReturn(savedEntity)
+
+            // When
+            val result = postgresBankTransactionRepository.upsert(aggregate)
+
+            // Then — aggregateVersion is domain's V5 (not V5-1=V4), version token carried from existing
+            assertThat(result.version).isEqualTo(5L)
+            val captor = argumentCaptor<PostgresBankTransaction>()
+            verify(bankTransactionJdbcRepository).save(captor.capture())
+            assertThat(captor.firstValue.version).isEqualTo(7L) // existing token carried
+            assertThat(captor.firstValue.aggregateVersion).isEqualTo(5L) // domain version as-is
         }
 
     @Test
@@ -255,8 +343,10 @@ class PostgresBankTransactionRepositoryTest {
                     amount = BigDecimal("300.00"),
                     moneyWithdrawn = true,
                     moneyDeposited = false,
+                    withdrawCompensated = false,
+                    depositCompensated = false,
                     status = BankTransactionStatus.CREATED.name,
-                    version = 1L,
+                    aggregateVersion = 1L,
                     createdAt = now,
                     updatedAt = now,
                 )

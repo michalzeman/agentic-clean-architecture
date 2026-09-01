@@ -17,10 +17,9 @@ import java.util.UUID
  *
  * INSERT path: aggregate_id not yet in DB → save() issues INSERT.
  * UPDATE path: aggregate_id already exists → save() issues UPDATE.
- *   The domain pre-increments version in applyEvent (version = N+1), but Spring Data
- *   JDBC's @Version expects the current DB version (N) in the entity so it can generate
- *   WHERE version = N and then set version = N+1 in the DB. We therefore pass
- *   versionOverride = account.version - 1 into the entity before calling save().
+ *   The domain version (event count) is written as-is into the `aggregate_version` column.
+ *   The `version` column (@Version token) carries the loaded row's value so Spring Data JDBC's
+ *   @Version mechanism guards against concurrent modifications.
  *
  * In both paths @DomainEvents / @AfterDomainEventPublication fire automatically after save().
  *
@@ -49,13 +48,13 @@ internal class PostgresBankAccountRepository(
             val existing = repository.findByAggregateId(UUID.fromString(aggregate.account.aggregateId.value))
             val entity =
                 if (existing == null) {
-                    // INSERT: version stays as-is (0 for a new record)
+                    // INSERT: version 0 → framework forces 1
                     aggregate.toPostgresBankAccount(existingId = null)
                 } else {
-                    // UPDATE: pass version - 1 so @Version sees the current DB version
+                    // UPDATE: pass existing @Version token for optimistic lock guard
                     aggregate.toPostgresBankAccount(
                         existingId = existing.id,
-                        versionOverride = aggregate.account.version - 1,
+                        existingVersion = existing.version,
                     )
                 }
             val saved = repository.save(entity)

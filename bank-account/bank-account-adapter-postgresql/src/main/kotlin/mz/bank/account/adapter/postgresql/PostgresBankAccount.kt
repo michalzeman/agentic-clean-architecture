@@ -27,7 +27,8 @@ internal open class PostgresBankAccount(
     @field:Column("aggregate_id") val aggregateId: UUID,
     val email: String,
     val amount: BigDecimal,
-    @field:Version val version: Long,
+    @field:Column("aggregate_version") val aggregateVersion: Long,
+    @field:Version val version: Long = 0L,
     @field:Column("created_at") val createdAt: Instant,
     @field:Column("updated_at") val updatedAt: Instant,
 ) {
@@ -70,6 +71,8 @@ private fun PostgresBankAccountTransactionRef.toState(): TransactionRefState =
 /**
  * Converts PostgresBankAccount persistence entity to BankAccount domain entity.
  * Maps transaction references to opened/finished transaction id sets.
+ * Maps aggregate_version (domain event-count) → domain version.
+ * The version column (@Version optimistic-lock token) is invisible to the domain.
  */
 internal fun PostgresBankAccount.toBankAccount(transactionRefs: List<PostgresBankAccountTransactionRef> = emptyList()): BankAccount =
     transactionRefs.let { refs ->
@@ -92,7 +95,7 @@ internal fun PostgresBankAccount.toBankAccount(transactionRefs: List<PostgresBan
             amount = amount,
             openedTransactions = openedTransactions,
             finishedTransactions = finishedTransactions,
-            version = version,
+            version = aggregateVersion,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
@@ -103,13 +106,13 @@ internal fun PostgresBankAccount.toBankAccount(transactionRefs: List<PostgresBan
  * Carries the existing surrogate id forward for updates (null triggers INSERT).
  * Attaches domain events for publication after save.
  *
- * versionOverride: pass account.version - 1 on the UPDATE path so that Spring Data
- * JDBC's @Version mechanism sees the current DB version and generates the correct
- * WHERE version = ? guard, then increments it to account.version in the DB.
+ * aggregateVersion: stores the domain event-count version as-is (V+N). The domain aggregate controls it.
+ * existingVersion: pass the loaded row's version (@Version token) on UPDATE so Spring Data JDBC's
+ *   @Version mechanism guards against concurrent modifications. On INSERT pass 0 (framework forces 1).
  */
 internal fun BankAccountAggregate.toPostgresBankAccount(
     existingId: Long? = null,
-    versionOverride: Long = account.version,
+    existingVersion: Long = 0L,
 ): PostgresBankAccount {
     val entity =
         PostgresBankAccount(
@@ -117,7 +120,8 @@ internal fun BankAccountAggregate.toPostgresBankAccount(
             aggregateId = UUID.fromString(account.aggregateId.value),
             email = account.email.value,
             amount = account.amount,
-            version = versionOverride,
+            aggregateVersion = account.version,
+            version = existingVersion,
             createdAt = account.createdAt,
             updatedAt = account.updatedAt,
         )

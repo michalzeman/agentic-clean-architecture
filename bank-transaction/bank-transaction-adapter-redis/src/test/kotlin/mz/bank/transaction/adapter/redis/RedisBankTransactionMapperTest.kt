@@ -240,6 +240,40 @@ class RedisBankTransactionMapperTest {
         assertThat(redisBankTransaction.domainEvents).isEmpty()
     }
 
+    // ==================== Compensation Flags Tests ====================
+
+    @Test
+    fun `should preserve compensation flags in entity round trip`() {
+        val bankTransaction =
+            createBankTransaction(withdrawCompensated = true, depositCompensated = true)
+        val aggregate = BankTransactionAggregate(bankTransaction)
+
+        val domain = aggregate.toRedisBankTransaction().toBankTransaction()
+
+        assertThat(domain.withdrawCompensated).isTrue()
+        assertThat(domain.depositCompensated).isTrue()
+        assertThat(domain.status).isEqualTo(BankTransactionStatus.FAILED)
+    }
+
+    private fun createBankTransaction(
+        withdrawCompensated: Boolean,
+        depositCompensated: Boolean,
+    ): BankTransaction {
+        val now = Instant.now()
+        return BankTransaction(
+            aggregateId = AggregateId("550e8400-e29b-41d4-a716-446655440001"),
+            correlationId = "corr-redis-mapper",
+            fromAccountId = AggregateId("acc-001"),
+            toAccountId = AggregateId("acc-002"),
+            amount = BigDecimal("100.00"),
+            withdrawCompensated = withdrawCompensated,
+            depositCompensated = depositCompensated,
+            status = BankTransactionStatus.FAILED,
+            createdAt = now,
+            updatedAt = now,
+        )
+    }
+
     // ==================== Round-trip Mapping Tests ====================
 
     @Test

@@ -73,21 +73,21 @@ class BankTransactionCommandHandler(
         lockProvider.withLock(command.aggregateId.value) {
             val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
             val aggregate = BankTransactionAggregate(bankTransaction).validateMoneyWithdraw(command)
-            bankTransactionRepository.upsert(aggregate)
+            persistWhenChanged(bankTransaction, aggregate)
         }
 
     private suspend fun handleValidateDeposit(command: BankTransactionCommand.ValidateBankTransactionMoneyDeposit): BankTransaction =
         lockProvider.withLock(command.aggregateId.value) {
             val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
             val aggregate = BankTransactionAggregate(bankTransaction).validateMoneyDeposit(command)
-            bankTransactionRepository.upsert(aggregate)
+            persistWhenChanged(bankTransaction, aggregate)
         }
 
     private suspend fun handleFinish(command: BankTransactionCommand.FinishBankTransaction): BankTransaction =
         lockProvider.withLock(command.aggregateId.value) {
             val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
             val aggregate = BankTransactionAggregate(bankTransaction).finishBankTransaction(command)
-            bankTransactionRepository.upsert(aggregate)
+            persistWhenChanged(bankTransaction, aggregate)
         }
 
     private suspend fun handleCancel(command: BankTransactionCommand.CancelBankTransaction): BankTransaction =
@@ -96,6 +96,20 @@ class BankTransactionCommandHandler(
             val aggregate = BankTransactionAggregate(bankTransaction).cancelBankTransaction(command)
             bankTransactionRepository.upsert(aggregate)
         }
+
+    private suspend fun persistWhenChanged(
+        bankTransaction: BankTransaction,
+        aggregate: BankTransactionAggregate,
+    ): BankTransaction {
+        if (aggregate.domainEvents.isEmpty()) {
+            logger.info(
+                "Command acknowledged on terminal state, no state change: {}",
+                aggregate.bankTransaction.aggregateId.value,
+            )
+            return bankTransaction
+        }
+        return bankTransactionRepository.upsert(aggregate)
+    }
 
     private suspend fun findBankTransactionOrThrow(aggregateId: AggregateId): BankTransaction =
         bankTransactionRepository.findById(aggregateId)

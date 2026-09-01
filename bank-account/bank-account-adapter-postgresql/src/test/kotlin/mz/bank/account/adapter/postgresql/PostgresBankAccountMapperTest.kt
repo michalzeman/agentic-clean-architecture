@@ -23,7 +23,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = aggregateUuid,
                 email = "test@example.com",
                 amount = BigDecimal("150.00"),
-                version = 5L,
+                aggregateVersion = 5L,
                 createdAt = now.minusSeconds(3600),
                 updatedAt = now,
             )
@@ -63,7 +63,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = aggregateUuid,
                 email = "test@example.com",
                 amount = BigDecimal("150.00"),
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -92,7 +92,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = aggregateUuid,
                 email = "empty@example.com",
                 amount = BigDecimal.ZERO,
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -130,9 +130,30 @@ class PostgresBankAccountMapperTest {
         assertThat(postgresBankAccount.aggregateId).isEqualTo(UUID.fromString(aggregateId.value))
         assertThat(postgresBankAccount.email).isEqualTo("convert@example.com")
         assertThat(postgresBankAccount.amount).isEqualByComparingTo(BigDecimal("250.00"))
-        assertThat(postgresBankAccount.version).isEqualTo(3L)
+        assertThat(postgresBankAccount.aggregateVersion).isEqualTo(3L)
         assertThat(postgresBankAccount.createdAt).isEqualTo(now.minusSeconds(7200))
         assertThat(postgresBankAccount.updatedAt).isEqualTo(now)
+    }
+
+    @Test
+    fun `should carry existingVersion forward for update path`() {
+        val aggregateId = AggregateId(UUID.randomUUID().toString())
+        val now = Instant.now()
+        val bankAccount =
+            BankAccount(
+                aggregateId = aggregateId,
+                email = Email("lock@example.com"),
+                amount = BigDecimal("100.00"),
+                version = 3L,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val aggregate = BankAccountAggregate(bankAccount, emptyList())
+
+        val entity = aggregate.toPostgresBankAccount(existingId = 1L, existingVersion = 5L)
+
+        assertThat(entity.version).isEqualTo(5L)
+        assertThat(entity.aggregateVersion).isEqualTo(3L)
     }
 
     @Test
@@ -198,7 +219,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = UUID.fromString(aggregateId.value),
                 email = "overlap@example.com",
                 amount = BigDecimal("100.00"),
-                version = 2L,
+                aggregateVersion = 2L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -239,7 +260,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = id,
                 email = "domainevents@example.com",
                 amount = BigDecimal("100.00"),
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -265,7 +286,7 @@ class PostgresBankAccountMapperTest {
                 aggregateId = id,
                 email = "clearevents@example.com",
                 amount = BigDecimal("100.00"),
-                version = 0L,
+                aggregateVersion = 0L,
                 createdAt = now,
                 updatedAt = now,
             )

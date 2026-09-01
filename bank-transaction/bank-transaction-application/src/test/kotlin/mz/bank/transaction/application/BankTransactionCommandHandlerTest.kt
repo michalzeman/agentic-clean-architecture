@@ -7,6 +7,7 @@ import mz.bank.transaction.application.transaction.CreateTransactionUseCase
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
+import mz.bank.transaction.domain.BankTransactionEvent
 import mz.bank.transaction.domain.BankTransactionStatus
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
@@ -15,7 +16,9 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -247,6 +250,126 @@ class BankTransactionCommandHandlerTest {
             verify(bankTransactionRepository).upsert(any())
         }
 
+    // ==================== Late Confirmation Ack Tests ====================
+
+    @Test
+    fun `should acknowledge late withdraw confirmation without upsert when transaction is failed`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-failed-late")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    status = BankTransactionStatus.FAILED,
+                    withdrawCompensated = true,
+                )
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-001"),
+                    correlationId = "corr-late",
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository, never()).upsert(any())
+        }
+
+    @Test
+    fun `should upsert when late withdraw confirmation emits compensation on failed transaction`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-failed-comp")
+            val existingTransaction =
+                createBankTransaction(aggregateId = aggregateId, status = BankTransactionStatus.FAILED)
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyWithdraw(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-001"),
+                    correlationId = "corr-late-comp",
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(existingTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository).upsert(any())
+        }
+
+    @Test
+    fun `should acknowledge late deposit confirmation without upsert when transaction is failed`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-failed-late-deposit")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    status = BankTransactionStatus.FAILED,
+                    depositCompensated = true,
+                )
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-002"),
+                    correlationId = "corr-late-dep",
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository).findById(aggregateId)
+            verify(bankTransactionRepository, never()).upsert(any())
+        }
+
+    @Test
+    fun `should upsert when late deposit confirmation emits compensation on failed transaction`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-failed-dep-comp")
+            val existingTransaction =
+                createBankTransaction(aggregateId = aggregateId, status = BankTransactionStatus.FAILED)
+            val command =
+                BankTransactionCommand.ValidateBankTransactionMoneyDeposit(
+                    aggregateId = aggregateId,
+                    accountId = AggregateId("acc-002"),
+                    correlationId = "corr-late-dep-comp",
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(existingTransaction)
+            val captor = argumentCaptor<BankTransactionAggregate>()
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository).upsert(captor.capture())
+            assertThat(captor.firstValue.domainEvents).hasSize(1)
+            assertThat(captor.firstValue.domainEvents.single())
+                .isInstanceOf(BankTransactionEvent.BankTransactionDepositRolledBack::class.java)
+            assertThat(captor.firstValue.bankTransaction.depositCompensated).isTrue()
+        }
+
+    @Test
+    fun `should acknowledge finish without upsert when transaction is failed`(): Unit =
+        runBlocking {
+            val aggregateId = AggregateId("txn-failed-finish")
+            val existingTransaction =
+                createBankTransaction(aggregateId = aggregateId, status = BankTransactionStatus.FAILED)
+            val command =
+                BankTransactionCommand.FinishBankTransaction(
+                    aggregateId = aggregateId,
+                    correlationId = "corr-late-finish",
+                    fromAccountId = AggregateId("acc-001"),
+                    toAccountId = AggregateId("acc-002"),
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+
+            val result = commandHandler.handle(command)
+
+            assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
+            verify(bankTransactionRepository, never()).upsert(any())
+        }
+
     // ==================== Helper Methods ====================
 
     private fun createBankTransaction(
@@ -257,6 +380,8 @@ class BankTransactionCommandHandlerTest {
         amount: BigDecimal = BigDecimal("100.00"),
         moneyWithdrawn: Boolean = false,
         moneyDeposited: Boolean = false,
+        withdrawCompensated: Boolean = false,
+        depositCompensated: Boolean = false,
         status: BankTransactionStatus = BankTransactionStatus.INITIALIZED,
         version: Long = 0L,
     ): BankTransaction {
@@ -269,6 +394,8 @@ class BankTransactionCommandHandlerTest {
             amount = amount,
             moneyWithdrawn = moneyWithdrawn,
             moneyDeposited = moneyDeposited,
+            withdrawCompensated = withdrawCompensated,
+            depositCompensated = depositCompensated,
             status = status,
             version = version,
             createdAt = now,
