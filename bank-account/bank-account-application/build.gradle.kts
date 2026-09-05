@@ -17,6 +17,6 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 
-    // Observability business counters (ObservabilityMeters helper)
-    implementation(project(":shared-kernel:connector-observability"))
+    // Test: micrometer SimpleMeterRegistry for ObservabilityMeters assertions
+    testImplementation("io.micrometer:micrometer-core")
 }

@@ -1,6 +1,11 @@
 package mz.shared.connector.observability
 
 import io.micrometer.core.instrument.MeterRegistry
+import mz.shared.domain.ObservabilityMeterNames.ACCOUNT_OPERATION
+import mz.shared.domain.ObservabilityMeterNames.TRANSFER_COMPLETED
+import mz.shared.domain.ObservabilityMeterNames.TRANSFER_ROLLED_BACK
+import mz.shared.domain.ObservabilityMeters
+import mz.shared.domain.OperationOutcome
 import org.slf4j.LoggerFactory
 
 /**
@@ -8,18 +13,18 @@ import org.slf4j.LoggerFactory
  * tag values arrive as plain strings; callers map domain enums via name.lowercase().
  * Increments never throw — a broken registry logs WARN and the business operation continues.
  */
-class ObservabilityMeters(
+class ObservabilityMetersImpl(
     private val meterRegistry: MeterRegistry,
-) {
-    fun transferCompleted(outcome: OperationOutcome) {
+) : ObservabilityMeters {
+    override fun transferCompleted(outcome: OperationOutcome) {
         increment(TRANSFER_COMPLETED, "outcome" to outcome.tagValue)
     }
 
-    fun transferRolledBack(reason: String) {
+    override fun transferRolledBack(reason: String) {
         increment(TRANSFER_ROLLED_BACK, "reason" to reason)
     }
 
-    fun accountOperation(
+    override fun accountOperation(
         op: String,
         outcome: OperationOutcome,
     ) {
@@ -39,9 +44,6 @@ class ObservabilityMeters(
     }
 
     private companion object {
-        const val TRANSFER_COMPLETED = "bank.transfer.completed"
-        const val TRANSFER_ROLLED_BACK = "bank.transfer.rolled_back"
-        const val ACCOUNT_OPERATION = "bank.account.operation"
-        val logger = LoggerFactory.getLogger(ObservabilityMeters::class.java)
+        val logger = LoggerFactory.getLogger(ObservabilityMetersImpl::class.java)
     }
 }

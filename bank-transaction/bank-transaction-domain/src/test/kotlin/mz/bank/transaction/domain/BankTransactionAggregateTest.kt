@@ -230,7 +230,7 @@ class BankTransactionAggregateTest {
 
         // When & Then
         assertThatThrownBy { aggregate.cancelBankTransaction(cmd) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(IllegalStateException::class.java)
             .hasMessageContaining("Cannot cancel a finished transaction")
     }
 

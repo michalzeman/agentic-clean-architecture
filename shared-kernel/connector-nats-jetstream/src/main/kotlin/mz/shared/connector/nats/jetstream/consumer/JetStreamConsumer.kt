@@ -1,5 +1,6 @@
 package mz.shared.connector.nats.jetstream.consumer
 
+import io.nats.client.Connection
 import io.nats.client.JetStream
 import io.nats.client.JetStreamSubscription
 import io.nats.client.Message
@@ -14,7 +15,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
 import org.slf4j.LoggerFactory
@@ -99,6 +105,15 @@ class JetStreamConsumeException(
 ) : RuntimeException(message, cause)
 
 /**
+ * Returns `true` when a message has reached its final allowed delivery, i.e. the server
+ * will drop it instead of redelivering, even if it is NAKed.
+ */
+internal fun isTerminalDelivery(
+    deliveredCount: Long,
+    maxDeliver: Int,
+): Boolean = deliveredCount >= maxDeliver
+
+/**
  * Default implementation of [JetStreamConsumer] using NATS JetStream pull consumers.
  *
  * This implementation uses pull-based message consumption which provides better
@@ -137,29 +152,69 @@ internal class DefaultJetStreamConsumer<T>(
     private val fetchIntervalMillis: Long = 100L,
     private val ackWaitSeconds: Long = 30L,
     private val maxDeliver: Int = 3,
+    private val connectedGateTimeoutMs: Long = 15_000L,
+    private val connectedGatePollIntervalMs: Long = 500L,
+    private val subscribeTimeoutMs: Long = 15_000L,
+    private val resubscribeMaxAttempts: Int = 5,
+    private val resubscribeBackoffMillis: Long = 1_000L,
+    private val backoffDelay: suspend (Long) -> Unit = { delay(it) },
+    private val coroutineExceptionHandler: CoroutineExceptionHandler =
+        CoroutineExceptionHandler { _, t ->
+            LoggerFactory
+                .getLogger(DefaultJetStreamConsumer::class.java)
+                .error("JetStream consumer '{}' terminated unexpectedly", consumerName, t)
+        },
 ) : JetStreamConsumer<T>,
     SmartLifecycle {
     private val logger = LoggerFactory.getLogger(DefaultJetStreamConsumer::class.java)
 
     companion object {
         private const val ERROR_BACKOFF_MULTIPLIER = 5L
+
+        /** Consecutive fetch errors before the subscription is torn down and re-created. */
+        private const val FETCH_ERROR_RESUBSCRIBE_THRESHOLD = 3
+
+        /** Upper bound for draining a subscription during teardown. */
+        private val RESUBSCRIBE_DRAIN_TIMEOUT = Duration.ofSeconds(5)
     }
 
     // Holds the subscription reference once initialized; null until first use
     private val subscriptionRef = AtomicReference<JetStreamSubscription?>(null)
 
-    // Lazily initializes the subscription and stores it in subscriptionRef for cleanup
-    private val subscription: JetStreamSubscription by lazy {
-        createSubscription().also { subscriptionRef.set(it) }
+    // Guards concurrent getOrCreateSubscription() calls so only one creates the subscription
+    private val subscriptionMutex = Mutex()
+
+    /**
+     * Returns the cached subscription or creates one on first access.
+     * [subscriptionMutex] serializes creation against [resubscribe] and [stopConsuming]
+     * so at most one live subscription exists at any time.
+     */
+    private suspend fun getOrCreateSubscription(): JetStreamSubscription =
+        subscriptionRef.get() ?: subscriptionMutex.withLock {
+            subscriptionRef.get() ?: createSubscriptionUnlessStopped()
+        }
+
+    /**
+     * Creates a subscription while holding [subscriptionMutex]. If the consumer was
+     * stopped while the subscription was being created, the freshly created
+     * subscription is drained immediately instead of being stored — a stopped
+     * consumer must not leak a live subscription on the shared durable consumer.
+     */
+    private suspend fun createSubscriptionUnlessStopped(): JetStreamSubscription {
+        val created = createSubscription()
+        if (!isRunning.get()) {
+            drainSubscription(created, "stop")
+            throw CancellationException("Consumer stopped while creating subscription: consumer=$consumerName")
+        }
+        subscriptionRef.set(created)
+        return created
     }
 
-    private val scope =
-        CoroutineScope(
-            SupervisorJob() + Dispatchers.IO +
-                CoroutineExceptionHandler { _, t ->
-                    logger.error("JetStream consumer '{}' terminated unexpectedly", consumerName, t)
-                },
-        )
+    // Mutable because a cancelled SupervisorJob cannot be reused: each start() creates
+    // a fresh scope so start() after stop() can launch consumption again.
+    // Volatile because start()/stop() may run on different Spring lifecycle threads.
+    @Volatile
+    private var scope: CoroutineScope? = null
 
     private val isRunning = AtomicBoolean(false)
 
@@ -181,7 +236,7 @@ internal class DefaultJetStreamConsumer<T>(
         }
         isRunning.set(true)
         startConsuming()
-        logger.info("JetStream consumer subscription created successfully: consumer={}", consumerName)
+        logger.info("JetStream consumer startup initiated: consumer={}", consumerName)
     }
 
     /**
@@ -205,10 +260,15 @@ internal class DefaultJetStreamConsumer<T>(
 
     /**
      * Creates the JetStream pull subscription with appropriate consumer configuration.
+     * Enforces a CONNECTED gate (polls until connection is CONNECTED, bounded by [connectedGateTimeoutMs])
+     * and wraps the blocking subscribe + flush in a bounded timeout ([subscribeTimeoutMs]).
      */
-    private fun createSubscription(): JetStreamSubscription =
+    private suspend fun createSubscription(): JetStreamSubscription =
         try {
             val connection = connectionFactory.getConnection()
+
+            waitForConnected(connection)
+
             val jetStream: JetStream = connection.jetStream()
 
             // Build consumer configuration
@@ -227,21 +287,43 @@ internal class DefaultJetStreamConsumer<T>(
                     .configuration(consumerConfigBuilder.build())
                     .build()
 
-            // Create pull subscription
-            val sub = jetStream.subscribe(subjectFilter, pullOptions)
+            logger.info(
+                "Connection status before subscribe: consumer={}, stream={}, subject={}, status={}",
+                consumerName,
+                streamName,
+                subjectFilter,
+                connection.status,
+            )
 
-            // Ensure connection is flushed
-            connection.flush(Duration.ofSeconds(1))
+            // Bound the blocking subscribe + flush so they cannot block indefinitely.
+            // Note: runInterruptible sends Thread.interrupt() on timeout, but if the NATS
+            // client ignores interrupts the Dispatchers.IO thread may outlive the timeout.
+            // The bound guarantees the coroutine fails fast, not that the blocked thread dies.
+            val sub =
+                withTimeoutOrNull(subscribeTimeoutMs) {
+                    runInterruptible(Dispatchers.IO) {
+                        val s = jetStream.subscribe(subjectFilter, pullOptions)
+                        connection.flush(Duration.ofSeconds(1))
+                        s
+                    }
+                } ?: throw JetStreamConsumeException(
+                    "Timed out creating JetStream subscription (${subscribeTimeoutMs}ms): " +
+                        "consumer=$consumerName, stream=$streamName, subject=$subjectFilter, " +
+                        "connectionStatus=${connection.status}",
+                )
 
             logger.info(
-                "Created JetStream pull consumer: consumer={}, stream={}, subject={}, durable={}",
+                "Created JetStream pull consumer: consumer={}, stream={}, subject={}, durable={}, connectionStatus={}",
                 consumerName,
                 streamName,
                 subjectFilter,
                 isDurable,
+                connection.status,
             )
 
             sub
+        } catch (e: JetStreamConsumeException) {
+            throw e
         } catch (e: Exception) {
             throw JetStreamConsumeException(
                 "Failed to create JetStream consumer subscription: consumer=$consumerName, stream=$streamName, subject=$subjectFilter",
@@ -250,17 +332,51 @@ internal class DefaultJetStreamConsumer<T>(
         }
 
     /**
+     * Waits for the NATS connection to reach [Connection.Status.CONNECTED].
+     * Polls every [connectedGatePollIntervalMs] up to [connectedGateTimeoutMs] total.
+     * Throws [JetStreamConsumeException] with diagnostic details if the bound is exceeded.
+     */
+    private suspend fun waitForConnected(connection: Connection) {
+        val deadline = System.currentTimeMillis() + connectedGateTimeoutMs
+        while (connection.status != Connection.Status.CONNECTED) {
+            if (System.currentTimeMillis() >= deadline) {
+                throw JetStreamConsumeException(
+                    "Connection not CONNECTED after ${connectedGateTimeoutMs}ms: " +
+                        "consumer=$consumerName, stream=$streamName, status=${connection.status}",
+                )
+            }
+            logger.info(
+                "Waiting for connection to be CONNECTED: consumer={}, currentStatus={}",
+                consumerName,
+                connection.status,
+            )
+            delay(connectedGatePollIntervalMs)
+        }
+    }
+
+    /**
      * Starts consuming messages in a background coroutine.
      * This is called automatically during initialization.
      */
     private fun startConsuming() {
-        scope.launch {
+        val newScope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + coroutineExceptionHandler,
+            )
+        scope = newScope
+        newScope.launch {
             try {
                 consumeMessages()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Error) {
+            } catch (e: Throwable) {
+                // Catch Throwable (not just Error) so that JetStreamConsumeException —
+                // a RuntimeException thrown by the CONNECTED gate or bounded subscribe —
+                // also marks the consumer as stopped before propagating to the handler.
+                // Reset the one-shot guard too, so a later start() retries the failed
+                // startup instead of being permanently blocked by it.
                 isRunning.set(false)
+                consumerStarted.set(false)
                 throw e
             }
         }
@@ -269,17 +385,22 @@ internal class DefaultJetStreamConsumer<T>(
     private suspend fun CoroutineScope.consumeMessages() {
         logger.debug("Starting message consumption: consumer={}", consumerName)
 
-        // Ensure subscription is initialized
-        val sub = subscription
+        var consecutiveFetchErrors = 0
 
         while (isActive && isRunning.get()) {
+            // A subscription that was drained or closed must never be fetched from:
+            // re-create it via the self-healing resubscribe path.
+            val subscription = getOrCreateSubscription()
+            if (!subscription.isActive) {
+                logger.warn("JetStream subscription is no longer active: consumer={}", consumerName)
+                if (!resubscribe()) return
+                consecutiveFetchErrors = 0
+                continue
+            }
+
             try {
-                // Fetch messages from JetStream
-                val messages =
-                    withContext(Dispatchers.IO) {
-                        sub.fetch(batchSize, Duration.ofMillis(maxWaitMillis))
-                    }.takeIf { it != null }
-                        ?: emptyList()
+                val messages = fetchMessages(subscription)
+                consecutiveFetchErrors = 0
 
                 if (messages.isEmpty()) {
                     // No messages available, wait before next fetch
@@ -296,16 +417,93 @@ internal class DefaultJetStreamConsumer<T>(
                 logger.debug("Message consumption cancelled: consumer={}", consumerName)
                 throw e
             } catch (e: Exception) {
+                consecutiveFetchErrors++
                 logger.error(
-                    "Error during message consumption: consumer={}",
+                    "Error during message consumption: consumer={}, consecutiveErrors={}/{}",
                     consumerName,
+                    consecutiveFetchErrors,
+                    FETCH_ERROR_RESUBSCRIBE_THRESHOLD,
                     e,
                 )
 
-                // Brief delay before retry to avoid tight error loops
-                delay(fetchIntervalMillis * ERROR_BACKOFF_MULTIPLIER)
+                if (consecutiveFetchErrors >= FETCH_ERROR_RESUBSCRIBE_THRESHOLD) {
+                    // The subscription is likely dead: tear it down and re-create it
+                    // instead of spinning on a failing fetch forever.
+                    if (!resubscribe()) return
+                    consecutiveFetchErrors = 0
+                } else {
+                    // Brief delay before retry to avoid tight error loops
+                    delay(fetchIntervalMillis * ERROR_BACKOFF_MULTIPLIER)
+                }
             }
         }
+    }
+
+    /**
+     * Fetches a batch of messages from JetStream, returning an empty list on a null result.
+     */
+    private suspend fun fetchMessages(subscription: JetStreamSubscription): List<Message> =
+        withContext(Dispatchers.IO) {
+            subscription.fetch(batchSize, Duration.ofMillis(maxWaitMillis))
+        }.takeIf { it != null }
+            ?: emptyList()
+
+    /**
+     * Tears down the current subscription and re-creates it, bounded by [resubscribeMaxAttempts]
+     * with exponential backoff starting at [resubscribeBackoffMillis].
+     * Returns false when all attempts are exhausted; the consumer is then marked stopped so
+     * [JetStreamConsumerHealthIndicator] reports DOWN instead of failing silently.
+     */
+    private suspend fun CoroutineScope.resubscribe(): Boolean {
+        var attempt = 1
+        var backoffMillis = resubscribeBackoffMillis
+        while (attempt <= resubscribeMaxAttempts) {
+            logger.warn(
+                "Resubscribing JetStream consumer (attempt {}/{}): consumer={}, stream={}, subject={}",
+                attempt,
+                resubscribeMaxAttempts,
+                consumerName,
+                streamName,
+                subjectFilter,
+            )
+            try {
+                // Teardown and creation are atomic under [subscriptionMutex]: a concurrent
+                // stop() either drains the subscription this attempt is about to store,
+                // or runs before it — never both alive and never neither.
+                subscriptionMutex.withLock {
+                    teardownSubscriptionLocked("resubscribe")
+                    createSubscriptionUnlessStopped()
+                }
+                logger.info("JetStream consumer resubscribed: consumer={}, attempt={}", consumerName, attempt)
+                return true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn(
+                    "Resubscribe attempt {}/{} failed: consumer={}",
+                    attempt,
+                    resubscribeMaxAttempts,
+                    consumerName,
+                    e,
+                )
+                // Back off before every retry — including the last — per the
+                // resubscribe policy (1s, 2s, 4s, 8s, 16s for the defaults).
+                backoffDelay(backoffMillis)
+                backoffMillis *= 2
+            }
+            attempt++
+        }
+
+        isRunning.set(false)
+        logger.error(
+            "JetStream consumer stopped after {} failed resubscribe attempts; " +
+                "health checks will report DOWN: consumer={}, stream={}, subject={}",
+            resubscribeMaxAttempts,
+            consumerName,
+            streamName,
+            subjectFilter,
+        )
+        return false
     }
 
     private suspend fun CoroutineScope.processMessages(messages: List<Message>) {
@@ -334,6 +532,7 @@ internal class DefaultJetStreamConsumer<T>(
                     message.metaData()?.streamSequence() ?: 0,
                     handlerEx,
                 )
+                logTerminalDeliveryIfDropped(message, payloadTypeName(jetStreamMessage), "handler failure")
                 try {
                     message.nak()
                 } catch (nakEx: Exception) {
@@ -354,6 +553,7 @@ internal class DefaultJetStreamConsumer<T>(
                 message.metaData()?.streamSequence() ?: 0,
                 e,
             )
+            logTerminalDeliveryIfDropped(message, "unknown", "conversion failure")
             // Negatively acknowledge to trigger redelivery
             try {
                 message.nak()
@@ -370,16 +570,81 @@ internal class DefaultJetStreamConsumer<T>(
     }
 
     /**
+     * Returns the qualified class name of a message payload, for diagnostics.
+     */
+    private fun payloadTypeName(jetStreamMessage: JetStreamMessage<T>): String =
+        jetStreamMessage.payload?.let { it::class.qualifiedName } ?: "unknown"
+
+    /**
+     * Logs at ERROR level when a message that has already reached its final allowed
+     * delivery is NAKed after a failure. The server drops such messages silently —
+     * no further redelivery — so the drop must be visible in the logs.
+     */
+    private fun logTerminalDeliveryIfDropped(
+        message: Message,
+        payloadType: String,
+        failure: String,
+    ) {
+        val metaData = message.metaData() ?: return
+        if (!isTerminalDelivery(metaData.deliveredCount(), maxDeliver)) return
+        logger.error(
+            "Message reached final delivery and will be silently dropped after {}: " +
+                "consumer={}, subject={}, streamSequence={}, payloadType={}, deliveredCount={}, maxDeliver={}",
+            failure,
+            consumerName,
+            message.subject,
+            metaData.streamSequence(),
+            payloadType,
+            metaData.deliveredCount(),
+            maxDeliver,
+        )
+    }
+
+    /**
      * Stops consuming messages and cleans up resources.
      * Drains the subscription to cleanly unbind the server-side durable consumer.
+     * Resets all state so a subsequent [start] can consume again.
+     * Teardown is mutex-protected so a concurrent [resubscribe] cannot create a
+     * subscription after the drain, and vice versa. The scope is cancelled only
+     * after the drain: an in-flight subscription creation completes, sees
+     * `isRunning == false`, and drains its own subscription instead of leaking it.
      */
     fun stopConsuming() {
         logger.info("Stopping message consumption: consumer={}", consumerName)
         isRunning.set(false)
-        scope.cancel()
-        subscriptionRef.get()?.let { sub ->
-            runCatching { sub.drain(Duration.ofSeconds(5)) }
-                .onFailure { logger.warn("Error draining subscription on stop: consumer={}", consumerName, it) }
+        runBlocking { subscriptionMutex.withLock { teardownSubscriptionLocked("stop") } }
+        scope?.cancel()
+        scope = null
+        consumerStarted.set(false)
+    }
+
+    /**
+     * Claims the current subscription (nulling [subscriptionRef] atomically) and drains it.
+     * MUST be called while holding [subscriptionMutex] so teardown is serialized against
+     * [getOrCreateSubscription] and [resubscribe]: at most one live subscription exists
+     * at any time and a drained subscription is never reused.
+     */
+    private suspend fun teardownSubscriptionLocked(reason: String) {
+        val oldSubscription = subscriptionRef.getAndSet(null) ?: return
+        drainSubscription(oldSubscription, reason)
+    }
+
+    /**
+     * Drains a subscription off the calling thread, interruptibly and bounded by
+     * [RESUBSCRIBE_DRAIN_TIMEOUT]. Non-cancellation failures are logged, not propagated.
+     */
+    private suspend fun drainSubscription(
+        subscription: JetStreamSubscription,
+        reason: String,
+    ) {
+        try {
+            runInterruptible(Dispatchers.IO) {
+                subscription.drain(RESUBSCRIBE_DRAIN_TIMEOUT)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn("Error draining subscription on {}: consumer={}", reason, consumerName, e)
         }
     }
 

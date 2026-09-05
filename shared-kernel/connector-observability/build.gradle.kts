@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    api(project(":shared-kernel:shared-domain"))
     api("org.springframework.boot:spring-boot-autoconfigure")
     api("org.springframework.boot:spring-boot-starter-actuator")
     api("io.micrometer:micrometer-registry-prometheus")

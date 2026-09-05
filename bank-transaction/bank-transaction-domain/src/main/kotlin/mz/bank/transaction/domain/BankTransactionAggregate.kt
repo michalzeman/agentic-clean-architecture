@@ -224,8 +224,13 @@ data class BankTransactionAggregate(
      * Cancels and rolls back the transaction.
      */
     fun cancelBankTransaction(cmd: BankTransactionCommand.CancelBankTransaction): BankTransactionAggregate {
-        require(bankTransaction.status != BankTransactionStatus.FINISHED) {
+        check(bankTransaction.status != BankTransactionStatus.FINISHED) {
             "Cannot cancel a finished transaction"
+        }
+
+        // Idempotent: if already failed, return with no new events.
+        if (bankTransaction.status == BankTransactionStatus.FAILED) {
+            return copy(domainEvents = emptyList())
         }
 
         val events = mutableListOf<BankTransactionEvent>()

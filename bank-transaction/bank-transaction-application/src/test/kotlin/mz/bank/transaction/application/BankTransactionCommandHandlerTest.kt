@@ -10,9 +10,11 @@ import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
 import mz.bank.transaction.domain.BankTransactionEvent
 import mz.bank.transaction.domain.BankTransactionStatus
-import mz.shared.connector.observability.ObservabilityMeters
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
+import mz.shared.domain.ObservabilityMeterNames
+import mz.shared.domain.ObservabilityMeters
+import mz.shared.domain.OperationOutcome
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -44,7 +46,7 @@ class BankTransactionCommandHandlerTest {
                 bankTransactionRepository,
                 lockProvider,
                 createTransactionUseCase,
-                ObservabilityMeters(meterRegistry),
+                FakeObservabilityMeters(meterRegistry),
             )
     }
 
@@ -117,7 +119,7 @@ class BankTransactionCommandHandlerTest {
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
 
-            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            val okCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).tag("outcome", "ok").counter()
             assertThat(okCounter).isNotNull
             assertThat(okCounter!!.count()).isEqualTo(1.0)
         }
@@ -155,7 +157,7 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.moneyWithdrawn).isTrue()
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
-            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
+            assertThat(meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).counter()).isNull()
         }
 
     @Test
@@ -218,7 +220,7 @@ class BankTransactionCommandHandlerTest {
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
 
-            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            val okCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).tag("outcome", "ok").counter()
             assertThat(okCounter).isNotNull
             assertThat(okCounter!!.count()).isEqualTo(1.0)
         }
@@ -256,7 +258,7 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.moneyDeposited).isTrue()
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
-            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
+            assertThat(meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).counter()).isNull()
         }
 
     // ==================== FinishBankTransaction Tests ====================
@@ -300,7 +302,7 @@ class BankTransactionCommandHandlerTest {
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
 
-            val okCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "ok").counter()
+            val okCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).tag("outcome", "ok").counter()
             assertThat(okCounter).isNotNull
             assertThat(okCounter!!.count()).isEqualTo(1.0)
         }
@@ -345,7 +347,59 @@ class BankTransactionCommandHandlerTest {
             verify(bankTransactionRepository).findById(aggregateId)
             verify(bankTransactionRepository).upsert(any())
 
-            val rollbackCounter = meterRegistry.find("bank.transfer.rolled_back").tag("reason", "unknown").counter()
+            val rollbackCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_ROLLED_BACK).tag("reason", "unknown").counter()
+            assertThat(rollbackCounter).isNotNull
+            assertThat(rollbackCounter!!.count()).isEqualTo(1.0)
+        }
+
+    @Test
+    fun `should increment transfer rolled back exactly once when cancel is called twice`(): Unit =
+        runBlocking {
+            // Given
+            val aggregateId = AggregateId("txn-cancel-twice")
+            val existingTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = true,
+                    status = BankTransactionStatus.CREATED,
+                )
+            val command =
+                BankTransactionCommand.CancelBankTransaction(
+                    aggregateId = aggregateId,
+                    correlationId = "corr-cancel-twice",
+                    fromAccountId = AggregateId("acc-001"),
+                    toAccountId = AggregateId("acc-002"),
+                    amount = BigDecimal("100.00"),
+                )
+            val failedTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = false,
+                    status = BankTransactionStatus.FAILED,
+                    version = 3L,
+                )
+
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(existingTransaction)
+            whenever(bankTransactionRepository.upsert(any())).thenReturn(failedTransaction)
+
+            // When - first cancel (real transition to FAILED)
+            commandHandler.handle(command)
+
+            // Simulate idempotent retry: aggregate is now FAILED, no new events
+            val alreadyFailedTransaction =
+                createBankTransaction(
+                    aggregateId = aggregateId,
+                    moneyWithdrawn = false,
+                    status = BankTransactionStatus.FAILED,
+                    version = 3L,
+                )
+            whenever(bankTransactionRepository.findById(aggregateId)).thenReturn(alreadyFailedTransaction)
+
+            // When - second cancel (idempotent, no real transition)
+            commandHandler.handle(command)
+
+            // Then - meter incremented exactly once
+            val rollbackCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_ROLLED_BACK).tag("reason", "unknown").counter()
             assertThat(rollbackCounter).isNotNull
             assertThat(rollbackCounter!!.count()).isEqualTo(1.0)
         }
@@ -469,7 +523,7 @@ class BankTransactionCommandHandlerTest {
             assertThat(result.status).isEqualTo(BankTransactionStatus.FAILED)
             verify(bankTransactionRepository, never()).upsert(any())
 
-            assertThat(meterRegistry.find("bank.transfer.completed").counter()).isNull()
+            assertThat(meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).counter()).isNull()
         }
 
     @Test
@@ -497,7 +551,7 @@ class BankTransactionCommandHandlerTest {
             assertThatThrownBy { runBlocking { commandHandler.handle(command) } }
                 .isInstanceOf(IllegalStateException::class.java)
 
-            val failCounter = meterRegistry.find("bank.transfer.completed").tag("outcome", "fail").counter()
+            val failCounter = meterRegistry.find(ObservabilityMeterNames.TRANSFER_COMPLETED).tag("outcome", "fail").counter()
             assertThat(failCounter).isNotNull
             assertThat(failCounter!!.count()).isEqualTo(1.0)
         }
@@ -543,5 +597,32 @@ class BankTransactionCommandHandlerTest {
             keyLock: String,
             operation: suspend () -> T,
         ): T = operation()
+    }
+
+    /**
+     * Implements the [ObservabilityMeters] port from shared-domain, so these application-layer
+     * tests do not depend on the connector-observability adapter.
+     * Delegates to a real [SimpleMeterRegistry], so assertions verify metric semantics
+     * (counter name, tags, count) instead of mock interactions.
+     * The fake intentionally omits the production implementation's error resilience,
+     * so failures surface in tests.
+     */
+    private class FakeObservabilityMeters(
+        private val meterRegistry: SimpleMeterRegistry,
+    ) : ObservabilityMeters {
+        override fun transferCompleted(outcome: OperationOutcome) {
+            meterRegistry.counter(ObservabilityMeterNames.TRANSFER_COMPLETED, "outcome", outcome.tagValue).increment()
+        }
+
+        override fun transferRolledBack(reason: String) {
+            meterRegistry.counter(ObservabilityMeterNames.TRANSFER_ROLLED_BACK, "reason", reason).increment()
+        }
+
+        override fun accountOperation(
+            op: String,
+            outcome: OperationOutcome,
+        ) {
+            meterRegistry.counter(ObservabilityMeterNames.ACCOUNT_OPERATION, "op", op, "outcome", outcome.tagValue).increment()
+        }
     }
 }

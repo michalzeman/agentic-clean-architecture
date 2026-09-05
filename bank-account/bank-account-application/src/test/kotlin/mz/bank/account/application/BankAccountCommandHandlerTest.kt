@@ -5,9 +5,11 @@ import kotlinx.coroutines.runBlocking
 import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountCommand
 import mz.bank.account.domain.Email
-import mz.shared.connector.observability.ObservabilityMeters
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
+import mz.shared.domain.ObservabilityMeterNames
+import mz.shared.domain.ObservabilityMeters
+import mz.shared.domain.OperationOutcome
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -39,7 +41,7 @@ class BankAccountCommandHandlerTest {
                 bankAccountRepository,
                 lockProvider,
                 createBankAccountUseCase,
-                ObservabilityMeters(meterRegistry),
+                FakeObservabilityMeters(meterRegistry),
             )
     }
 
@@ -118,7 +120,7 @@ class BankAccountCommandHandlerTest {
 
             val counter =
                 meterRegistry
-                    .find("bank.account.operation")
+                    .find(ObservabilityMeterNames.ACCOUNT_OPERATION)
                     .tag("op", "deposit")
                     .tag("outcome", "ok")
                     .counter()
@@ -203,7 +205,7 @@ class BankAccountCommandHandlerTest {
 
             val counter =
                 meterRegistry
-                    .find("bank.account.operation")
+                    .find(ObservabilityMeterNames.ACCOUNT_OPERATION)
                     .tag("op", "withdraw")
                     .tag("outcome", "fail")
                     .counter()
@@ -245,7 +247,7 @@ class BankAccountCommandHandlerTest {
 
             val counter =
                 meterRegistry
-                    .find("bank.account.operation")
+                    .find(ObservabilityMeterNames.ACCOUNT_OPERATION)
                     .tag("op", "transfer_withdraw")
                     .tag("outcome", "ok")
                     .counter()
@@ -431,5 +433,32 @@ class BankAccountCommandHandlerTest {
             keyLock: String,
             operation: suspend () -> T,
         ): T = operation()
+    }
+
+    /**
+     * Implements the [ObservabilityMeters] port from shared-domain, so these application-layer
+     * tests do not depend on the connector-observability adapter.
+     * Delegates to a real [SimpleMeterRegistry], so assertions verify metric semantics
+     * (counter name, tags, count) instead of mock interactions.
+     * The fake intentionally omits the production implementation's error resilience,
+     * so failures surface in tests.
+     */
+    private class FakeObservabilityMeters(
+        private val meterRegistry: SimpleMeterRegistry,
+    ) : ObservabilityMeters {
+        override fun transferCompleted(outcome: OperationOutcome) {
+            meterRegistry.counter(ObservabilityMeterNames.TRANSFER_COMPLETED, "outcome", outcome.tagValue).increment()
+        }
+
+        override fun transferRolledBack(reason: String) {
+            meterRegistry.counter(ObservabilityMeterNames.TRANSFER_ROLLED_BACK, "reason", reason).increment()
+        }
+
+        override fun accountOperation(
+            op: String,
+            outcome: OperationOutcome,
+        ) {
+            meterRegistry.counter(ObservabilityMeterNames.ACCOUNT_OPERATION, "op", op, "outcome", outcome.tagValue).increment()
+        }
     }
 }

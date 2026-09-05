@@ -1,5 +1,6 @@
 package mz.bank.account.application
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
@@ -7,9 +8,9 @@ import mz.bank.account.domain.BankAccount
 import mz.bank.account.domain.BankAccountAggregate
 import mz.bank.account.domain.BankAccountCommand
 import mz.bank.account.domain.BankAccountOperation
-import mz.shared.connector.observability.ObservabilityMeters
-import mz.shared.connector.observability.OperationOutcome
 import mz.shared.domain.LockProvider
+import mz.shared.domain.ObservabilityMeters
+import mz.shared.domain.OperationOutcome
 import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.Poller
 import org.springframework.integration.annotation.ServiceActivator
@@ -37,6 +38,8 @@ class BankAccountCommandHandler(
             val result = block()
             observabilityMeters.accountOperation(op.name.lowercase(), OperationOutcome.OK)
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             observabilityMeters.accountOperation(op.name.lowercase(), OperationOutcome.FAIL)
             throw e

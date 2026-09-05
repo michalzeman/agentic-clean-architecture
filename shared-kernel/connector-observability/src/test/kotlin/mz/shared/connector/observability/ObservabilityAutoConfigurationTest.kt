@@ -1,6 +1,7 @@
 package mz.shared.connector.observability
 
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
+import mz.shared.domain.ObservabilityMeters
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations

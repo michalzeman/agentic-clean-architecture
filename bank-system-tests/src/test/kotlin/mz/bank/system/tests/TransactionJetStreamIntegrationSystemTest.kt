@@ -1,7 +1,10 @@
 package mz.bank.system.tests
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.system.tests.wiring.BankSystemTestConfiguration
+import mz.shared.connector.nats.jetstream.consumer.JetStreamConsumer
 import mz.shared.connector.system.tests.awaitMessages
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
@@ -65,6 +68,16 @@ class TransactionJetStreamIntegrationSystemTest {
     @Autowired
     @Qualifier("bankAccountEventsNatsStreamChannel")
     private lateinit var bankAccountEventsChannel: QueueChannel
+
+    // Nullable + required=false so the context still loads if the JetStream consumer
+    // beans are absent; the diagnostics then report the beans as missing.
+    @Autowired(required = false)
+    @Qualifier("bankAccountEventsNatsConsumer")
+    private var bankAccountEventsNatsConsumer: JetStreamConsumer<BankAccountEvent>? = null
+
+    @Autowired(required = false)
+    @Qualifier("bankTransactionEventsNatsConsumer")
+    private var bankTransactionEventsNatsConsumer: JetStreamConsumer<mz.bank.transaction.contract.proto.BankTransactionEvent>? = null
 
     @BeforeAll
     fun setUp() {
@@ -173,9 +186,9 @@ class TransactionJetStreamIntegrationSystemTest {
                     payload?.hasTransactionFinished() == true &&
                         payload.transactionFinished.aggregateId == transactionId
                 }
-            assertThat(finishedEvent)
-                .withFailMessage("Expected TransactionFinished event for transaction $transactionId")
-                .isNotNull
+            // Diagnostics are built only when the event is missing — inside
+            // assertFinishedEventPresent — so the happy path stays untouched.
+            assertFinishedEventPresent(finishedEvent, messages, transactionId)
 
             val finalTransaction: JsonNode =
                 transactionServiceWebClient
@@ -223,6 +236,62 @@ class TransactionJetStreamIntegrationSystemTest {
             assertThat(destFinishedTxns).contains(transactionId)
         }
     }
+
+    /**
+     * Asserts the TransactionFinished event was received, failing with rich diagnostics:
+     * received event summary, current transaction state, and JetStream consumer health.
+     * The guard lives here so the diagnostics builder (including the HTTP fetch) only
+     * runs on the failure path. A plain [AssertionError] is thrown because Kotlin's
+     * null-narrowing after the guard makes AssertJ's `assertThat` overload ambiguous.
+     */
+    private suspend fun assertFinishedEventPresent(
+        finishedEvent: Message<*>?,
+        messages: List<Message<*>>,
+        transactionId: String,
+    ) {
+        if (finishedEvent != null) return
+        throw AssertionError(buildFinishedEventFailureDiagnostics(messages, transactionId))
+    }
+
+    private suspend fun buildFinishedEventFailureDiagnostics(
+        messages: List<Message<*>>,
+        transactionId: String,
+    ): String =
+        buildString {
+            append("Expected TransactionFinished event for transaction $transactionId. ")
+            append(describeTransactionEventMessages(messages))
+            append("; ")
+            append(describeTransactionState(fetchTransactionState(transactionId)))
+            append("; ")
+            append(describeConsumerStates())
+        }
+
+    /**
+     * Fetches the transaction's current state via HTTP for diagnostics.
+     * Failures are swallowed (reported as unavailable): diagnostics must not mask the
+     * original test failure. Cancellation is rethrown so coroutine cancellation
+     * still propagates.
+     */
+    private suspend fun fetchTransactionState(transactionId: String): JsonNode? =
+        try {
+            transactionServiceWebClient
+                .get()
+                .uri("/api/v1/transactions/{transactionId}", transactionId)
+                .retrieve()
+                .awaitBody<JsonNode>()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+
+    private fun describeConsumerStates(): String =
+        describeConsumerRunningStates(
+            listOfNotNull(
+                bankAccountEventsNatsConsumer,
+                bankTransactionEventsNatsConsumer,
+            ).map { ConsumerRunningState(consumerName = it.consumerName, isRunning = it.isRunning()) },
+        )
 
     /**
      * Polls for account state until both accounts have the finished transaction.

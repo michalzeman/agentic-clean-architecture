@@ -1,13 +1,14 @@
 package mz.bank.transaction.application.transaction
 
+import kotlinx.coroutines.CancellationException
 import mz.bank.transaction.domain.BankTransaction
 import mz.bank.transaction.domain.BankTransactionAggregate
 import mz.bank.transaction.domain.BankTransactionCommand
 import mz.bank.transaction.domain.BankTransactionEvent
-import mz.shared.connector.observability.ObservabilityMeters
-import mz.shared.connector.observability.OperationOutcome
 import mz.shared.domain.AggregateId
 import mz.shared.domain.LockProvider
+import mz.shared.domain.ObservabilityMeters
+import mz.shared.domain.OperationOutcome
 import org.slf4j.LoggerFactory
 import org.springframework.integration.annotation.Poller
 import org.springframework.integration.annotation.ServiceActivator
@@ -107,6 +108,8 @@ class BankTransactionCommandHandler(
                     observabilityMeters.transferCompleted(OperationOutcome.OK)
                 }
                 result
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Any exception during a finish attempt counts as outcome=fail — consistent with the account-side wrapper.
                 observabilityMeters.transferCompleted(OperationOutcome.FAIL)
@@ -119,7 +122,9 @@ class BankTransactionCommandHandler(
             val bankTransaction = findBankTransactionOrThrow(command.aggregateId)
             val aggregate = BankTransactionAggregate(bankTransaction).cancelBankTransaction(command)
             val result = bankTransactionRepository.upsert(aggregate)
-            observabilityMeters.transferRolledBack(command.reason.name.lowercase())
+            if (aggregate.domainEvents.any { it is BankTransactionEvent.BankTransactionRolledBack }) {
+                observabilityMeters.transferRolledBack(command.reason.name.lowercase())
+            }
             result
         }
 

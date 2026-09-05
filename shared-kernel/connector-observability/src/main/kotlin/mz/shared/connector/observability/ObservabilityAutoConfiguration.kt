@@ -1,6 +1,7 @@
 package mz.shared.connector.observability
 
 import io.micrometer.core.instrument.MeterRegistry
+import mz.shared.domain.ObservabilityMeters
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
@@ -9,5 +10,5 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnClass(MeterRegistry::class)
 class ObservabilityAutoConfiguration {
     @Bean
-    fun observabilityMeters(meterRegistry: MeterRegistry): ObservabilityMeters = ObservabilityMeters(meterRegistry)
+    fun observabilityMeters(meterRegistry: MeterRegistry): ObservabilityMeters = ObservabilityMetersImpl(meterRegistry)
 }

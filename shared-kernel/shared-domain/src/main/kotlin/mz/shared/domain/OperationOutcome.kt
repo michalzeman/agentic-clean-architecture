@@ -1,4 +1,4 @@
-package mz.shared.connector.observability
+package mz.shared.domain
 
 enum class OperationOutcome {
     OK,
