@@ -17,4 +17,9 @@ dependencies {
     // Jackson for JSON serialization support
     api("tools.jackson.core:jackson-databind")
     api("tools.jackson.module:jackson-module-kotlin")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // H2 for the JDBC channel message store test: the Postgres query provider's SQL
+    // cannot run on H2, so the test uses H2ChannelMessageStoreQueryProvider + schema-h2.sql
+    testImplementation("com.h2database:h2")
 }

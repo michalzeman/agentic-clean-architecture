@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
+import mz.shared.connector.observability.TraceParent
 import org.slf4j.LoggerFactory
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
@@ -164,6 +165,7 @@ internal class DefaultJetStreamConsumer<T>(
                 .getLogger(DefaultJetStreamConsumer::class.java)
                 .error("JetStream consumer '{}' terminated unexpectedly", consumerName, t)
         },
+    private val traceParent: TraceParent? = null,
 ) : JetStreamConsumer<T>,
     SmartLifecycle {
     private val logger = LoggerFactory.getLogger(DefaultJetStreamConsumer::class.java)
@@ -520,9 +522,15 @@ internal class DefaultJetStreamConsumer<T>(
         try {
             val jetStreamMessage = convertMessage(message)
             try {
-                onMessage(jetStreamMessage)
-                if (autoAck) {
-                    message.ack()
+                // Re-open the propagated span context on this thread for the handler via
+                // [TraceParent.withRestoredSpan]; a missing or malformed traceparent starts
+                // a fresh trace, and the restored span (scope and span itself) is closed
+                // right after the handler returns — one message, one entry.
+                withRestoredTraceContext(jetStreamMessage.headers[TraceParent.HEADER]?.firstOrNull()) {
+                    onMessage(jetStreamMessage)
+                    if (autoAck) {
+                        message.ack()
+                    }
                 }
             } catch (handlerEx: Exception) {
                 logger.error(
@@ -566,6 +574,22 @@ internal class DefaultJetStreamConsumer<T>(
                     nakEx,
                 )
             }
+        }
+    }
+
+    /**
+     * Runs [handle] inside [TraceParent.withRestoredSpan] when this consumer carries a
+     * traceParent, or plainly when it does not — the handler runs either way, and a
+     * missing or malformed header inside the scoped form degrades to a fresh trace.
+     */
+    private suspend fun withRestoredTraceContext(
+        header: String?,
+        handle: suspend () -> Unit,
+    ) {
+        if (traceParent == null) {
+            handle()
+        } else {
+            traceParent.withRestoredSpan(header, handle)
         }
     }
 

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.asFlow
+import mz.shared.connector.observability.TraceParent
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import mz.shared.domain.AGGREGATE_ID
 import mz.shared.domain.LockProvider
@@ -50,6 +51,7 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
     val reactiveRedisTemplate: ReactiveRedisTemplate<String, *>,
     val consumer: Consumer,
     private val lockProvider: LockProvider? = null,
+    private val traceParent: TraceParent? = null,
 ) : DisposableBean,
     SmartLifecycle {
     private val lifecycleLock = Any()
@@ -87,7 +89,7 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
                     .map { serializer.deserialize(it, type) }
                     .map(this::mapRecordMessage)
                     .map { message ->
-                        sendToChannel(message, record)
+                        sendWithinRestoredSpan(message, record)
                         message
                     }.flatMapConcat {
                         reactiveRedisTemplate.opsForStream<String, Any>().acknowledge(consumer.group, record).asFlow()
@@ -118,6 +120,26 @@ class RedisStreamConsumer<T : com.google.protobuf.GeneratedMessage, O> internal 
             }
         } else {
             sendMessageToChannel(record, message)
+        }
+    }
+
+    private fun traceparentHeader(message: Message<*>): String? = message.headers[TraceParent.HEADER] as? String
+
+    /**
+     * Restores the traceparent span context on the thread that then sends the message to
+     * the channel, inside [TraceParent.withRestoredSpan]: the restored span (scope and span
+     * itself) is closed right after the send — one message, one entry, no leaked handle.
+     */
+    private suspend fun sendWithinRestoredSpan(
+        message: Message<out Any>,
+        record: MapRecord<String, String, String>,
+    ) {
+        if (traceParent == null) {
+            sendToChannel(message, record)
+        } else {
+            traceParent.withRestoredSpan(traceparentHeader(message)) {
+                sendToChannel(message, record)
+            }
         }
     }
 
@@ -160,6 +182,13 @@ class RedisSteamConsumerBuilder<T : com.google.protobuf.GeneratedMessage, O>(
     private var mapper: ((T) -> O)? = null
 
     private var lockProvider: LockProvider? = null
+
+    private var traceParent: TraceParent? = null
+
+    fun withTraceParent(traceParent: TraceParent?): RedisSteamConsumerBuilder<T, O> {
+        this.traceParent = traceParent
+        return this
+    }
 
     fun withOptions(options: StreamReceiverOptions<String, MapRecord<String, String, String>>): RedisSteamConsumerBuilder<T, O> {
         this.options = options
@@ -218,6 +247,7 @@ class RedisSteamConsumerBuilder<T : com.google.protobuf.GeneratedMessage, O>(
                 reactiveRedisTemplate,
                 consumerGroup,
                 lockProvider,
+                traceParent,
             )
 
         return consumer

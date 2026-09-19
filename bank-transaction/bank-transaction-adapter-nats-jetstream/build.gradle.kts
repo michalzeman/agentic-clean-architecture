@@ -7,6 +7,7 @@ dependencies {
     api(project(":bank-transaction:bank-transaction-adapter-redis-stream"))
     api(project(":shared-kernel:connector-nats-jetstream"))
     api(project(":shared-kernel:connector-nats-jetstream-starter"))
+    api(project(":shared-kernel:connector-observability"))
 
     implementation("org.springframework.boot:spring-boot-autoconfigure")
     implementation("org.springframework.integration:spring-integration-core")

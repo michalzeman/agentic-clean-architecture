@@ -6,14 +6,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.core.serializer.Deserializer
-import org.springframework.core.serializer.Serializer
 import org.springframework.integration.jdbc.store.JdbcChannelMessageStore
 import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider
-import org.springframework.integration.support.json.JacksonMessagingUtils
-import org.springframework.messaging.Message
-import org.springframework.messaging.support.GenericMessage
-import tools.jackson.module.kotlin.KotlinModule
 import javax.sql.DataSource
 
 /**
@@ -45,40 +39,16 @@ class DataPlatformPostgresqlConfiguration {
         val store = JdbcChannelMessageStore(dataSource)
         store.setChannelMessageStoreQueryProvider(PostgresChannelMessageStoreQueryProvider())
         store.setRegion("json")
-
-        // Build messaging-aware ObjectMapper with trusted packages and Kotlin support
-        val objectMapper =
-            JacksonMessagingUtils
-                .messagingAwareMapper(*properties.trustedPackages.toTypedArray())
-                .rebuild()
-                .addModule(KotlinModule.Builder().build())
-                .build()
-
-        store.setSerializer(
-            object : Serializer<Message<*>> {
-                override fun serialize(
-                    message: Message<*>,
-                    outputStream: java.io.OutputStream,
-                ) {
-                    objectMapper.writeValue(outputStream, message)
-                }
-            },
-        )
-
-        store.setDeserializer(
-            object : Deserializer<Message<*>> {
-                @Suppress("UNCHECKED_CAST")
-                override fun deserialize(inputStream: java.io.InputStream): Message<*> =
-                    objectMapper.readValue(inputStream, GenericMessage::class.java) as Message<*>
-            },
-        )
-
+        JsonChannelMessageStoreSerializers.configure(store, properties.trustedPackages)
         return store
     }
 
     /**
-     * Binary channel message store for protobuf events.
-     * Uses BYTEA for efficient binary storage.
+     * Proto-region channel store on Spring Integration's default Java serialization: the
+     * whole `GenericMessage`, headers included, round-trips through the store, so the
+     * traceparent header survives, but without the explicit Jackson header path the JSON
+     * region uses. Pre-existing behavior, kept as is; flagged as info finding F15 in the
+     * phase-2 review.
      */
     @Bean
     @ConditionalOnMissingBean(name = ["protoJdbcChannelMessageStore"])

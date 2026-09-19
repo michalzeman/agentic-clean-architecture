@@ -2,6 +2,7 @@ package mz.shared.connector.nats.jetstream.consumer
 
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.message.JetStreamMessageConverter
+import mz.shared.connector.observability.TraceParent
 
 /**
  * Builder for creating configured JetStream consumers.
@@ -54,6 +55,8 @@ class JetStreamConsumerBuilder<T>(
     private var autoAck: Boolean = false
 
     private var messageHandler: (suspend (JetStreamMessage<T>) -> Unit)? = null
+
+    private var traceParent: TraceParent? = null
 
     /**
      * Sets the batch size for message fetching.
@@ -140,6 +143,16 @@ class JetStreamConsumerBuilder<T>(
     }
 
     /**
+     * Sets the trace-context helper used to restore the W3C `traceparent` header into
+     * span scope before each message handler invocation. A missing or malformed header
+     * never fails processing.
+     */
+    fun withTraceParent(traceParent: TraceParent?): JetStreamConsumerBuilder<T> {
+        this.traceParent = traceParent
+        return this
+    }
+
+    /**
      * Builds and returns the configured consumer.
      * Message consumption starts immediately upon building.
      */
@@ -168,6 +181,7 @@ class JetStreamConsumerBuilder<T>(
             maxAckPending = maxAckPending,
             ackWaitSeconds = ackWaitSeconds,
             maxDeliver = maxDeliver,
+            traceParent = traceParent,
         )
     }
 }

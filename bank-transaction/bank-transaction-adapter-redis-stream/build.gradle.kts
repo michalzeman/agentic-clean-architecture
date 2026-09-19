@@ -5,6 +5,7 @@ dependencies {
     api(project(":bank-transaction:bank-transaction-contract-proto"))
     api(project(":bank-account:bank-account-contract-proto"))
     api(project(":shared-kernel:connector-redis"))
+    api(project(":shared-kernel:connector-observability"))
 
     // Spring Boot for configuration properties
     implementation("org.springframework.boot:spring-boot-autoconfigure")

@@ -4,6 +4,9 @@ plugins {
 
 dependencies {
     api(project(":shared-kernel:shared-domain"))
+    api(project(":shared-kernel:connector-observability"))
+
+    // W3C traceparent format/restore helpers used by the publisher and consumer
 
     // spring context
     api("org.springframework:spring-context")
@@ -34,4 +37,8 @@ dependencies {
     api("tools.jackson.module:jackson-module-kotlin")
 
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+    // SimpleTracer test kit; version managed by micrometer-tracing-bom via the Boot BOM
+    testImplementation("io.micrometer:micrometer-tracing-test")
+    // Shared SimpleW3CPropagator trace-context test fixture
+    testImplementation(testFixtures(project(":shared-kernel:connector-observability")))
 }

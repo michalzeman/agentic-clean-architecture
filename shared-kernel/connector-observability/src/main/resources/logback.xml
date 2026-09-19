@@ -1,0 +1,17 @@
+<configuration>
+    <!-- This config ships inside the connector jar so every service gets identical JSON
+         logging without a local copy — intentionally centralized. -->
+    <!-- includeMdc emits MDC keys traceId and spanId as JSON fields per line -->
+    <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>true</includeMdc>
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+            </fieldNames>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="JSON_STDOUT"/>
+    </root>
+</configuration>

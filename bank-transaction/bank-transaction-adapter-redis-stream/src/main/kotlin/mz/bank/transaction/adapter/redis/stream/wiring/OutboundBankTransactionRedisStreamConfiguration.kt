@@ -3,6 +3,7 @@ package mz.bank.transaction.adapter.redis.stream.wiring
 import mz.bank.transaction.adapter.redis.stream.BankTransactionEventMapper
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
 import mz.bank.transaction.adapter.redis.stream.RedisStreamBankTransactionEventsPublisher
+import mz.shared.connector.observability.TraceParent
 import mz.shared.connector.redis.RedisStreamPublisher
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import org.springframework.beans.factory.annotation.Qualifier
@@ -43,11 +44,13 @@ class OutboundBankTransactionRedisStreamConfiguration(
     @Bean
     fun bankTransactionEventsRedisStreamPublisher(
         redisMapRecordProtobufSerializer: RedisMapRecordJsonSerializer,
+        traceParent: TraceParent?,
     ): RedisStreamPublisher<ProtoBankTransactionEvent> =
         RedisStreamPublisher(
             streamKey = properties.bankTransactionEventsStream,
             reactiveRedisTemplate = reactiveRedisTemplate,
             redisMapRecordJsonSerializer = redisMapRecordProtobufSerializer,
+            traceParent = traceParent,
         )
 
     @Bean

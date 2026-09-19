@@ -4,6 +4,7 @@ import mz.bank.account.contract.proto.BankAccountEvent
 import mz.bank.transaction.adapter.redis.stream.BankTransactionRedisStreamProperties
 import mz.bank.transaction.adapter.redis.stream.inbound.toAccountEvent
 import mz.bank.transaction.application.account.AccountEvent
+import mz.shared.connector.observability.TraceParent
 import mz.shared.connector.redis.RedisSteamConsumerBuilder
 import mz.shared.connector.redis.RedisStreamConsumer
 import org.springframework.beans.factory.annotation.Qualifier
@@ -34,6 +35,7 @@ class InboundBankAccountRedisStreamConfiguration(
     @Bean
     fun bankAccountEventsRedisStreamConsumer(
         inboundBankAccountEventsChannel: MessageChannel,
+        traceParent: TraceParent?,
     ): RedisStreamConsumer<BankAccountEvent, AccountEvent> =
         RedisSteamConsumerBuilder<BankAccountEvent, AccountEvent>(
             streamKey = properties.bankAccountEventsStream,
@@ -45,5 +47,6 @@ class InboundBankAccountRedisStreamConfiguration(
             objectMapper = protobufObjectMapper,
         ).withMapper { protoEvent: BankAccountEvent ->
             protoEvent.toAccountEvent()
-        }.build()
+        }.withTraceParent(traceParent)
+            .build()
 }

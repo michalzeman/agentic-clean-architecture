@@ -8,6 +8,7 @@ import mz.bank.account.contract.proto.BankAccountEvent
 import mz.shared.connector.nats.NatsConnectionFactory
 import mz.shared.connector.nats.jetstream.producer.DefaultJetStreamProducer
 import mz.shared.connector.nats.jetstream.producer.JetStreamProducer
+import mz.shared.connector.observability.TraceParent
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -32,11 +33,13 @@ class OutboundJetStreamConfiguration(
     fun jetStreamBankAccountProducer(
         connectionFactory: NatsConnectionFactory,
         bankAccountEventJetStreamConverter: BankAccountEventJetStreamMessageConverter,
+        traceParent: TraceParent?,
     ): JetStreamProducer<BankAccountEvent> =
         DefaultJetStreamProducer(
             streamName = properties.bankAccountEventsStream,
             connectionFactory = connectionFactory,
             converter = bankAccountEventJetStreamConverter,
+            traceParent = traceParent,
         )
 
     @Bean

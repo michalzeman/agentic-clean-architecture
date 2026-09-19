@@ -5,6 +5,9 @@ plugins {
 dependencies {
     api(project(":shared-kernel:connector-nats"))
 
+    // W3C traceparent format/restore helpers used by the consumer
+    api(project(":shared-kernel:connector-observability"))
+
     // Spring integration for channel adapters
     api("org.springframework.integration:spring-integration-core")
     api("org.springframework:spring-messaging")
@@ -26,4 +29,8 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:${property("testcontainersJunitVersion")}")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     testImplementation("org.awaitility:awaitility-kotlin")
+    // SimpleTracer test kit; version managed by micrometer-tracing-bom via the Boot BOM
+    testImplementation("io.micrometer:micrometer-tracing-test")
+    // Shared SimpleW3CPropagator trace-context test fixture
+    testImplementation(testFixtures(project(":shared-kernel:connector-observability")))
 }

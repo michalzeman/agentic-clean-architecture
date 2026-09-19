@@ -25,7 +25,7 @@
 - **Paradigm**: Prefer functional style and immutability
 - **Formatter**: ktlint via Spotless plugin (auto-enforced)
 - **Imports**: Organize alphabetically, remove unused
-- **Types**: Use explicit types for public APIs, infer for local variables
+- **Types**: Use explicit types for public APIs, infer for local variables; omit the return type on `Unit`-returning functions. ktlint removes `: Unit`, so `spotlessApply` deletes it and `spotlessCheck` fails while it is present.
 - **Naming**: Use camelCase for functions/variables, PascalCase for classes
 - **Trailing commas**: Required in multi-line function calls and data classes
 - **Error handling**: Throw `IllegalStateException` for invariant violations, `IllegalArgumentException` for invalid inputs

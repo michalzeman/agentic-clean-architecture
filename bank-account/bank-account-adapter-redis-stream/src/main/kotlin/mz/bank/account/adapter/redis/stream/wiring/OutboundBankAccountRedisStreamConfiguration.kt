@@ -3,6 +3,7 @@ package mz.bank.account.adapter.redis.stream.wiring
 import mz.bank.account.adapter.redis.stream.BankAccountEventMapper
 import mz.bank.account.adapter.redis.stream.BankAccountRedisStreamProperties
 import mz.bank.account.adapter.redis.stream.RedisStreamBankAccountEventsPublisher
+import mz.shared.connector.observability.TraceParent
 import mz.shared.connector.redis.RedisStreamPublisher
 import mz.shared.connector.redis.json.RedisMapRecordJsonSerializer
 import org.springframework.beans.factory.annotation.Qualifier
@@ -42,11 +43,13 @@ class OutboundBankAccountRedisStreamConfiguration(
     @Bean
     fun bankAccountEventsRedisStreamPublisher(
         redisMapRecordProtobufSerializer: RedisMapRecordJsonSerializer,
+        traceParent: TraceParent?,
     ): RedisStreamPublisher<ProtoBankAccountEvent> =
         RedisStreamPublisher(
             streamKey = properties.bankAccountEventsStream,
             reactiveRedisTemplate = reactiveRedisTemplate,
             redisMapRecordJsonSerializer = redisMapRecordProtobufSerializer,
+            traceParent = traceParent,
         )
 
     @Bean

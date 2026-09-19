@@ -14,6 +14,14 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
 spring:
   integration:
     management:
