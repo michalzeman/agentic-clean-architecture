@@ -57,6 +57,7 @@ services:
 
   bank-account-service:
     image: 'bank-account:latest'
+    container_name: bank-account-service
     build:
       context: .
       dockerfile: bank-account/bank-account-boot-app/Dockerfile
@@ -78,6 +79,7 @@ services:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-postgres-nats}
       - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-true}
       - NATS_URL=nats://nats-db:4222
+      - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://tempo:4318/v1/traces
     profiles:
       - system-tests
     healthcheck:
@@ -89,6 +91,7 @@ services:
 
   bank-transaction-service:
     image: 'bank-transaction:latest'
+    container_name: bank-transaction-service
     build:
       context: .
       dockerfile: bank-transaction/bank-transaction-boot-app/Dockerfile
@@ -112,6 +115,7 @@ services:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE_GROUP:-postgres-nats}
       - NATS_JETSTREAM_ENABLED=${NATS_JETSTREAM_ENABLED:-true}
       - NATS_URL=nats://nats-db:4222
+      - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://tempo:4318/v1/traces
     profiles:
       - system-tests
     healthcheck:
@@ -172,7 +176,52 @@ services:
     depends_on:
       - nats-db
 
+  loki:
+    image: 'grafana/loki:3.5.1'
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -T 3 -O- http://localhost:3100/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  tempo:
+    image: 'grafana/tempo:2.7.0'
+    container_name: tempo
+    ports:
+      - "3200:3200"
+      - "4318:4318"
+    volumes:
+      - ./observability/tempo/tempo-config.yaml:/etc/tempo/tempo-config.yaml:ro
+      - tempo-data:/var/tempo
+    command: -config.file=/etc/tempo/tempo-config.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- -T 3 http://localhost:3200/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  alloy:
+    image: 'grafana/alloy:v1.10.0'
+    container_name: alloy
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      - loki
+
 volumes:
   redis-db-data:
   redisinsight-data:
   postgres-db-data:
+  loki-data:
+  tempo-data:

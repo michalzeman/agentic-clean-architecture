@@ -16,4 +16,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.integration:spring-integration-test")
+    // SimpleTracer/SimpleCurrentTraceContext test kit; version managed by micrometer-tracing-bom via the Boot BOM
+    testImplementation("io.micrometer:micrometer-tracing-test")
+    // Shared SimpleW3CPropagator fixture consumed by the trace-context tests
+    testImplementation(testFixtures(project(":shared-kernel:connector-observability")))
 }

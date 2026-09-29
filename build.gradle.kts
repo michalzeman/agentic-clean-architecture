@@ -151,14 +151,14 @@ tasks.register<Exec>("tearDownDockerCompose") {
 
 tasks.register<Exec>("observabilityUp") {
     group = "Docker"
-    description = "Starts the monitoring stack (Prometheus, Grafana, Redis exporter, Postgres exporter, NATS exporter) — infra only, no bank services"
+    description = "Starts the monitoring stack (Prometheus, Grafana, Redis exporter, Postgres exporter, NATS exporter, Loki, Tempo, Alloy) — infra only, no bank services"
 
-    commandLine("docker", "compose", "up", "-d", "--wait", "prometheus", "grafana", "redis-exporter", "postgres-exporter", "nats-exporter",)
+    commandLine("docker", "compose", "up", "-d", "--wait", "prometheus", "grafana", "redis-exporter", "postgres-exporter", "nats-exporter", "loki", "tempo", "alloy",)
 }
 
 tasks.register<Exec>("observabilityDown") {
     group = "Docker"
-    description = "Stops and removes the monitoring stack containers (Prometheus, Grafana, Redis exporter, Postgres exporter, NATS exporter)"
+    description = "Stops and removes the monitoring stack containers (Prometheus, Grafana, Redis exporter, Postgres exporter, NATS exporter, Loki, Tempo, Alloy)"
 
-    commandLine("docker", "compose", "rm", "-sf", "prometheus", "grafana", "redis-exporter", "postgres-exporter", "nats-exporter",)
+    commandLine("docker", "compose", "rm", "-sf", "prometheus", "grafana", "redis-exporter", "postgres-exporter", "nats-exporter", "loki", "tempo", "alloy",)
 }

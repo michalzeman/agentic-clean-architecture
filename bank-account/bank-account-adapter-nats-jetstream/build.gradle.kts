@@ -27,4 +27,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:${property("testcontainersVersion")}")
     testImplementation("org.testcontainers:junit-jupiter:${property("testcontainersJunitVersion")}")
     testImplementation("org.awaitility:awaitility-kotlin")
+    // SimpleTracer/SimpleCurrentTraceContext test kit; version managed by micrometer-tracing-bom via the Boot BOM
+    testImplementation("io.micrometer:micrometer-tracing-test")
+    // Shared SimpleW3CPropagator fixture consumed by the trace-context tests
+    testImplementation(testFixtures(project(":shared-kernel:connector-observability")))
 }
